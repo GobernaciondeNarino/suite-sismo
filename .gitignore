@@ -1,0 +1,19 @@
+# Dependencias y artefactos
+node_modules/
+vendor/
+*.log
+*.zip
+*.tar.gz
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Datos temporales de trabajo
+tmp/
+*.bak

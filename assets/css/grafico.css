@@ -1,0 +1,204 @@
+/* =====================================================================
+   [sismos_grafico] — tarjeta de gráfico D3plus con barra de herramientas.
+   A diferencia de los shortcodes minimalistas (.sis), este componente ES una
+   tarjeta autocontenida (figure) con su propio chrome y temas, re-tematizable
+   con los tokens --sis-g-*.
+   ===================================================================== */
+.sis-g {
+  --sis-g-bg:       #ffffff;
+  --sis-g-surface:  #f8fafc;
+  --sis-g-border:   #e2e8f0;
+  --sis-g-ink:      #0f172a;
+  --sis-g-soft:     #64748b;
+  --sis-g-accent:   #003087;
+  --sis-g-accent-2: #0080C3;
+  --sis-g-success:  #16a34a;
+
+  margin: 16px 0;
+  background: var(--sis-g-bg);
+  color: var(--sis-g-ink);
+  border: 1px solid var(--sis-g-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 18px rgba(15, 23, 42, .06);
+  overflow: hidden;
+}
+.sis-g * { box-sizing: border-box; }
+
+/* Tema oscuro: solo redefine variables. */
+.sis-g--dark {
+  --sis-g-bg:      #0f172a;
+  --sis-g-surface: #1e293b;
+  --sis-g-border:  #334155;
+  --sis-g-ink:     #f8fafc;
+  --sis-g-soft:    #94a3b8;
+}
+
+/* Título con punto de color. */
+.sis-g__title {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  background: linear-gradient(180deg, var(--sis-g-surface), var(--sis-g-bg));
+  border-bottom: 1px solid var(--sis-g-border);
+}
+.sis-g__title::before {
+  content: "";
+  display: inline-block;
+  width: 10px; height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--sis-g-accent);
+  box-shadow: 0 0 0 3px rgba(0, 48, 135, .18);
+}
+
+/* Barra de herramientas. */
+.sis-g__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--sis-g-surface);
+  border-bottom: 1px solid var(--sis-g-border);
+}
+.sis-g__action,
+.sis-g__swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sis-g-ink);
+  cursor: pointer;
+  position: relative;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.sis-g__action .dashicons,
+.sis-g__swap .dashicons { color: var(--sis-g-accent-2); font-size: 18px; width: 18px; height: 18px; }
+.sis-g__action:hover,
+.sis-g__swap:hover { background: var(--sis-g-bg); border-color: var(--sis-g-border); transform: translateY(-1px); }
+.sis-g__action:focus-visible,
+.sis-g__swap:focus-within { outline: 2px solid var(--sis-g-accent-2); outline-offset: 1px; }
+.sis-g__action.is-success { color: var(--sis-g-success); }
+.sis-g__action.is-success .dashicons { color: var(--sis-g-success); }
+
+/* «Cambiar» es un select invisible sobre el botón. */
+.sis-g__swap { padding-right: 22px; }
+.sis-g__swap select {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: 0;
+}
+.sis-g__caret { position: absolute; right: 8px; pointer-events: none; color: var(--sis-g-soft); font-size: 11px; }
+
+/* Área del gráfico. */
+.sis-g__chart { padding: 12px; position: relative; transition: opacity .2s ease; }
+.sis-g__chart svg { max-width: 100%; height: auto; }
+.sis-g__chart.is-loading { opacity: .55; }
+.sis-g__chart.is-loading::after {
+  content: "Cargando…";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sis-g-soft); font-size: 14px;
+}
+
+/* Textos de análisis. */
+.sis-g__analisis { padding: 4px 16px 12px; border-top: 1px solid var(--sis-g-border); margin-top: 4px; }
+.sis-g__analisis-desc { font-size: 13px; line-height: 1.55; color: var(--sis-g-soft); margin: .35em 0; }
+.sis-g__analisis-num { font-size: 13px; line-height: 1.55; color: var(--sis-g-ink); font-weight: 600; margin: .35em 0; }
+.sis-g__analisis-titulo { font-size: 14px; font-weight: 700; color: var(--sis-g-ink); margin: 0 0 .15em; }
+.sis-g__pred-etq {
+  display: inline-block;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+  color: #6d28d9; background: #f3e8ff;
+  border-radius: 999px; padding: 2px 9px;
+  margin: .5em 0 .2em;
+}
+.sis-g__analisis-pred {
+  font-size: 13px; line-height: 1.55;
+  color: var(--sis-g-ink);
+  margin: .2em 0;
+  border-left: 3px solid #9b59b6;
+  padding-left: 10px;
+}
+
+/* Bloque de análisis independiente ([sismos_analisis] y afines). */
+.sis-analisis-bloque {
+  --sis-g-bg:       #ffffff;
+  --sis-g-border:   #e2e8f0;
+  --sis-g-ink:      #0f172a;
+  --sis-g-soft:     #475569;
+  --sis-g-accent:   #003087;
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: var(--sis-g-bg);
+  border: 1px solid var(--sis-g-border);
+  border-left: 4px solid var(--sis-g-accent);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+.sis-analisis-bloque .sis-skeleton { padding: 0; }
+
+/* Panel composable. */
+.sis-panel {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+/* Pie y skeleton dentro de la tarjeta. */
+.sis-g .sis-skeleton,
+.sis-g .sis-fuentes { padding-left: 16px; padding-right: 16px; }
+.sis-g .sis-error { margin: 12px 16px; }
+
+/* Modal reutilizable (Cómo funciona / Detalle / Datos). */
+.sis-g__modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; }
+.sis-g__modal[hidden] { display: none; }
+.sis-g__modal-back { position: absolute; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px); }
+.sis-g__modal-panel {
+  position: relative;
+  width: min(760px, 92vw);
+  max-height: 85vh;
+  display: flex; flex-direction: column;
+  background: var(--sis-g-bg, #fff);
+  color: var(--sis-g-ink, #0f172a);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, .35);
+  overflow: hidden;
+}
+.sis-g__modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sis-g-border, #e2e8f0);
+  background: var(--sis-g-surface, #f8fafc);
+}
+.sis-g__modal-x { font-size: 22px; line-height: 1; background: none; border: 0; cursor: pointer; color: var(--sis-g-soft, #64748b); }
+.sis-g__modal-body { padding: 14px 16px; overflow: auto; }
+
+.sis-g__dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: .6em 0 0; font-size: 14px; }
+.sis-g__dl dt { color: var(--sis-g-soft, #64748b); }
+.sis-g__dl dd { margin: 0; }
+
+.sis-g__tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sis-g__tabla th, .sis-g__tabla td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--sis-g-border, #e2e8f0); }
+.sis-g__tabla thead th { position: sticky; top: 0; background: var(--sis-g-surface, #f8fafc); }
+.sis-g__tabla tbody tr:nth-child(odd) { background: rgba(248, 250, 252, .55); }
+
+@media (max-width: 640px) {
+  .sis-g__title { font-size: 14px; }
+  .sis-g__action-txt { display: none; }
+  .sis-g__dl { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sis-g__action, .sis-g__swap, .sis-g__chart { transition: none; }
+}

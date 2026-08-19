@@ -1,0 +1,213 @@
+/* =====================================================================
+   Sismos Nariño — estilos MINIMALISTAS del front.
+
+   Filosofía: los shortcodes NO imponen chrome propio (sin bordes, sombras,
+   franjas ni fondo) para fundirse con la página anfitriona. Todo se controla
+   con variables CSS `--sis-*` que el módulo de Apariencia o los atributos del
+   shortcode pueden ajustar. Solo los colores semánticos del dominio (magnitud
+   y profundidad) son fijos: codifican información, no estilo.
+
+   Paleta institucional: azul profundo #003087 · amarillo #FFD500 ·
+   verde #10A13B. Escala técnica de magnitud: #0080C3 → #C0392B.
+   ===================================================================== */
+
+/* Contenedor de todo shortcode. */
+.sis {
+  background: var(--sis-fondo, transparent);
+  color: var(--sis-texto, inherit);
+  font-family: var(--sis-tipografia, inherit);
+  border: var(--sis-borde, none);
+  border-radius: var(--sis-borde-radio, 0);
+  box-shadow: var(--sis-sombra, none);
+  max-width: var(--sis-ancho-max, 100%);
+  padding: var(--sis-espaciado, 0);
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+.sis * { box-sizing: border-box; }
+
+/* Tipografía interna mínima. */
+.sis-titulo { font-weight: 600; margin: 0 0 .4em; }
+.sis-analisis { font-size: .95em; margin: .6em 0 0; }
+.sis-fuentes { font-size: .75em; color: var(--sis-mute, #6b7280); margin: .7em 0 0; }
+.sis-mute-line { color: var(--sis-mute, #6b7280); }
+
+/* Carga y error. */
+.sis-skeleton { color: var(--sis-mute, #6b7280); font-size: .9em; padding: .6em 0; }
+.sis-error { color: #c62828; font-size: .92em; margin: 0 0 .4em; }
+.sis-error p { margin: 0 0 .4em; }
+
+/* Botón / control: único elemento con borde (afordancia). */
+.sis-btn {
+  display: inline-block;
+  cursor: pointer;
+  font: inherit;
+  font-size: .9em;
+  line-height: 1.2;
+  padding: .45em .9em;
+  border: 1px solid var(--sis-borde-color, #d8dbe0);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+.sis-btn:hover { border-color: var(--sis-acento, #003087); }
+.sis-btn--primario {
+  background: var(--sis-acento, #003087);
+  border-color: var(--sis-acento, #003087);
+  color: #fff;
+}
+.sis-btn:disabled { opacity: .55; cursor: default; }
+
+/* Chip semántico (nivel, estado de fuente). */
+.sis-chip {
+  display: inline-block;
+  padding: .12em .6em;
+  border-radius: 999px;
+  color: #fff;
+  font-size: .82em;
+  font-weight: 600;
+}
+
+/* --- [sismos_estado] --- */
+.sis-estado__cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sis-estado__mag { font-size: 2.4em; font-weight: 700; line-height: 1; }
+.sis-estado__mag-etq { font-size: .85em; color: var(--sis-mute, #6b7280); }
+.sis-estado__info { margin: .5em 0; }
+.sis-estado__lugar { font-weight: 600; margin: 0; }
+.sis-estado__meta { font-size: .88em; color: var(--sis-mute, #6b7280); margin: .15em 0; }
+.sis-estado__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: .8em 0 .2em;
+}
+.sis-estado__celda { display: flex; flex-direction: column; }
+.sis-estado__cifra { font-size: 1.5em; font-weight: 700; line-height: 1.1; }
+.sis-estado__etq { font-size: .78em; color: var(--sis-mute, #6b7280); }
+
+/* --- [sismos_ultimos] --- */
+.sis-ultimos__lista { list-style: none; margin: 0; padding: 0; }
+.sis-ultimos__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: .5em 0;
+  border-bottom: 1px solid var(--sis-borde-color, #e5e7eb);
+}
+.sis-ultimos__item.is-nuevo { animation: sis-destello 1.6s ease-out 1; }
+@keyframes sis-destello { from { background: rgba(255, 213, 0, .35); } to { background: transparent; } }
+.sis-ultimos__mag {
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: .95em;
+  padding: .25em .4em;
+  border-radius: 6px;
+}
+.sis-ultimos__txt { display: flex; flex-direction: column; min-width: 0; }
+.sis-ultimos__lugar { font-size: .95em; }
+.sis-ultimos__lugar a { color: inherit; }
+.sis-ultimos__meta { font-size: .8em; color: var(--sis-mute, #6b7280); }
+.sis-ultimos__vacio { color: var(--sis-mute, #6b7280); font-size: .9em; }
+
+/* --- [sismos_mapa] --- */
+.sis-mapa__lienzo { width: 100%; border-radius: var(--sis-borde-radio, 0); z-index: 0; }
+.sis-mapa__leyenda {
+  background: rgba(255, 255, 255, .92);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .18);
+}
+.sis-mapa__sw {
+  display: inline-block;
+  width: 10px; height: 10px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+/* --- [sismos_estadistica] --- */
+.sis-est__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: .4em 0 1em;
+}
+.sis-est__celda { display: flex; flex-direction: column; }
+.sis-est__cifra { font-size: 1.6em; font-weight: 700; line-height: 1.1; color: var(--sis-acento, #003087); }
+.sis-est__etq { font-size: .8em; color: var(--sis-mute, #6b7280); }
+
+/* --- [sismos_pronostico] --- */
+.sis-pron__cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sis-pron__etq {
+  font-size: .72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6d28d9;
+  background: #f3e8ff;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.sis-pron__ventana { font-size: .88em; color: var(--sis-mute, #6b7280); }
+.sis-pron__cifra { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: .5em 0; }
+.sis-pron__num { font-size: 2.6em; font-weight: 700; line-height: 1; color: var(--sis-acento, #003087); }
+.sis-pron__num-etq { font-size: .9em; color: var(--sis-mute, #6b7280); max-width: 380px; }
+.sis-pron__cambio { font-size: .88em; margin: .2em 0 .6em; padding-left: 10px; border-left: 3px solid var(--sis-mute, #6b7280); }
+.sis-pron__cambio--sube { border-left-color: #FF7300; }
+.sis-pron__cambio--baja { border-left-color: #3EBA6A; }
+.sis-pron__h { font-size: 1em; margin: 1em 0 .4em; }
+.sis-pron__grafico { margin: .6em 0; }
+.sis-pron__grafico svg { width: 100%; height: auto; }
+.sis-pron__mmax { font-size: .92em; margin: .6em 0; }
+.sis-pron__aviso {
+  font-size: .82em;
+  color: var(--sis-mute, #6b7280);
+  border-left: 3px solid var(--sis-acento-2, #FFD500);
+  padding-left: 10px;
+  margin-top: 1em;
+}
+.sis-pron__barra {
+  display: inline-block;
+  width: 90px; height: 8px;
+  background: var(--sis-borde-color, #e5e7eb);
+  border-radius: 999px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.sis-pron__barra-in { display: block; height: 100%; }
+.sis-pron__pct { font-variant-numeric: tabular-nums; }
+
+/* --- [sismos_filtro] --- */
+.sis-filtro { display: inline-flex; align-items: center; gap: 8px; margin: 6px 10px 6px 0; }
+.sis-filtro__label { font-size: .85em; color: var(--sis-mute, #6b7280); }
+.sis-filtro__select {
+  font: inherit;
+  font-size: .9em;
+  padding: .35em .6em;
+  border: 1px solid var(--sis-borde-color, #d8dbe0);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  max-width: 260px;
+}
+
+/* Gráfico SVG propio (fichas sin D3plus). */
+.sis-grafico { width: 100%; height: auto; display: block; }
+
+@media (max-width: 640px) {
+  .sis-estado__mag { font-size: 2em; }
+  .sis-pron__num { font-size: 2.1em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sis-btn, .sis-ultimos__item { transition: none; animation: none; }
+}
