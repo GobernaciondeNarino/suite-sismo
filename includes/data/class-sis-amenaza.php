@@ -101,6 +101,77 @@ final class SIS_Amenaza {
 	}
 
 	/**
+	 * Capas oficiales de amenaza sísmica del SGC, servidas por WMS.
+	 *
+	 * Son el Modelo Nacional de Amenaza Sísmica (SGC – Universidad Nacional):
+	 * aceleración horizontal máxima en roca para distintos periodos de retorno.
+	 * La plataforma las MUESTRA con su atribución; no las recalcula ni deriva
+	 * de ellas ninguna cifra propia.
+	 *
+	 * El servicio publica EPSG:4326 y CRS:84, no Web Mercator. Leaflet resuelve
+	 * la reproyección al pedir las teselas en EPSG:4326; a la latitud de Nariño
+	 * (0°–3° N) la diferencia frente a Mercator es inferior al 0,05 %.
+	 *
+	 * @return array[] {clave, periodo, nombre, excedencia, url, capa}
+	 */
+	public static function capas_wms() {
+		$base = 'https://srvags.sgc.gov.co/arcgis/services/Amenaza_Sismica/Mapa_Amenaza_Sismica_Nacional_PGA';
+
+		$periodos = array(
+			'75'   => array( 'excedencia' => '50 %', 'nombre' => 'Amenaza sísmica — periodo de retorno de 75 años' ),
+			'225'  => array( 'excedencia' => '20 %', 'nombre' => 'Amenaza sísmica — periodo de retorno de 225 años' ),
+			'475'  => array( 'excedencia' => '10 %', 'nombre' => 'Amenaza sísmica — periodo de retorno de 475 años' ),
+			'975'  => array( 'excedencia' => '5 %', 'nombre' => 'Amenaza sísmica — periodo de retorno de 975 años' ),
+			'2475' => array( 'excedencia' => '2 %', 'nombre' => 'Amenaza sísmica — periodo de retorno de 2.475 años' ),
+		);
+
+		$out = array();
+		foreach ( $periodos as $periodo => $meta ) {
+			$out[] = array(
+				'clave'      => 'pga_' . $periodo,
+				'periodo'    => (int) $periodo,
+				'nombre'     => $meta['nombre'],
+				'excedencia' => $meta['excedencia'],
+				'etiqueta'   => sprintf(
+					'%s de probabilidad de excedencia en 50 años',
+					$meta['excedencia']
+				),
+				'url'        => $base . $periodo . '/MapServer/WMSServer',
+				'capa'       => '0',
+				'atribucion' => 'Amenaza: Servicio Geológico Colombiano — Modelo Nacional de Amenaza Sísmica',
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Periodo de retorno por defecto de la capa de amenaza.
+	 * 475 años (10 % de excedencia en 50 años) es el nivel de diseño que usa
+	 * la norma sismo resistente colombiana.
+	 *
+	 * @return int
+	 */
+	public static function periodo_defecto() {
+		return 475;
+	}
+
+	/**
+	 * Capa de amenaza correspondiente a un periodo de retorno.
+	 *
+	 * @param int|string $periodo Periodo de retorno en años.
+	 * @return array
+	 */
+	public static function capa_wms( $periodo ) {
+		$periodo = (int) $periodo;
+		foreach ( self::capas_wms() as $capa ) {
+			if ( $capa['periodo'] === $periodo ) {
+				return $capa;
+			}
+		}
+		return self::capa_wms( self::periodo_defecto() );
+	}
+
+	/**
 	 * Glosario que separa cuatro conceptos que suelen confundirse (marco USGS).
 	 *
 	 * @return array[] {termino, definicion, ejemplo, es_posible}
@@ -279,6 +350,7 @@ final class SIS_Amenaza {
 			'normativa'   => self::normativa(),
 			'replicas'    => self::replicas(),
 			'senales'     => self::senales_falsas(),
+			'capas_wms'   => self::capas_wms(),
 			'marco_legal' => 'Ley 1523 de 2012: la gestión del riesgo se compone de conocimiento del riesgo, reducción del riesgo y manejo de desastres. Esta plataforma corresponde al primero de esos procesos.',
 			'generado'    => gmdate( 'c' ),
 		);

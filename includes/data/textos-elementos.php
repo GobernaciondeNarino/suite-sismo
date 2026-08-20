@@ -31,9 +31,9 @@ return array(
 	array(
 		'shortcode' => '[sismos_mapa]',
 		'titulo'    => 'Mapa de epicentros',
-		'que_hace'  => 'Mapa Leaflet con un círculo por sismo: el tamaño codifica la magnitud y el color la profundidad. Puede superponer los centroides de los 64 municipios de Nariño.',
-		'atributos' => 'ambito · dias · anios · min_mag · alto · municipios (si|no) · zoom',
-		'ejemplo'   => '[sismos_mapa ambito="regional" anios="5" min_mag="4.5" alto="520px"]',
+		'que_hace'  => 'Mapa Leaflet con un círculo por sismo: el tamaño codifica la magnitud y el color la profundidad. Superpone la capa oficial de amenaza sísmica del SGC (Modelo Nacional de Amenaza Sísmica) y, si se desea, los centroides de los 64 municipios. La amenaza no se calcula: se muestra la capa oficial con su atribución.',
+		'atributos' => 'ambito · dias · anios · min_mag · alto · municipios (si|no) · amenaza (si|no) · periodo (75|225|475|975|2475) · zoom',
+		'ejemplo'   => '[sismos_mapa ambito="regional" anios="5" min_mag="4.5" amenaza="si" periodo="475" alto="520px"]',
 	),
 
 	array(

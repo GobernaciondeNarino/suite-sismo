@@ -50,8 +50,11 @@ $identificadores = array(
 $frases = array(
 	'/sismos esperados/i',
 	'/se espera(?:n|rá)?\s+(?:al menos\s+)?\d/i',
-	'/probabilidad[^.]{0,80}\d+(?:[.,]\d+)?\s*%/iu',
+	// La probabilidad de EXCEDENCIA en 50 años es la etiqueta oficial de los
+	// mapas de amenaza del SGC: es legítima y la plataforma solo la muestra.
+	'/probabilidad(?![^.]{0,40}excedencia)[^.]{0,80}\d+(?:[.,]\d+)?\s*%/iu',
 	'/\d+(?:[.,]\d+)?\s*%[^.]{0,80}de que ocurra/iu',
+	'/\d+(?:[.,]\d+)?\s*%(?![^.]{0,40}excedencia)[^.]{0,60}(?:próximos|siguiente[ns]?)\s+(?:días|semanas|meses|años)/iu',
 	'/en los próximos (?:seis|6) meses (?:se|hay|ocurrir)/i',
 	'/pronóstico a \d+ meses/i',
 );

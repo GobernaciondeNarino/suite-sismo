@@ -29,7 +29,8 @@ Sin proceso de build: D3plus y Leaflet se cargan por CDN. Requiere WordPress 5.8
 |---|---|---|
 | [USGS FDSN Event Web Service](https://earthquake.usgs.gov/fdsnws/event/1/) | Motor principal. Catálogo histórico en GeoJSON nativo, sin clave de API, recortado por recuadro o radio | Cron cada 12 h |
 | [Feeds GeoJSON de resumen](https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/) | Sismicidad reciente. CORS abierto: lo consume el servidor por cron **y** el navegador directamente | Cron cada hora · navegador cada 2 min (el feed se regenera cada ~1 min) |
-| [SGC](https://amenazasismica.sgc.gov.co/) — amenaza, sismos recientes, sismos sentidos, catálogo integrado, OVSP | Autoridad técnica: la plataforma **enlaza**, no replica ni recalcula | Enlace permanente |
+| [SGC — Modelo Nacional de Amenaza Sísmica](https://amenazasismica.sgc.gov.co/) | Capa oficial de amenaza superpuesta en el mapa vía WMS (`srvags.sgc.gov.co`), en cinco periodos de retorno. La plataforma **muestra** la capa con su atribución; no la recalcula | En vivo desde el servicio del SGC |
+| SGC — sismos recientes, sismos sentidos, catálogo integrado, OVSP | Autoridad técnica: la plataforma **enlaza**, no replica | Enlace permanente |
 | DANE / DIVIPOLA | Centroides de los 64 municipios, para asignar cada epicentro al municipio más cercano | Estático |
 
 Los datos del USGS son de **dominio público**; la elaboración de la Gobernación se publica bajo **CC BY 4.0**.
@@ -55,7 +56,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 |---|---|---|
 | `[sismos_estado]` | Semáforo de actividad: último sismo, conteos 24 h / 7 d / 30 d / 1 año, municipio más cercano | `ambito`, `dias`, `min_mag`, `compacto`, `vivo` |
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
-| `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) + centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `zoom` |
+| `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
 | `[sismos_datos]` | Botones de datos abiertos (JSON / CSV / Ver API) | `recurso`, `ambito`, `anios`, `dias`, `min_mag`, `texto` |
@@ -79,7 +80,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 ```
 [sismos_estado ambito="narino"]
 [sismos_ultimos limite="8"]
-[sismos_mapa ambito="regional" anios="5" min_mag="4.5" alto="520px"]
+[sismos_mapa ambito="regional" anios="5" min_mag="4.5" amenaza="si" periodo="475"]
 
 [sismos_grafico view="sismos_mensuales" type="bar"]
 [sismos_grafico view="frecuencia_magnitud" type="line" alto="460px"]
@@ -129,7 +130,7 @@ Cada vista trae, calculados sobre los datos vigentes: descripción, interpretaci
 
 ## Qué se publica y qué no
 
-**Sí** — estadística retrospectiva del catálogo, contexto de amenaza, glosario, guía post-sismo, panel anti-desinformación, preparación ciudadana y enlaces oficiales.
+**Sí** — estadística retrospectiva del catálogo, **capa oficial de amenaza del SGC** (probabilidad de excedencia en 50 años, calculada por el SGC y mostrada con su atribución), contexto de amenaza, glosario, guía post-sismo, panel anti-desinformación, preparación ciudadana y enlaces oficiales.
 
 **No** — predicciones, probabilidades propias de ocurrencia futura, pronósticos de réplicas, cuentas regresivas, «el próximo gran sismo» ni nada que sugiera que la plataforma avisará antes de un sismo.
 

@@ -1,6 +1,9 @@
 /* [sismos_mapa] — mapa de epicentros con Leaflet.
    Círculo por sismo: el radio codifica la magnitud y el color la profundidad.
-   Opcionalmente dibuja los centroides de los 64 municipios de Nariño. */
+   Sobre la base puede superponerse la capa oficial de amenaza sísmica del SGC
+   (Modelo Nacional de Amenaza Sísmica, servida por WMS) y los centroides de
+   los 64 municipios de Nariño. La amenaza NO se calcula aquí: se muestra la
+   capa oficial con su atribución. */
 (function () {
   'use strict';
   var C = window.SIScore;
@@ -15,6 +18,8 @@
     var q = C.consulta(box);
     var lienzo = box.querySelector('.sis-mapa__lienzo');
     var conMunicipios = box.getAttribute('data-municipios') !== '0';
+    var conAmenaza = box.getAttribute('data-amenaza') !== '0';
+    var periodo = parseInt(box.getAttribute('data-periodo') || '475', 10);
     var zoomFijo = parseInt(box.getAttribute('data-zoom') || '0', 10);
 
     var a = C.ambito(q.ambito) || {};
@@ -23,7 +28,7 @@
       : [((a.lat_min + a.lat_max) / 2) || 1.2, ((a.lon_min + a.lon_max) / 2) || -77.5];
 
     var mapa = L.map(lienzo, { scrollWheelZoom: false }).setView(centro, zoomFijo || 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    var base = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 12,
       attribution: '© OpenStreetMap · Sismos: USGS'
     }).addTo(mapa);
@@ -32,7 +37,24 @@
       mapa.fitBounds([[a.lat_min, a.lon_min], [a.lat_max, a.lon_max]]);
     }
 
-    if (conMunicipios) { pintarMunicipios(mapa); }
+    var superpuestas = {};
+
+    if (conAmenaza) {
+      var capa = capaAmenaza(periodo);
+      if (capa) {
+        capa.wms.addTo(mapa);
+        superpuestas[capa.etiqueta] = capa.wms;
+      }
+    }
+
+    if (conMunicipios) {
+      superpuestas['Municipios de Nariño'] = pintarMunicipios(mapa);
+    }
+
+    if (Object.keys(superpuestas).length) {
+      L.control.layers({ 'Mapa base': base }, superpuestas, { collapsed: true }).addTo(mapa);
+    }
+
     cargar();
 
     function cargar() {
@@ -73,9 +95,33 @@
     });
   }
 
+  /** Capa oficial de amenaza del SGC (WMS).
+      El servicio publica EPSG:4326, no Web Mercator: se pide en esa proyección
+      y Leaflet invierte los ejes como exige WMS 1.3.0. A la latitud de Nariño
+      la diferencia frente a Mercator es inferior al 0,05 %. */
+  function capaAmenaza(periodo) {
+    var capas = C.cfg.capasWms || [];
+    var def = null;
+    capas.forEach(function (c) { if (c.periodo === periodo) { def = c; } });
+    if (!def && capas.length) { def = capas[0]; }
+    if (!def) { return null; }
+
+    var wms = L.tileLayer.wms(def.url, {
+      layers: def.capa,
+      format: 'image/png',
+      transparent: true,
+      version: '1.3.0',
+      crs: L.CRS.EPSG4326,
+      opacity: 0.55,
+      attribution: def.atribucion
+    });
+
+    return { wms: wms, etiqueta: 'Amenaza sísmica · ' + def.etiqueta };
+  }
+
   function pintarMunicipios(mapa) {
+    var capa = L.layerGroup().addTo(mapa);
     C.rest('/municipios').then(function (r) {
-      var capa = L.layerGroup().addTo(mapa);
       (r.municipios || []).forEach(function (m) {
         capa.addLayer(
           L.circleMarker([m.lat, m.lon], {
@@ -84,6 +130,7 @@
         );
       });
     }).catch(function () { /* la capa municipal es opcional */ });
+    return capa;
   }
 
   function leyenda(mapa) {
@@ -96,7 +143,8 @@
         fila('#FFC53B', '4,5 – 5,4') + fila('#FF7300', '5,5 – 6,4') +
         fila('#C0392B', '6,5 o más') +
         '<br><strong>Borde: profundidad</strong><br>' +
-        fila('#C0392B', 'superficial') + fila('#FF7300', 'intermedia') + fila('#0080C3', 'profunda');
+        fila('#C0392B', 'superficial') + fila('#FF7300', 'intermedia') + fila('#0080C3', 'profunda') +
+        '<br><span class="sis-mapa__nota">Fondo: amenaza sísmica del SGC<br>(aceleración en roca, capa oficial)</span>';
       return div;
     };
     ctrl.addTo(mapa);

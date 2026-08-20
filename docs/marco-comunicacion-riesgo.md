@@ -35,12 +35,13 @@ Este cuadro se publica de cara al público con el shortcode `[sismos_glosario]`.
 ## 4. Qué sí publica la plataforma
 
 1. **Estadística retrospectiva del catálogo** (USGS): sismicidad por mes y por año, distribución de magnitudes y profundidades, energía liberada, relación de Gutenberg-Richter y **recurrencia observada** por umbral de magnitud. Todo describe lo ocurrido en la ventana consultada.
-2. **Contexto de amenaza** (`[sismos_amenaza]`): subducción Nazca/Malpelo frente al Pacífico, fallas activas continentales, vulcanismo y amenaza por tsunami, con la referencia normativa NSR-10 y enlace al sistema de consulta de amenaza del SGC.
-3. **Glosario** (`[sismos_glosario]`): el cuadro de la sección anterior.
-4. **Guía post-sismo** (`[sismos_replicas]`): qué son las réplicas, cuánto duran y qué hacer. Texto fijo, sin cifras propias, con enlace al boletín oficial.
-5. **Panel anti-desinformación** (`[sismos_desinformacion]`): cómo reconocer una predicción falsa.
-6. **Preparación ciudadana** (`[sismos_preparacion]`): antes, durante, después, kit y organización comunitaria.
-7. **Directorio oficial** (`[sismos_fuentes_oficiales]`) y **descargo institucional** en todos los componentes de amenaza.
+2. **Capa oficial de amenaza** (`[sismos_mapa amenaza="si"]`): el Modelo Nacional de Amenaza Sísmica del SGC, superpuesto por WMS en cinco periodos de retorno (75, 225, 475, 975 y 2.475 años), etiquetado con su probabilidad de excedencia en 50 años y con la atribución del SGC. La plataforma muestra la capa oficial; no la recalcula ni deriva de ella cifras propias.
+3. **Contexto de amenaza** (`[sismos_amenaza]`): subducción Nazca/Malpelo frente al Pacífico, fallas activas continentales, vulcanismo y amenaza por tsunami, con la referencia normativa NSR-10 y enlace al sistema de consulta de amenaza del SGC.
+4. **Glosario** (`[sismos_glosario]`): el cuadro de la sección anterior.
+5. **Guía post-sismo** (`[sismos_replicas]`): qué son las réplicas, cuánto duran y qué hacer. Texto fijo, sin cifras propias, con enlace al boletín oficial.
+6. **Panel anti-desinformación** (`[sismos_desinformacion]`): cómo reconocer una predicción falsa.
+7. **Preparación ciudadana** (`[sismos_preparacion]`): antes, durante, después, kit y organización comunitaria.
+8. **Directorio oficial** (`[sismos_fuentes_oficiales]`) y **descargo institucional** en todos los componentes de amenaza.
 
 ## 5. Reglas de redacción para cualquier contribución
 

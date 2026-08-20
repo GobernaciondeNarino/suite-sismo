@@ -85,6 +85,7 @@ final class SIS_Shortcodes {
 			'feed'      => SIS_Sync_Feed::BASE,
 			'ambito'    => SIS_Regiones::por_defecto(),
 			'ambitos'   => SIS_Regiones::lista(),
+			'capasWms'  => SIS_Amenaza::capas_wms(),
 		) );
 
 		// Motor de gráficos (3 capas: shortcode → hidratador → renderer).
@@ -510,7 +511,13 @@ final class SIS_Shortcodes {
 	public function sc_mapa( $atts ) {
 		$atts = $this->fusionar( array_merge(
 			$this->defaults_consulta(),
-			array( 'alto' => '460px', 'municipios' => 'si', 'zoom' => '' )
+			array(
+				'alto'       => '460px',
+				'municipios' => 'si',
+				'zoom'       => '',
+				'amenaza'    => 'si',
+				'periodo'    => '475',
+			)
 		), $atts, 'sismos_mapa' );
 
 		wp_enqueue_style( 'sis-estilos' );
@@ -527,11 +534,13 @@ final class SIS_Shortcodes {
 			data-sis-mapa
 			data-alto="<?php echo esc_attr( $alto ); ?>"
 			data-municipios="<?php echo esc_attr( 'no' === $atts['municipios'] ? '0' : '1' ); ?>"
+			data-amenaza="<?php echo esc_attr( 'no' === $atts['amenaza'] ? '0' : '1' ); ?>"
+			data-periodo="<?php echo esc_attr( (int) SIS_Amenaza::capa_wms( $atts['periodo'] )['periodo'] ); ?>"
 			data-zoom="<?php echo esc_attr( preg_replace( '/[^0-9]/', '', (string) $atts['zoom'] ) ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<div class="sis-mapa__lienzo" style="height:<?php echo esc_attr( $alto ); ?>"></div>
 			<?php echo $this->skeleton( __( 'Cargando el mapa de epicentros…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'USGS · Cartografía base OpenStreetMap · Centroides municipales DANE' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'Sismos: USGS · Amenaza: Servicio Geológico Colombiano (Modelo Nacional de Amenaza Sísmica) · Base: OpenStreetMap · Municipios: DANE' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

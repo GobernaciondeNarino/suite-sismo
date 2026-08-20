@@ -221,3 +221,6 @@
 @media (max-width: 640px) {
   .sis-dl { grid-template-columns: 1fr; }
 }
+
+/* Nota de la capa oficial dentro de la leyenda del mapa. */
+.sis-mapa__nota { color: #475569; font-size: 10px; line-height: 1.35; display: inline-block; margin-top: 4px; }
