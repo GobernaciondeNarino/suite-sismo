@@ -3,9 +3,12 @@
  * Generación de texto analítico a partir de los datos (no plantillas huecas).
  *
  * Cada párrafo se calcula con las cifras reales de la vista: máximos, medias,
- * tendencias, participaciones y probabilidades. Así el texto que acompaña a un
- * gráfico cambia cuando cambian los datos, y nunca afirma algo que el dato no
- * respalde. Todo va en español de Colombia y con la incertidumbre explícita.
+ * tendencias y participaciones. Así el texto que acompaña a un gráfico cambia
+ * cuando cambian los datos, y nunca afirma algo que el dato no respalde.
+ *
+ * Todos los enunciados son RETROSPECTIVOS: describen lo ocurrido en la ventana
+ * consultada. Ninguno anticipa sismos futuros ni sugiere plazos, porque eso
+ * sería una predicción y no es posible hacerla.
  *
  * @package SismosNarino
  */
@@ -214,83 +217,37 @@ final class SIS_Texto {
 	}
 
 	/**
-	 * Narrativa del pronóstico a 6 meses ([sismos_pronostico]).
+	 * Narrativa de la recurrencia observada por umbral de magnitud.
 	 *
-	 * @param array $p Salida de SIS_Forecast::pronostico().
-	 * @return array {resumen, probabilidades, metodo, advertencia, cambio}
+	 * @param array $resumen Salida de SIS_Estadistica::resumen().
+	 * @return string
 	 */
-	public static function pronostico( $p ) {
-		if ( empty( $p['meses'] ) ) {
-			return array(
-				'resumen'       => isset( $p['mensaje'] ) ? $p['mensaje'] : 'Sin pronóstico disponible.',
-				'probabilidades'=> '',
-				'metodo'        => '',
-				'advertencia'   => isset( $p['limitaciones'] ) ? $p['limitaciones'] : '',
-				'cambio'        => '',
-			);
+	public static function recurrencia( $resumen ) {
+		if ( empty( $resumen['umbrales'] ) ) {
+			return 'El catálogo disponible no alcanza para describir la recurrencia por magnitud en esta ventana.';
 		}
 
-		$b     = $p['base'];
-		$total = $p['total'];
-
-		$resumen = sprintf(
-			'Entre %s y %s se esperan alrededor de %s sismos de magnitud %s o mayor en %s, con un rango probable de %s a %s al 90%% de confianza. La estimación parte de %s sismos catalogados en %s años, con una magnitud de completitud de %s y un valor b de %s ± %s.',
-			SIS_Catalogo::mes_legible( $p['ventana']['desde'] ),
-			SIS_Catalogo::mes_legible( $p['ventana']['hasta'] ),
-			self::num( $total['esperados'], 1 ),
-			self::num( $b['mc'], 1 ),
-			SIS_Regiones::obtener( $p['ambito'] )['nombre'],
-			self::num( $total['banda_min'], 1 ),
-			self::num( $total['banda_max'], 1 ),
-			self::num( $b['n_completos'] ),
-			self::num( $b['anios_catalogo'], 1 ),
-			self::num( $b['mc'], 1 ),
-			self::num( $b['b'], 2 ),
-			self::num( $b['b_error'], 2 )
-		);
-
 		$frases = array();
-		foreach ( $p['umbrales'] as $u ) {
-			if ( $u['magnitud'] < 5.0 ) {
+		foreach ( $resumen['umbrales'] as $u ) {
+			if ( $u['observados'] < 1 ) {
+				$frases[] = sprintf(
+					'de magnitud %s o mayor no se registró ninguno',
+					self::num( $u['magnitud'], 1 )
+				);
 				continue;
 			}
 			$frases[] = sprintf(
-				'%s de que ocurra al menos un sismo de magnitud %s o mayor',
-				self::pct( $u['probabilidad'] ),
-				self::num( $u['magnitud'], 1 )
-			);
-		}
-		$probabilidades = $frases
-			? 'En esos seis meses hay ' . self::lista( $frases ) . '.'
-			: '';
-
-		if ( ! empty( $p['magnitud_maxima']['modal'] ) ) {
-			$probabilidades .= sprintf(
-				' El sismo más grande esperado en la ventana ronda la magnitud %s; solo en uno de cada diez escenarios se superaría la magnitud %s.',
-				self::num( $p['magnitud_maxima']['modal'], 1 ),
-				self::num( $p['magnitud_maxima']['p90'], 1 )
+				'de magnitud %s o mayor se registraron %s (uno cada %s años en promedio)',
+				self::num( $u['magnitud'], 1 ),
+				self::num( $u['observados'] ),
+				$u['intervalo_medio'] ? self::num( $u['intervalo_medio'], 1 ) : '—'
 			);
 		}
 
-		$metodo = sprintf(
-			'La tasa esperada suma tres componentes: el fondo de largo plazo de la ley de Gutenberg-Richter (%s sismos), el estado reciente proyectado con tendencia amortiguada (%s) y las réplicas pendientes de la secuencia activa (%s). El peso del estado reciente decae con el horizonte hasta revertir al fondo climatológico.',
-			self::num( $total['aporte']['fondo'], 1 ),
-			self::num( $total['aporte']['reciente'], 1 ),
-			self::num( $total['aporte']['replicas'], 1 )
-		);
-
-		if ( ! empty( $p['replicas']['activo'] ) ) {
-			$metodo .= ' ' . $p['replicas']['nota'];
-		}
-
-		$cambio = isset( $p['comparacion']['texto'] ) ? $p['comparacion']['texto'] : '';
-
-		return array(
-			'resumen'        => $resumen,
-			'probabilidades' => $probabilidades,
-			'metodo'         => $metodo,
-			'advertencia'    => $p['limitaciones'],
-			'cambio'         => $cambio,
+		return sprintf(
+			'En %s años de catálogo: %s. Son promedios de lo ya ocurrido, no un calendario: los sismos no siguen turnos, y que haya pasado el intervalo medio no hace más probable el siguiente, ni haber tenido uno recientemente lo hace menos probable.',
+			self::num( $resumen['anios'], 1 ),
+			self::lista( $frases )
 		);
 	}
 
@@ -345,6 +302,6 @@ final class SIS_Texto {
 	 * @return string
 	 */
 	public static function advertencia() {
-		return 'Ningún método científico predice hoy el lugar, la fecha y la magnitud exactos de un sismo. Lo que aquí se publica son tasas y probabilidades calculadas sobre el catálogo del USGS: sirven para planear y para dimensionar la amenaza, no para anunciar un evento. La información oficial de emergencia la emiten el Servicio Geológico Colombiano y la UNGRD.';
+		return 'Ningún método científico predice hoy la fecha, el lugar y la magnitud de un sismo, y no se espera lograrlo en el futuro previsible. Lo que aquí se publica son estadísticas de lo ya ocurrido, calculadas sobre el catálogo del USGS: sirven para entender la amenaza y para prepararse, no para anticipar un evento. La autoridad técnica es el Servicio Geológico Colombiano; el manejo de la emergencia, la UNGRD y el sistema departamental de gestión del riesgo.';
 	}
 }

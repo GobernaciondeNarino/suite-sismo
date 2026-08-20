@@ -94,11 +94,6 @@ final class SIS_Sync_Feed {
 
 		SIS_Cache::set( 'feed', $payload, $ttl, 'feed' );
 
-		// Un sismo nuevo en el área invalida el pronóstico vigente.
-		if ( $eventos ) {
-			SIS_Cache::delete_grupo( 'pronostico' );
-		}
-
 		return array(
 			'ok'        => true,
 			'registros' => count( $eventos ),

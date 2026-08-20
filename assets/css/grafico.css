@@ -202,3 +202,15 @@
 @media (prefers-reduced-motion: reduce) {
   .sis-g__action, .sis-g__swap, .sis-g__chart { transition: none; }
 }
+
+/* Aviso de alcance dentro del modal «Cómo funciona»: recuerda que el gráfico
+   describe lo ocurrido y que la autoridad técnica es el SGC. */
+.sis-g__aviso {
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: .8em 0 0;
+  padding: .6em .8em;
+  border-left: 3px solid #FFD500;
+  background: rgba(255, 213, 0, .08);
+  color: var(--sis-g-ink, #0f172a);
+}

@@ -1,5 +1,6 @@
 /* [sismos_estadistica] — ficha estadística del catálogo: completitud, valor b,
-   energía liberada y periodos de retorno por magnitud. */
+   energía liberada y recurrencia observada por magnitud.
+   Todo es retrospectivo: describe lo ya ocurrido en la ventana consultada. */
 (function () {
   'use strict';
   var C = window.SIScore;
@@ -37,18 +38,18 @@
     cuerpo.appendChild(grid);
 
     if (r.umbrales && r.umbrales.length) {
-      cuerpo.appendChild(C.el('h4', 'sis-pron__h', 'Periodo de retorno por magnitud'));
+      cuerpo.appendChild(C.el('h4', 'sis-est__h', 'Recurrencia observada por magnitud'));
       var t = C.el('table', 'sis-g__tabla');
       var th = C.el('thead');
-      th.innerHTML = '<tr><th>Magnitud</th><th>Tasa anual</th><th>Periodo de retorno</th><th>Probabilidad en 1 año</th></tr>';
+      th.innerHTML = '<tr><th>Magnitud</th><th>Sismos observados</th><th>Tasa anual observada</th><th>Intervalo medio</th></tr>';
       t.appendChild(th);
       var tb = C.el('tbody');
       r.umbrales.forEach(function (u) {
         var tr = C.el('tr');
         tr.appendChild(C.el('td', null, 'M ≥ ' + C.num(u.magnitud, 1)));
-        tr.appendChild(C.el('td', null, C.num(u.tasa_anual, 3) + ' /año'));
-        tr.appendChild(C.el('td', null, u.periodo_retorno ? C.num(u.periodo_retorno, 1) + ' años' : '—'));
-        tr.appendChild(C.el('td', null, C.num(u.prob_1_anio, 1) + '%'));
+        tr.appendChild(C.el('td', null, C.num(u.observados)));
+        tr.appendChild(C.el('td', null, C.num(u.tasa_anual_obs, 2) + ' /año'));
+        tr.appendChild(C.el('td', null, u.intervalo_medio ? C.num(u.intervalo_medio, 1) + ' años' : '—'));
         tb.appendChild(tr);
       });
       t.appendChild(tb);
@@ -60,8 +61,14 @@
         'Energía liberada en la ventana: <strong>' + C.num(r.energia_tnt, 0) +
         '</strong> toneladas equivalentes de TNT.'));
     }
+    if (r.recurrencia) {
+      cuerpo.appendChild(C.el('p', 'sis-analisis', C.esc(r.recurrencia)));
+    }
     if (r.narrativa) {
       cuerpo.appendChild(C.el('p', 'sis-analisis', C.esc(r.narrativa)));
+    }
+    if (r.aviso) {
+      cuerpo.appendChild(C.el('p', 'sis-aviso', C.esc(r.aviso)));
     }
 
     box.insertBefore(cuerpo, box.firstChild);

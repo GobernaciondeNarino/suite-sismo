@@ -198,11 +198,6 @@
       box.appendChild(C.el('p', 'sis-g__analisis-num', C.esc(a.cuantitativo)));
       algo = true;
     }
-    if (modo === 'prediccion' && v.prediccion) {
-      box.appendChild(C.el('p', 'sis-g__pred-etq', 'Pronóstico (estimación estadística)'));
-      box.appendChild(C.el('p', 'sis-g__analisis-pred', C.esc(v.prediccion)));
-      algo = true;
-    }
     if (!algo) { box.appendChild(C.el('p', 'sis-g__analisis-desc', 'Sin contenido disponible para esta vista.')); }
   }
 
@@ -320,9 +315,8 @@
     var wrap = C.el('div');
     var txt = v.como_funciona || v.descripcion_larga || v.description || 'Sin explicación disponible para esta vista.';
     wrap.appendChild(C.el('p', 'sis-g__analisis-desc', C.esc(txt)));
-    if (v.prediccion) {
-      wrap.appendChild(C.el('p', 'sis-g__pred-etq', 'Pronóstico (estimación estadística)'));
-      wrap.appendChild(C.el('p', 'sis-g__analisis-pred', C.esc(v.prediccion)));
+    if (v.aviso) {
+      wrap.appendChild(C.el('p', 'sis-g__aviso', C.esc(v.aviso)));
     }
     return wrap;
   }

@@ -115,12 +115,6 @@ final class SIS_Sync {
 		$config[ $slug ]['ultimo_resultado'] = ( $res['ok'] ? 'OK' : 'ERROR' ) . ' · ' . (int) $res['registros'] . ' reg · ' . $ms . ' ms';
 		update_option( 'sis_api_config', $config );
 
-		// Un catálogo nuevo obliga a recalcular el pronóstico: se limpian las
-		// entradas vigentes (las firmas antiguas dejan de servirse).
-		if ( $res['ok'] && 'usgs_fdsn' === $slug ) {
-			SIS_Cache::delete_grupo( 'pronostico' );
-		}
-
 		self::auditar( 'sync', $slug, $res['ok'] ? 'ok' : 'error', (int) $res['registros'], $res['mensaje'] );
 
 		$res['latencia_ms'] = $ms;

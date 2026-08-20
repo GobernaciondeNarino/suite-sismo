@@ -20,7 +20,7 @@ foreach ( $tablas as $tabla ) {
 }
 
 // 2) Opciones.
-foreach ( array( 'sis_api_config', 'sis_estilo', 'sis_version', 'sis_modelo' ) as $opcion ) {
+foreach ( array( 'sis_api_config', 'sis_estilo', 'sis_version', 'sis_amenaza', 'sis_modelo' ) as $opcion ) {
 	delete_option( $opcion );
 }
 

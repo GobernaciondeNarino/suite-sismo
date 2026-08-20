@@ -1,11 +1,12 @@
 <?php
 /**
- * Test de integración de las vistas del motor de gráficos y del pronóstico
- * con caché, sobre una simulación mínima de WordPress (opciones, transients y
+ * Test de integración de las vistas del motor de gráficos y del marco de
+ * amenaza, sobre una simulación mínima de WordPress (opciones, transients y
  * $wpdb en memoria). Ejecutar con:  php tests/test-vistas.php
  *
- * Verifica que las 17 vistas construyen filas coherentes con sus dimensiones y
- * medidas declaradas, y que el pronóstico se sirve y se invalida por caché.
+ * Verifica que las 14 vistas construyen filas coherentes con sus dimensiones y
+ * medidas declaradas, que ninguna publica estimaciones de sismos futuros y que
+ * el marco de amenaza queda completo.
  *
  * @package SismosNarino
  */
@@ -157,13 +158,13 @@ require SIS_DIR . 'includes/data/class-sis-municipios.php';
 require SIS_DIR . 'includes/data/class-sis-regiones.php';
 require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
-require SIS_DIR . 'includes/analysis/class-sis-forecast.php';
 require SIS_DIR . 'includes/analysis/class-sis-texto.php';
+require SIS_DIR . 'includes/data/class-sis-amenaza.php';
 require SIS_DIR . 'includes/data/class-sis-views.php';
 
 use GobernacionNarino\Sismos\SIS_Cache;
 use GobernacionNarino\Sismos\SIS_Catalogo;
-use GobernacionNarino\Sismos\SIS_Forecast;
+use GobernacionNarino\Sismos\SIS_Amenaza;
 use GobernacionNarino\Sismos\SIS_Views;
 
 $fallos = 0;
@@ -206,7 +207,16 @@ chk( $cat['total'] > 300, sprintf( 'Catálogo con %d sismos', $cat['total'] ) );
 seccion( 'Vistas del motor de gráficos' );
 
 $vistas = SIS_Views::lista();
-chk( count( $vistas ) >= 17, sprintf( 'Catálogo de %d vistas', count( $vistas ) ) );
+chk( count( $vistas ) >= 14, sprintf( 'Catálogo de %d vistas', count( $vistas ) ) );
+
+$prohibidas = array( 'pronostico_mensual', 'pronostico_banda', 'pronostico_umbrales', 'periodo_retorno' );
+$quedan     = array();
+foreach ( $prohibidas as $id ) {
+	if ( SIS_Views::existe( $id ) ) {
+		$quedan[] = $id;
+	}
+}
+chk( empty( $quedan ), 'No queda ninguna vista de pronóstico' . ( $quedan ? ' (quedan: ' . implode( ',', $quedan ) . ')' : '' ) );
 
 foreach ( $vistas as $meta ) {
 	$v = SIS_Views::obtener( $meta['id'], array( 'ambito' => 'regional' ) );
@@ -236,40 +246,66 @@ foreach ( $vistas as $meta ) {
 }
 
 /* ------------------------------------------------------------------ */
-seccion( 'Pronóstico con caché' );
+seccion( 'Ninguna vista mira hacia el futuro' );
 
-$p1 = SIS_Forecast::obtener( 'regional' );
-chk( ! empty( $p1['meses'] ), 'El pronóstico se calcula sobre el catálogo de la semilla' );
-chk( isset( $p1['catalogo']['firma'] ), 'El pronóstico registra la firma del catálogo' );
+$hoy      = gmdate( 'Y-m' );
+$futuras  = array();
+$avisadas = 0;
 
-$p2 = SIS_Forecast::obtener( 'regional' );
-chk( $p1['generado'] === $p2['generado'], 'La segunda llamada se sirve de caché (misma marca de tiempo)' );
+foreach ( $vistas as $meta ) {
+	$v = SIS_Views::obtener( $meta['id'], array( 'ambito' => 'regional' ) );
 
-// Un sismo nuevo cambia la firma y obliga a recalcular.
-$payload = SIS_Cache::get_durable( SIS_Catalogo::clave( 'regional' ) );
-if ( ! $payload ) {
-	$payload = array( 'eventos' => $cat['eventos'], 'actualizado' => gmdate( 'Y-m-d H:i:s' ), 'fuente' => 'test' );
+	// 1) Ninguna fila puede referirse a un mes o año posterior al actual.
+	foreach ( $v['data'] as $fila ) {
+		if ( isset( $fila['mes'] ) && $fila['mes'] > $hoy ) {
+			$futuras[] = $meta['id'] . ':' . $fila['mes'];
+		}
+		if ( isset( $fila['anio'] ) && (int) $fila['anio'] > (int) gmdate( 'Y' ) ) {
+			$futuras[] = $meta['id'] . ':' . $fila['anio'];
+		}
+	}
+
+	// 2) Toda vista publica el aviso de alcance.
+	if ( ! empty( $v['aviso'] ) ) {
+		$avisadas++;
+	}
+
+	// 3) Ningún texto promete o estima sismos futuros.
+	$textos = trim( $v['analisis']['descriptivo'] . ' ' . $v['analisis']['cuantitativo'] . ' ' . $v['como_funciona'] );
+	if ( preg_match( '/se espera[nr]?\s|se pronostic|probabilidad de que ocurra|en los próximos (seis|6) meses/i', $textos ) ) {
+		$futuras[] = $meta['id'] . ':texto';
+	}
 }
-$ultimo = end( $payload['eventos'] );
-$nuevo  = $ultimo;
-$nuevo['id']    = 'test_nuevo_evento';
-$nuevo['ts']    = $ultimo['ts'] + 86400;
-$nuevo['fecha'] = gmdate( 'Y-m-d H:i:s', $nuevo['ts'] );
-$nuevo['mes']   = gmdate( 'Y-m', $nuevo['ts'] );
-$nuevo['mag']   = 6.9;
-$payload['eventos'][] = $nuevo;
-SIS_Cache::set( SIS_Catalogo::clave( 'regional' ), $payload, 3600, 'catalogo' );
 
-$p3 = SIS_Forecast::obtener( 'regional' );
-chk( $p3['catalogo']['firma'] !== $p1['catalogo']['firma'], 'La firma cambia al llegar un sismo nuevo' );
-chk( $p3['total']['esperados'] > $p1['total']['esperados'], 'El pronóstico sube tras un sismo fuerte reciente' );
-chk( ! empty( $p3['comparacion']['hay_anterior'] ), 'El pronóstico compara con el anterior' );
-chk( 'sube' === $p3['comparacion']['sentido'], 'La comparación detecta el alza' );
+chk( empty( $futuras ), 'Ninguna vista publica datos ni textos de sismos futuros' . ( $futuras ? ' (' . implode( ', ', array_slice( $futuras, 0, 5 ) ) . ')' : '' ) );
+chk( count( $vistas ) === $avisadas, 'Todas las vistas llevan el aviso de alcance' );
 
-// Las vistas de pronóstico reflejan el recálculo.
-SIS_Views::obtener( 'pronostico_mensual', array( 'ambito' => 'regional' ) );
-$vp = SIS_Views::obtener( 'pronostico_umbrales', array( 'ambito' => 'regional' ) );
-chk( count( $vp['data'] ) > 0, 'La vista de umbrales publica filas del pronóstico vigente' );
+$vr = SIS_Views::obtener( 'recurrencia_historica', array( 'ambito' => 'regional' ) );
+chk( count( $vr['data'] ) > 0, sprintf( 'La vista de recurrencia observada publica %d umbrales', count( $vr['data'] ) ) );
+$campos_ok = true;
+foreach ( $vr['data'] as $fila ) {
+	if ( ! isset( $fila['umbral'], $fila['intervalo_medio'], $fila['observados'] ) ) {
+		$campos_ok = false;
+	}
+	if ( isset( $fila['probabilidad'] ) || isset( $fila['esperados'] ) ) {
+		$campos_ok = false;
+	}
+}
+chk( $campos_ok, 'La recurrencia trae observados e intervalo medio, y ninguna probabilidad' );
+
+/* ------------------------------------------------------------------ */
+seccion( 'Marco de amenaza servido por la API' );
+
+$ficha = SIS_Amenaza::ficha();
+foreach ( array( 'descargo', 'glosario', 'fuentes', 'geologia', 'normativa', 'replicas', 'senales', 'marco_legal' ) as $clave ) {
+	chk( ! empty( $ficha[ $clave ] ), "La ficha de amenaza trae «{$clave}»" );
+}
+chk( false !== mb_strpos( $ficha['marco_legal'], 'Ley 1523' ), 'La ficha cita el marco legal de gestión del riesgo' );
+
+// La normativa se puede editar desde el panel sin tocar código.
+update_option( 'sis_amenaza', array( 'aa_pasto' => '0.30' ) );
+chk( '0.30' === SIS_Amenaza::normativa()['aa_pasto'], 'La normativa editada en el panel prevalece' );
+chk( '' !== SIS_Amenaza::normativa()['norma'], 'Las claves no editadas conservan su valor por defecto' );
 
 /* ------------------------------------------------------------------ */
 echo "\n";

@@ -4,7 +4,7 @@
  *
  * Dos familias de rutas:
  *  · internas — alimentan los shortcodes del front (estado, eventos,
- *    estadística, pronóstico y el /render del motor de gráficos);
+ *    estadística, amenaza y el /render del motor de gráficos);
  *  · abiertas — datos abiertos para ciudadanía, academia e investigación, en
  *    JSON o CSV, con la atribución al USGS incorporada en la respuesta.
  *
@@ -54,11 +54,10 @@ final class SIS_Rest {
 			'args'                => $this->args_comunes(),
 		) );
 
-		register_rest_route( self::NS, '/pronostico', array(
+		register_rest_route( self::NS, '/amenaza', array(
 			'methods'             => 'GET',
-			'callback'            => array( $this, 'ruta_pronostico' ),
+			'callback'            => array( $this, 'ruta_amenaza' ),
 			'permission_callback' => $publico,
-			'args'                => $this->args_comunes(),
 		) );
 
 		register_rest_route( self::NS, '/vistas', array(
@@ -99,7 +98,7 @@ final class SIS_Rest {
 		) );
 
 		// --- Datos abiertos (JSON/CSV) ---
-		foreach ( array( 'eventos', 'estadistica', 'pronostico' ) as $recurso ) {
+		foreach ( array( 'eventos', 'estadistica', 'recurrencia' ) as $recurso ) {
 			register_rest_route( self::NS, '/abierto/' . $recurso, array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'ruta_abierta' ),
@@ -274,27 +273,27 @@ final class SIS_Rest {
 		$p = $this->parametros( $req );
 		$c = $this->catalogo( $p );
 
-		$resumen              = SIS_Estadistica::resumen( $c['eventos'] );
-		$resumen['narrativa'] = SIS_Texto::gutenberg( $resumen['gutenberg'] );
-		$resumen['meta']      = $this->meta( $p, $c['catalogo'] );
+		$resumen                = SIS_Estadistica::resumen( $c['eventos'] );
+		$resumen['narrativa']   = SIS_Texto::gutenberg( $resumen['gutenberg'] );
+		$resumen['recurrencia'] = SIS_Texto::recurrencia( $resumen );
+		$resumen['aviso']       = SIS_Texto::advertencia();
+		$resumen['meta']        = $this->meta( $p, $c['catalogo'] );
 
 		return rest_ensure_response( $resumen );
 	}
 
 	/**
-	 * Pronóstico probabilístico a 6 meses.
+	 * Marco de amenaza y comunicación del riesgo: glosario, fuentes oficiales,
+	 * contexto geológico, normativa y guía post-sismo.
 	 *
-	 * @param \WP_REST_Request $req Petición.
+	 * Deliberadamente NO devuelve probabilidades de sismos futuros: la amenaza
+	 * probabilística oficial se consulta en el Modelo Nacional de Amenaza
+	 * Sísmica del SGC, al que esta respuesta enlaza.
+	 *
 	 * @return \WP_REST_Response
 	 */
-	public function ruta_pronostico( $req ) {
-		$p = $this->parametros( $req );
-		$f = SIS_Forecast::obtener( $p['ambito'] );
-
-		$f['narrativa'] = SIS_Texto::pronostico( $f );
-		$f['meta']      = $this->meta( $p, SIS_Catalogo::obtener( $p['ambito'] ) );
-
-		return rest_ensure_response( $f );
+	public function ruta_amenaza() {
+		return rest_ensure_response( SIS_Amenaza::ficha() );
 	}
 
 	/**
@@ -386,7 +385,7 @@ final class SIS_Rest {
 				'measures'          => $view['measures'],
 				'analisis'          => $view['analisis'],
 				'como_funciona'     => $view['como_funciona'],
-				'prediccion'        => $view['prediccion'],
+				'aviso'             => $view['aviso'],
 				'heatmap'           => $view['heatmap'],
 				'contexto'          => $view['contexto'],
 			),
@@ -420,9 +419,10 @@ final class SIS_Rest {
 				$filas = $this->filas_estadistica( $datos );
 				break;
 
-			case 'pronostico':
-				$datos = SIS_Forecast::obtener( $p['ambito'] );
-				$filas = $this->filas_pronostico( $datos );
+			case 'recurrencia':
+				$resumen = SIS_Estadistica::resumen( $c['eventos'] );
+				$datos   = array( 'umbrales' => $resumen['umbrales'], 'gutenberg' => $resumen['gutenberg'] );
+				$filas   = $resumen['umbrales'];
 				break;
 
 			case 'eventos':
@@ -466,42 +466,14 @@ final class SIS_Rest {
 
 		foreach ( $r['umbrales'] as $u ) {
 			$filas[] = array(
-				'indicador' => 'Periodo de retorno M ≥ ' . $u['magnitud'],
-				'valor'     => $u['periodo_retorno'],
+				'indicador' => 'Sismos observados M ≥ ' . $u['magnitud'],
+				'valor'     => $u['observados'],
+				'unidad'    => 'sismos',
+			);
+			$filas[] = array(
+				'indicador' => 'Intervalo medio observado M ≥ ' . $u['magnitud'],
+				'valor'     => $u['intervalo_medio'],
 				'unidad'    => 'años',
-			);
-		}
-
-		return $filas;
-	}
-
-	/**
-	 * Aplana el pronóstico a filas tabulares (mes a mes + umbrales).
-	 *
-	 * @param array $p Pronóstico.
-	 * @return array[]
-	 */
-	private function filas_pronostico( $p ) {
-		$filas = array();
-
-		foreach ( (array) $p['meses'] as $m ) {
-			$filas[] = array(
-				'tipo'      => 'mes',
-				'clave'     => $m['mes'],
-				'esperados' => $m['esperados'],
-				'banda_min' => $m['banda_min'],
-				'banda_max' => $m['banda_max'],
-				'prob_m55'  => $m['prob_m55'],
-			);
-		}
-
-		foreach ( (array) $p['umbrales'] as $u ) {
-			$filas[] = array(
-				'tipo'            => 'umbral',
-				'clave'           => 'M >= ' . $u['magnitud'],
-				'esperados'       => $u['esperados_6m'],
-				'probabilidad'    => $u['probabilidad'],
-				'periodo_retorno' => $u['periodo_retorno'],
 			);
 		}
 

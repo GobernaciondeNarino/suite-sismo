@@ -45,17 +45,57 @@ return array(
 	),
 
 	array(
-		'shortcode' => '[sismos_pronostico]',
-		'titulo'    => 'Pronóstico a 6 meses',
-		'que_hace'  => 'Ficha completa del pronóstico probabilístico: sismos esperados con su banda, evolución mes a mes, probabilidad por umbral de magnitud, magnitud máxima esperada, comparación con el pronóstico anterior y advertencia metodológica.',
-		'atributos' => 'ambito · modo (completo|resumen|umbrales|metodo) · grafico (si|no)',
-		'ejemplo'   => '[sismos_pronostico ambito="regional" modo="completo"]',
+		'shortcode' => '[sismos_amenaza]',
+		'titulo'    => 'Amenaza sísmica en Nariño',
+		'que_hace'  => 'Explica de dónde viene la amenaza del departamento —subducción, fallas activas, vulcanismo y tsunami—, resume la referencia normativa vigente y enlaza al sistema oficial de consulta de amenaza del SGC. No contiene estimaciones propias de sismos futuros.',
+		'atributos' => 'titulo · normativa (si|no) · fuentes (si|no)',
+		'ejemplo'   => '[sismos_amenaza]',
+	),
+
+	array(
+		'shortcode' => '[sismos_glosario]',
+		'titulo'    => 'Entienda los términos',
+		'que_hace'  => 'Separa cuatro conceptos que suelen confundirse: alerta temprana, pronóstico, probabilidad de largo plazo y predicción. Marca con claridad cuál de ellos no es posible.',
+		'atributos' => 'titulo',
+		'ejemplo'   => '[sismos_glosario]',
+	),
+
+	array(
+		'shortcode' => '[sismos_preparacion]',
+		'titulo'    => 'Cómo prepararse',
+		'que_hace'  => 'Guía ciudadana: qué hacer antes, durante y después de un sismo, qué llevar en el kit de emergencia y cómo organizarse en el colegio, el trabajo y el barrio.',
+		'atributos' => 'seccion (todas|antes|durante|despues|kit|comunidad) · titulo',
+		'ejemplo'   => '[sismos_preparacion seccion="kit"]',
+	),
+
+	array(
+		'shortcode' => '[sismos_replicas]',
+		'titulo'    => 'Después de un sismo fuerte',
+		'que_hace'  => 'Información educativa fija sobre réplicas —qué son, cuánto duran, qué hacer y qué no— con enlace al boletín oficial del SGC. Nunca publica cifras ni probabilidades propias de réplicas.',
+		'atributos' => 'titulo',
+		'ejemplo'   => '[sismos_replicas]',
+	),
+
+	array(
+		'shortcode' => '[sismos_desinformacion]',
+		'titulo'    => 'Cómo reconocer una predicción falsa',
+		'que_hace'  => 'Panel anti-desinformación con las señales que delatan una cadena falsa: fechas exactas, sellos copiados, «alineaciones planetarias», anuncios de réplicas. Replica los desmentidos del SGC y del IDEAM.',
+		'atributos' => 'titulo',
+		'ejemplo'   => '[sismos_desinformacion]',
+	),
+
+	array(
+		'shortcode' => '[sismos_fuentes_oficiales]',
+		'titulo'    => 'Dónde consultar información oficial',
+		'que_hace'  => 'Directorio de los recursos del SGC, el OVSP, la UNGRD y el USGS, con el descargo institucional que identifica a la autoridad técnica.',
+		'atributos' => 'titulo',
+		'ejemplo'   => '[sismos_fuentes_oficiales]',
 	),
 
 	array(
 		'shortcode' => '[sismos_estadistica]',
 		'titulo'    => 'Ficha estadística del catálogo',
-		'que_hace'  => 'Indicadores clave: número de sismos, años de registro, magnitud de completitud, valor b con su error, tasa anual, mayor magnitud registrada, energía liberada y periodos de retorno por magnitud.',
+		'que_hace'  => 'Indicadores clave: número de sismos, años de registro, magnitud de completitud, valor b con su error, tasa anual, mayor magnitud registrada, energía liberada y recurrencia observada por magnitud.',
 		'atributos' => 'ambito · anios · dias · min_mag',
 		'ejemplo'   => '[sismos_estadistica ambito="regional" anios="20"]',
 	),
@@ -64,8 +104,8 @@ return array(
 		'shortcode' => '[sismos_datos]',
 		'titulo'    => 'Datos abiertos',
 		'que_hace'  => 'Botones de descarga en JSON y CSV y enlace directo a la API pública del plugin, con la atribución al USGS incorporada.',
-		'atributos' => 'recurso (eventos|estadistica|pronostico) · ambito · anios · dias · min_mag · texto',
-		'ejemplo'   => '[sismos_datos recurso="pronostico" texto="Descargue el pronóstico a seis meses"]',
+		'atributos' => 'recurso (eventos|estadistica|recurrencia) · ambito · anios · dias · min_mag · texto',
+		'ejemplo'   => '[sismos_datos recurso="recurrencia" texto="Descargue la recurrencia observada"]',
 	),
 
 	array(
@@ -81,7 +121,7 @@ return array(
 		'titulo'    => 'Descripción de una vista',
 		'que_hace'  => 'Publica solo el texto que explica qué muestra el gráfico, para maquetarlo aparte de la gráfica.',
 		'atributos' => 'view · ambito · anios · titulo · grupo',
-		'ejemplo'   => '[sismos_descripcion view="pronostico_mensual"]',
+		'ejemplo'   => '[sismos_descripcion view="recurrencia_historica"]',
 	),
 
 	array(
@@ -109,18 +149,10 @@ return array(
 	),
 
 	array(
-		'shortcode' => '[sismos_prediccion_dato]',
-		'titulo'    => 'Párrafo predictivo de una vista',
-		'que_hace'  => 'Publica el pronóstico vigente redactado en prosa, con su método y su advertencia. Se recalcula con cada actualización del catálogo.',
-		'atributos' => 'view · ambito · titulo · grupo',
-		'ejemplo'   => '[sismos_prediccion_dato view="pronostico_mensual"]',
-	),
-
-	array(
 		'shortcode' => '[sismos_analisis]',
 		'titulo'    => 'Análisis completo de una vista',
 		'que_hace'  => 'Interpretación y cifras clave juntas, sin la gráfica.',
-		'atributos' => 'view · modo (ambos|descriptivo|cuantitativo|descripcion|como_funciona|prediccion) · ambito · anios · titulo · grupo',
+		'atributos' => 'view · modo (ambos|descriptivo|cuantitativo|descripcion|como_funciona) · ambito · anios · titulo · grupo',
 		'ejemplo'   => '[sismos_analisis view="profundidad" modo="ambos"]',
 	),
 

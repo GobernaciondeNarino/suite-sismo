@@ -188,38 +188,13 @@ final class SIS_Views {
 				'heatmap'     => true,
 			),
 
-			/* --- Pronóstico a 6 meses --- */
-			'pronostico_mensual'    => array(
-				'name'        => 'Pronóstico de sismicidad a 6 meses',
-				'description' => 'Sismos observados y sismos esperados mes a mes en los próximos seis meses, con su banda de incertidumbre.',
-				'category'    => 'temporal',
-				'dimensions'  => array( 'mes', 'serie' ),
-				'measures'    => array( 'sismos' ),
-				'default'     => 'line',
-			),
-			'pronostico_banda'      => array(
-				'name'        => 'Banda de incertidumbre del pronóstico',
-				'description' => 'Valor esperado y límites del intervalo de predicción al 90% para cada uno de los próximos seis meses.',
-				'category'    => 'temporal',
-				'dimensions'  => array( 'mes' ),
-				'measures'    => array( 'esperados', 'banda_min', 'banda_max' ),
-				'default'     => 'line',
-			),
-			'pronostico_umbrales'   => array(
-				'name'        => 'Probabilidad por umbral de magnitud (6 meses)',
-				'description' => 'Probabilidad de que ocurra al menos un sismo de cada magnitud o mayor en la ventana de seis meses.',
+			/* --- Recurrencia observada (estadística retrospectiva) --- */
+			'recurrencia_historica' => array(
+				'name'        => 'Recurrencia observada por magnitud',
+				'description' => 'Cuántos sismos de cada magnitud o mayor se registraron y cada cuántos años ocurrió uno en promedio, dentro de la ventana consultada.',
 				'category'    => 'categorical',
 				'dimensions'  => array( 'umbral' ),
-				'measures'    => array( 'probabilidad' ),
-				'default'     => 'bar',
-				'heatmap'     => true,
-			),
-			'periodo_retorno'       => array(
-				'name'        => 'Periodo de retorno por magnitud',
-				'description' => 'Cada cuántos años, en promedio, cabe esperar un sismo de cada magnitud o mayor.',
-				'category'    => 'categorical',
-				'dimensions'  => array( 'umbral' ),
-				'measures'    => array( 'anios' ),
+				'measures'    => array( 'intervalo_medio' ),
 				'default'     => 'bar',
 			),
 		);
@@ -299,7 +274,7 @@ final class SIS_Views {
 			'data'              => $datos,
 			'analisis'          => self::analisis( $id, $datos, $args ),
 			'como_funciona'     => self::como_funciona( $id ),
-			'prediccion'        => self::prediccion( $id, $datos, $args ),
+			'aviso'             => SIS_Texto::advertencia(),
 			'heatmap'           => ! empty( $m['heatmap'] ),
 			'contexto'          => array(
 				'ambito'        => $args['ambito'],
@@ -458,17 +433,8 @@ final class SIS_Views {
 			case 'mayores_sismos':
 				return self::filas_mayores( $eventos );
 
-			case 'pronostico_mensual':
-				return self::filas_pronostico_mensual( $args );
-
-			case 'pronostico_banda':
-				return self::filas_pronostico_banda( $args );
-
-			case 'pronostico_umbrales':
-				return self::filas_umbrales( $args, 'probabilidad' );
-
-			case 'periodo_retorno':
-				return self::filas_umbrales( $args, 'anios' );
+			case 'recurrencia_historica':
+				return self::filas_recurrencia( $args );
 		}
 
 		return array();
@@ -567,104 +533,31 @@ final class SIS_Views {
 	}
 
 	/**
-	 * Serie observada + pronosticada para el gráfico de pronóstico.
+	 * Recurrencia observada por umbral de magnitud.
 	 *
-	 * Incluye un «punto puente»: el último mes observado se repite como primer
-	 * punto de la serie pronosticada para que la línea no aparezca cortada.
-	 *
-	 * @param array $args Argumentos normalizados.
-	 * @return array[]
-	 */
-	private static function filas_pronostico_mensual( $args ) {
-		$p = SIS_Forecast::obtener( $args['ambito'] );
-		if ( empty( $p['meses'] ) ) {
-			return array();
-		}
-
-		$out = array();
-		$obs = array_slice( (array) $p['observado'], -18 );
-		foreach ( $obs as $o ) {
-			$out[] = array(
-				'mes'    => $o['mes'],
-				'serie'  => 'Observado',
-				'sismos' => (int) $o['sismos'],
-			);
-		}
-
-		// Punto puente (último observado también como origen del pronóstico).
-		$ultimo = end( $obs );
-		if ( $ultimo ) {
-			$out[] = array(
-				'mes'    => $ultimo['mes'],
-				'serie'  => 'Pronóstico',
-				'sismos' => (int) $ultimo['sismos'],
-			);
-		}
-
-		foreach ( $p['meses'] as $m ) {
-			$out[] = array(
-				'mes'    => $m['mes'],
-				'serie'  => 'Pronóstico',
-				'sismos' => (float) $m['esperados'],
-			);
-		}
-
-		return $out;
-	}
-
-	/**
-	 * Banda de incertidumbre del pronóstico, mes a mes.
+	 * Cada fila responde a «cuántos hubo» y «cada cuánto, en promedio», sobre
+	 * la ventana consultada. Es estadística del pasado, no una proyección.
 	 *
 	 * @param array $args Argumentos normalizados.
 	 * @return array[]
 	 */
-	private static function filas_pronostico_banda( $args ) {
-		$p = SIS_Forecast::obtener( $args['ambito'] );
-		if ( empty( $p['meses'] ) ) {
+	private static function filas_recurrencia( $args ) {
+		$resumen = SIS_Estadistica::resumen( self::eventos( $args ) );
+		if ( empty( $resumen['umbrales'] ) ) {
 			return array();
 		}
 
 		$out = array();
-		foreach ( $p['meses'] as $m ) {
-			$out[] = array(
-				'mes'       => $m['mes'],
-				'esperados' => (float) $m['esperados'],
-				'banda_min' => (float) $m['banda_min'],
-				'banda_max' => (float) $m['banda_max'],
-			);
-		}
-		return $out;
-	}
-
-	/**
-	 * Umbrales de magnitud del pronóstico (probabilidad o periodo de retorno).
-	 *
-	 * @param array  $args   Argumentos normalizados.
-	 * @param string $medida 'probabilidad' | 'anios'.
-	 * @return array[]
-	 */
-	private static function filas_umbrales( $args, $medida ) {
-		$p = SIS_Forecast::obtener( $args['ambito'] );
-		if ( empty( $p['umbrales'] ) ) {
-			return array();
-		}
-
-		$out = array();
-		foreach ( $p['umbrales'] as $u ) {
-			$fila = array( 'umbral' => 'M ≥ ' . number_format( (float) $u['magnitud'], 1, ',', '.' ) );
-
-			if ( 'probabilidad' === $medida ) {
-				$fila['probabilidad'] = (float) $u['probabilidad'];
-				$fila['esperados_6m'] = (float) $u['esperados_6m'];
-			} else {
-				if ( null === $u['periodo_retorno'] ) {
-					continue;
-				}
-				$fila['anios']       = (float) $u['periodo_retorno'];
-				$fila['tasa_anual']  = (float) $u['tasa_anual'];
+		foreach ( $resumen['umbrales'] as $u ) {
+			if ( null === $u['intervalo_medio'] ) {
+				continue;
 			}
-
-			$out[] = $fila;
+			$out[] = array(
+				'umbral'          => 'M ≥ ' . number_format( (float) $u['magnitud'], 1, ',', '.' ),
+				'intervalo_medio' => (float) $u['intervalo_medio'],
+				'observados'      => (int) $u['observados'],
+				'tasa_anual_obs'  => (float) $u['tasa_anual_obs'],
+			);
 		}
 		return $out;
 	}
@@ -748,19 +641,8 @@ final class SIS_Views {
 				$gr = SIS_Estadistica::gutenberg_richter( self::eventos( $args ) );
 				return SIS_Texto::gutenberg( $gr );
 
-			case 'pronostico_mensual':
-			case 'pronostico_banda':
-				$p = SIS_Forecast::obtener( $args['ambito'] );
-				$n = SIS_Texto::pronostico( $p );
-				return trim( $n['resumen'] . ' ' . $n['cambio'] );
-
-			case 'pronostico_umbrales':
-				$p = SIS_Forecast::obtener( $args['ambito'] );
-				$n = SIS_Texto::pronostico( $p );
-				return $n['probabilidades'];
-
-			case 'periodo_retorno':
-				return SIS_Texto::cuantitativo( $datos, 'umbral', 'anios', array( 'unidad' => 'años', 'decimales' => 1, 'etiqueta_dim' => 'magnitud', ) );
+			case 'recurrencia_historica':
+				return SIS_Texto::recurrencia( SIS_Estadistica::resumen( self::eventos( $args ) ) );
 
 			case 'magnitud_profundidad':
 				return self::cuantitativo_profundidad( $datos );
@@ -831,31 +713,6 @@ final class SIS_Views {
 		}
 
 		return 'Por rango de profundidad — ' . SIS_Texto::lista( $frases ) . '. La profundidad importa tanto como la magnitud: un sismo superficial se percibe mucho más que uno profundo del mismo tamaño.';
-	}
-
-	/**
-	 * Párrafo predictivo de la vista (cifra dinámica + método).
-	 *
-	 * @param string  $id    Id de vista.
-	 * @param array[] $datos Filas.
-	 * @param array   $args  Argumentos.
-	 * @return string
-	 */
-	public static function prediccion( $id, $datos, $args ) {
-		$p = SIS_Forecast::obtener( $args['ambito'] );
-		if ( empty( $p['meses'] ) ) {
-			return isset( $p['mensaje'] ) ? $p['mensaje'] : '';
-		}
-
-		$n = SIS_Texto::pronostico( $p );
-
-		// Vistas del propio pronóstico: la cifra ES la vista.
-		if ( in_array( $id, array( 'pronostico_mensual', 'pronostico_banda', 'pronostico_umbrales', 'periodo_retorno' ), true ) ) {
-			return trim( $n['resumen'] . ' ' . $n['metodo'] . ' ' . $n['advertencia'] );
-		}
-
-		// Resto de vistas: se condicionan al pronóstico vigente del ámbito.
-		return trim( $n['resumen'] . ' ' . $n['probabilidades'] . ' ' . SIS_Texto::advertencia() );
 	}
 
 	/* ================================================================= */

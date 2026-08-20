@@ -1,7 +1,13 @@
 <?php
 /**
- * Estadística sismológica: completitud, ley de Gutenberg-Richter, tasas,
- * periodos de retorno y utilidades numéricas.
+ * Estadística sismológica RETROSPECTIVA: completitud, ley de Gutenberg-Richter,
+ * tasas observadas, intervalos medios de recurrencia y utilidades numéricas.
+ *
+ * Alcance deliberado: todo lo que se calcula aquí describe lo que YA ocurrió en
+ * la ventana consultada. El plugin no estima probabilidades de sismos futuros
+ * —eso sería un pronóstico, competencia del Servicio Geológico Colombiano, que
+ * hoy no emite ese producto—. La amenaza de largo plazo se consulta en el
+ * Modelo Nacional de Amenaza Sísmica del SGC, al que la plataforma enlaza.
  *
  * Todos los métodos son puros y auditables (sin estado, sin aleatoriedad):
  * dado el mismo catálogo devuelven el mismo resultado, de modo que cualquier
@@ -13,7 +19,8 @@
  *  · Valor b — estimador de máxima verosimilitud de Aki (1965) con corrección
  *    de discretización (Utsu, 1966) e incertidumbre de Shi & Bolt (1982).
  *  · Valor a — normalizado a tasa anual sobre la ventana observada.
- *  · Probabilidad de ocurrencia — proceso de Poisson homogéneo.
+ *  · Intervalo medio de recurrencia — inverso de la tasa anual observada, leído
+ *    siempre como promedio del pasado, nunca como calendario del futuro.
  *
  * @package SismosNarino
  */
@@ -151,30 +158,18 @@ final class SIS_Estadistica {
 	}
 
 	/**
-	 * Periodo de retorno (años) de un evento con M ≥ m.
+	 * Intervalo medio de recurrencia (años) entre sismos con M ≥ m, calculado
+	 * como el inverso de la tasa anual OBSERVADA en la ventana del catálogo.
 	 *
-	 * @param float $tasa_anual Tasa anual.
+	 * Es un promedio del pasado: no implica periodicidad ni plazo de seguridad
+	 * tras un evento. Los sismos no llevan cuenta del tiempo transcurrido.
+	 *
+	 * @param float $tasa_anual Tasa anual observada.
 	 * @return float Años (INF si la tasa es nula).
 	 */
-	public static function periodo_retorno( $tasa_anual ) {
+	public static function intervalo_recurrencia( $tasa_anual ) {
 		$t = (float) $tasa_anual;
 		return $t > 0 ? ( 1.0 / $t ) : INF;
-	}
-
-	/**
-	 * Probabilidad de al menos un evento en un intervalo (Poisson):
-	 * P = 1 − e^(−λ·t).
-	 *
-	 * @param float $lambda Tasa (mismas unidades que t).
-	 * @param float $t      Duración del intervalo.
-	 * @return float 0..1
-	 */
-	public static function probabilidad_poisson( $lambda, $t = 1.0 ) {
-		$x = (float) $lambda * (float) $t;
-		if ( $x <= 0 ) {
-			return 0.0;
-		}
-		return 1.0 - exp( -1 * $x );
 	}
 
 	/**
@@ -415,108 +410,6 @@ final class SIS_Estadistica {
 		return $out;
 	}
 
-	/**
-	 * Función de distribución acumulada de la normal estándar N(0,1).
-	 * Aproximación de Abramowitz & Stegun 7.1.26 (error < 7,5·10⁻⁸).
-	 *
-	 * @param float $z Valor tipificado.
-	 * @return float 0..1
-	 */
-	public static function cdf_normal( $z ) {
-		$z   = (float) $z;
-		$x   = abs( $z ) / sqrt( 2.0 );
-		$t   = 1.0 / ( 1.0 + 0.3275911 * $x );
-		$y   = 1.0 - ( ( ( ( ( 1.061405429 * $t - 1.453152027 ) * $t ) + 1.421413741 ) * $t - 0.284496736 ) * $t + 0.254829592 ) * $t * exp( - $x * $x );
-		$erf = ( $z >= 0 ) ? $y : -$y;
-		return 0.5 * ( 1.0 + $erf );
-	}
-
-	/**
-	 * Cuantil de la normal estándar (inversa de la CDF).
-	 * Aproximación racional de Acklam / Moro, error < 1,15·10⁻⁹.
-	 *
-	 * @param float $p Probabilidad (0,1).
-	 * @return float z
-	 */
-	public static function cuantil_normal( $p ) {
-		$p = (float) $p;
-		if ( $p <= 0.0 ) {
-			return -INF;
-		}
-		if ( $p >= 1.0 ) {
-			return INF;
-		}
-
-		$a = array( -3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00 );
-		$b = array( -5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01 );
-		$c = array( -7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00 );
-		$d = array( 7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00 );
-
-		$plow  = 0.02425;
-		$phigh = 1 - $plow;
-
-		if ( $p < $plow ) {
-			$q = sqrt( -2 * log( $p ) );
-			return ( ( ( ( ( $c[0] * $q + $c[1] ) * $q + $c[2] ) * $q + $c[3] ) * $q + $c[4] ) * $q + $c[5] ) /
-				( ( ( ( $d[0] * $q + $d[1] ) * $q + $d[2] ) * $q + $d[3] ) * $q + 1 );
-		}
-		if ( $p > $phigh ) {
-			$q = sqrt( -2 * log( 1 - $p ) );
-			return -( ( ( ( ( $c[0] * $q + $c[1] ) * $q + $c[2] ) * $q + $c[3] ) * $q + $c[4] ) * $q + $c[5] ) /
-				( ( ( ( $d[0] * $q + $d[1] ) * $q + $d[2] ) * $q + $d[3] ) * $q + 1 );
-		}
-
-		$q = $p - 0.5;
-		$r = $q * $q;
-		return ( ( ( ( ( $a[0] * $r + $a[1] ) * $r + $a[2] ) * $r + $a[3] ) * $r + $a[4] ) * $r + $a[5] ) * $q /
-			( ( ( ( ( $b[0] * $r + $b[1] ) * $r + $b[2] ) * $r + $b[3] ) * $r + $b[4] ) * $r + 1 );
-	}
-
-	/**
-	 * Cuantil de la chi-cuadrado por la aproximación de Wilson-Hilferty.
-	 * Se usa para construir intervalos exactos de Poisson.
-	 *
-	 * @param float $p  Probabilidad acumulada (0,1).
-	 * @param float $gl Grados de libertad.
-	 * @return float
-	 */
-	public static function cuantil_chi2( $p, $gl ) {
-		$gl = (float) $gl;
-		if ( $gl <= 0 ) {
-			return 0.0;
-		}
-		$z = self::cuantil_normal( $p );
-		$x = 1.0 - ( 2.0 / ( 9.0 * $gl ) ) + $z * sqrt( 2.0 / ( 9.0 * $gl ) );
-		return max( 0.0, $gl * $x * $x * $x );
-	}
-
-	/**
-	 * Intervalo de predicción de una Poisson de media λ.
-	 *
-	 * Usa la relación exacta entre Poisson y chi-cuadrado:
-	 *   límite inferior = ½·χ²(α/2; 2λ)      límite superior = ½·χ²(1−α/2; 2λ+2)
-	 *
-	 * @param float $lambda   Media esperada.
-	 * @param float $confianza Nivel de confianza (0..1), por defecto 0,90.
-	 * @return array {min, max}
-	 */
-	public static function intervalo_poisson( $lambda, $confianza = 0.90 ) {
-		$lambda = max( 0.0, (float) $lambda );
-		$alfa   = 1.0 - max( 0.5, min( 0.999, (float) $confianza ) );
-
-		if ( $lambda <= 0.0 ) {
-			return array( 'min' => 0.0, 'max' => 0.0 );
-		}
-
-		$min = 0.5 * self::cuantil_chi2( $alfa / 2, 2 * $lambda );
-		$max = 0.5 * self::cuantil_chi2( 1 - ( $alfa / 2 ), 2 * $lambda + 2 );
-
-		return array(
-			'min' => round( max( 0.0, $min ), 2 ),
-			'max' => round( max( $min, $max ), 2 ),
-		);
-	}
-
 	/* ================================================================= */
 	/* Resumen estadístico de alto nivel                                 */
 	/* ================================================================= */
@@ -535,15 +428,23 @@ final class SIS_Estadistica {
 		$mags  = wp_list_pluck( $eventos, 'mag' );
 		$profs = wp_list_pluck( $eventos, 'profundidad' );
 
+		// Recurrencia observada por umbral: cuántos ocurrieron de verdad en la
+		// ventana, a qué ritmo anual y cada cuánto en promedio. Nada de esto
+		// mira hacia adelante.
 		$umbrales = array();
 		if ( $gr['valido'] ) {
 			foreach ( $o['umbrales'] as $m ) {
-				$tasa = self::tasa_anual( $gr['a'], $gr['b'], (float) $m );
+				$m     = (float) $m;
+				$n_obs = count( SIS_Catalogo::filtrar( $eventos, array( 'min_mag' => $m ) ) );
+				$tasa  = self::tasa_anual( $gr['a'], $gr['b'], $m );
+				$tasa_obs = ( $gr['anios'] > 0 ) ? $n_obs / $gr['anios'] : 0.0;
+
 				$umbrales[] = array(
-					'magnitud'        => (float) $m,
-					'tasa_anual'      => round( $tasa, 4 ),
-					'periodo_retorno' => is_finite( self::periodo_retorno( $tasa ) ) ? round( self::periodo_retorno( $tasa ), 1 ) : null,
-					'prob_1_anio'     => round( 100 * self::probabilidad_poisson( $tasa, 1.0 ), 1 ),
+					'magnitud'         => $m,
+					'observados'       => $n_obs,
+					'tasa_anual_obs'   => round( $tasa_obs, 4 ),
+					'tasa_anual_ajuste'=> round( $tasa, 4 ),
+					'intervalo_medio'  => is_finite( self::intervalo_recurrencia( $tasa ) ) ? round( self::intervalo_recurrencia( $tasa ), 1 ) : null,
 				);
 			}
 		}

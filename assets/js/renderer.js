@@ -55,11 +55,9 @@
     energia_tnt: 'Energía (toneladas de TNT)', profundidad: 'Profundidad (km)',
     rango_profundidad: 'Rango de profundidad', clase: 'Clase de magnitud',
     municipio: 'Municipio más cercano', subregion: 'Subregión', evento: 'Sismo',
-    umbral: 'Umbral de magnitud', probabilidad: 'Probabilidad en 6 meses (%)',
-    anios: 'Periodo de retorno (años)', esperados: 'Sismos esperados',
-    banda_min: 'Límite inferior (90%)', banda_max: 'Límite superior (90%)',
-    serie: 'Serie', tasa_anual: 'Tasa anual', esperados_6m: 'Esperados en 6 meses',
-    _value: 'Valor', _metric: 'Serie'
+    umbral: 'Umbral de magnitud', intervalo_medio: 'Intervalo medio observado (años)',
+    observados: 'Sismos observados', tasa_anual_obs: 'Tasa anual observada',
+    serie: 'Serie', _value: 'Valor', _metric: 'Serie'
   };
   function etiqueta(campo, fallback) {
     if (ETIQUETAS[campo]) { return ETIQUETAS[campo]; }

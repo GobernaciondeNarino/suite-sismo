@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests CLI de la lógica pura de análisis (catálogo, estadística y pronóstico).
+ * Tests CLI de la lógica pura de análisis (catálogo y estadística retrospectiva).
  *
  * No requiere WordPress: define stubs mínimos de las funciones de WP que usan
  * los métodos puros bajo prueba. Ejecutar con:  php tests/test-analisis.php
@@ -68,11 +68,13 @@ require SIS_DIR . 'includes/data/class-sis-municipios.php';
 require SIS_DIR . 'includes/data/class-sis-regiones.php';
 require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
-require SIS_DIR . 'includes/analysis/class-sis-forecast.php';
+require SIS_DIR . 'includes/analysis/class-sis-texto.php';
+require SIS_DIR . 'includes/data/class-sis-amenaza.php';
 
 use GobernacionNarino\Sismos\SIS_Catalogo;
+use GobernacionNarino\Sismos\SIS_Amenaza;
 use GobernacionNarino\Sismos\SIS_Estadistica;
-use GobernacionNarino\Sismos\SIS_Forecast;
+use GobernacionNarino\Sismos\SIS_Texto;
 use GobernacionNarino\Sismos\SIS_Municipios;
 use GobernacionNarino\Sismos\SIS_Regiones;
 use GobernacionNarino\Sismos\SIS_Security;
@@ -175,110 +177,130 @@ $tasa6 = SIS_Estadistica::tasa_anual( $gr['a'], $gr['b'], 6.0 );
 chk( $tasa5 > $tasa6, 'La tasa anual decrece al subir la magnitud' );
 chk( abs( $tasa5 / $tasa6 - pow( 10, $gr['b'] ) ) < 1e-6, 'La razón entre tasas equivale a 10^b' );
 
-$p1 = SIS_Estadistica::probabilidad_poisson( 1.0, 1.0 );
-chk( abs( $p1 - ( 1 - exp( -1 ) ) ) < 1e-9, 'Poisson: P(al menos uno) con λ=1 es 63,2%' );
-
-$iv = SIS_Estadistica::intervalo_poisson( 10, 0.90 );
-chk( $iv['min'] < 10 && $iv['max'] > 10, sprintf( 'Intervalo de Poisson al 90%% contiene la media (%.1f–%.1f)', $iv['min'], $iv['max'] ) );
-chk( abs( SIS_Estadistica::cuantil_normal( 0.975 ) - 1.959964 ) < 1e-4, 'Cuantil normal z(0,975) = 1,96' );
-chk( abs( SIS_Estadistica::cdf_normal( 1.959964 ) - 0.975 ) < 1e-4, 'CDF normal coherente con su inversa' );
+// El plugin no debe ofrecer ninguna vía para estimar sismos futuros.
+$prohibidos = array( 'probabilidad_poisson', 'intervalo_poisson', 'cuantil_chi2', 'cdf_normal', 'cuantil_normal', 'periodo_retorno' );
+$existen    = array();
+foreach ( $prohibidos as $m ) {
+	if ( method_exists( 'GobernacionNarino\\Sismos\\SIS_Estadistica', $m ) ) {
+		$existen[] = $m;
+	}
+}
+chk( empty( $existen ), 'La estadística no expone métodos de probabilidad a futuro' . ( $existen ? ' (quedan: ' . implode( ',', $existen ) . ')' : '' ) );
+chk( ! class_exists( 'GobernacionNarino\\Sismos\\SIS_Forecast' ), 'No existe ninguna clase de pronóstico cargada' );
 
 $reg = SIS_Estadistica::regresion_lineal( array( 1, 2, 3, 4, 5 ) );
 chk( abs( $reg['pendiente'] - 1.0 ) < 1e-9 && $reg['r2'] > 0.999, 'Regresión lineal exacta sobre una recta' );
 
 $resumen = SIS_Estadistica::resumen( $eventos );
-chk( ! empty( $resumen['umbrales'] ), 'El resumen calcula periodos de retorno por umbral' );
+chk( ! empty( $resumen['umbrales'] ), 'El resumen calcula la recurrencia observada por umbral' );
 chk( $resumen['energia_tnt'] > 0, 'El resumen acumula energía liberada' );
 
 /* ------------------------------------------------------------------ */
-seccion( 'Pronóstico a 6 meses' );
+seccion( 'Recurrencia observada (retrospectiva)' );
 
-$pron = SIS_Forecast::pronostico( $eventos, array( 'ambito' => 'regional' ) );
-chk( 6 === count( $pron['meses'] ), 'El pronóstico entrega exactamente 6 meses' );
-chk( $pron['ventana']['desde'] === SIS_Catalogo::sumar_meses( $pron['base']['mes'], 1 ), 'La ventana arranca en el mes siguiente al último dato' );
+$resumen = SIS_Estadistica::resumen( $eventos );
+chk( ! empty( $resumen['umbrales'] ), 'El resumen publica recurrencia por umbral' );
 
-$mono = true;
-$prev = '';
-foreach ( $pron['meses'] as $m ) {
-	if ( '' !== $prev && $m['mes'] <= $prev ) {
-		$mono = false;
-	}
-	$prev = $m['mes'];
-	if ( $m['banda_min'] > $m['esperados'] || $m['banda_max'] < $m['esperados'] ) {
-		$mono = false;
+$campos_prohibidos = array( 'probabilidad', 'prob_1_anio', 'esperados', 'esperados_6m', 'periodo_retorno' );
+$fuga = array();
+foreach ( $resumen['umbrales'] as $u ) {
+	foreach ( $campos_prohibidos as $c ) {
+		if ( array_key_exists( $c, $u ) ) {
+			$fuga[] = $c;
+		}
 	}
 }
-chk( $mono, 'Los meses son consecutivos y la banda encierra el valor esperado' );
+chk( empty( $fuga ), 'Ningún umbral expone probabilidades ni valores esperados a futuro' . ( $fuga ? ' (aparecen: ' . implode( ',', array_unique( $fuga ) ) . ')' : '' ) );
 
-chk( $pron['total']['esperados'] > 0, sprintf( 'Sismos esperados en 6 meses: %.2f', $pron['total']['esperados'] ) );
-chk( ! empty( $pron['umbrales'] ), 'Hay probabilidades por umbral de magnitud' );
-
-$ordenado = true;
-$antes    = 101.0;
-foreach ( $pron['umbrales'] as $u ) {
-	if ( $u['probabilidad'] > $antes + 1e-9 ) {
-		$ordenado = false;
+$coherente = true;
+foreach ( $resumen['umbrales'] as $u ) {
+	foreach ( array( 'magnitud', 'observados', 'tasa_anual_obs', 'intervalo_medio' ) as $c ) {
+		if ( ! array_key_exists( $c, $u ) ) {
+			$coherente = false;
+		}
 	}
-	$antes = $u['probabilidad'];
-	if ( $u['probabilidad'] < 0 || $u['probabilidad'] > 100 ) {
-		$ordenado = false;
+	// Lo observado no puede ser negativo ni superar el catálogo completo.
+	if ( $u['observados'] < 0 || $u['observados'] > count( $eventos ) ) {
+		$coherente = false;
 	}
 }
-chk( $ordenado, 'La probabilidad decrece con la magnitud y queda en 0–100%' );
+chk( $coherente, 'Cada umbral trae magnitud, observados, tasa anual observada e intervalo medio' );
 
-chk( $pron['magnitud_maxima']['modal'] >= $pron['base']['mc'], 'La magnitud máxima esperada supera la de completitud' );
-chk( $pron['magnitud_maxima']['p90'] >= $pron['magnitud_maxima']['p50'], 'El percentil 90 del máximo supera a la mediana' );
-chk( $pron['magnitud_maxima']['p90'] <= SIS_Forecast::M_MAX_CREIBLE, 'La magnitud máxima respeta el truncamiento del dominio' );
-chk( $pron['energia']['tnt'] > 0 && '' !== $pron['energia']['equivalente'], 'La energía esperada trae equivalente divulgativo' );
+$decreciente = true;
+$antes       = PHP_INT_MAX;
+foreach ( $resumen['umbrales'] as $u ) {
+	if ( $u['observados'] > $antes ) {
+		$decreciente = false;
+	}
+	$antes = $u['observados'];
+}
+chk( $decreciente, 'El número de sismos observados decrece al subir la magnitud' );
 
-// Determinismo: mismo catálogo, mismo pronóstico.
-$pron2 = SIS_Forecast::pronostico( $eventos, array( 'ambito' => 'regional' ) );
-chk( $pron['total']['esperados'] === $pron2['total']['esperados'], 'El pronóstico es determinista (reproducible)' );
+$m5 = null;
+foreach ( $resumen['umbrales'] as $u ) {
+	if ( abs( $u['magnitud'] - 5.0 ) < 1e-9 ) {
+		$m5 = $u;
+	}
+}
+$reales = count( SIS_Catalogo::filtrar( $eventos, array( 'min_mag' => 5.0 ) ) );
+chk( $m5 && $m5['observados'] === $reales, sprintf( 'El conteo de M≥5,0 coincide con el catálogo (%d)', $reales ) );
 
-// Sensibilidad: el pronóstico DEBE cambiar cuando cambia el catálogo.
-$firma_a = SIS_Forecast::firma( $eventos );
-$nuevo   = $eventos;
-$ultimo  = end( $nuevo );
-$sismo   = $ultimo;
-$sismo['id']    = 'test_evento_nuevo';
-$sismo['ts']    = $ultimo['ts'] + ( 3 * 86400 );
-$sismo['fecha'] = gmdate( 'Y-m-d H:i:s', $sismo['ts'] );
-$sismo['mes']   = gmdate( 'Y-m', $sismo['ts'] );
-$sismo['anio']  = (int) gmdate( 'Y', $sismo['ts'] );
-$sismo['mag']   = 6.8;
-$sismo['energia_j'] = SIS_Catalogo::energia_joules( 6.8 );
-$nuevo[]        = $sismo;
-$nuevo          = SIS_Catalogo::ordenar( $nuevo );
+$inv = SIS_Estadistica::intervalo_recurrencia( 0.5 );
+chk( abs( $inv - 2.0 ) < 1e-9, 'El intervalo de recurrencia es el inverso de la tasa anual' );
+chk( ! is_finite( SIS_Estadistica::intervalo_recurrencia( 0 ) ), 'Una tasa nula no produce un intervalo finito' );
 
-$firma_b = SIS_Forecast::firma( $nuevo );
-chk( $firma_a !== $firma_b, 'La firma del catálogo cambia al llegar un sismo nuevo (invalida la caché)' );
+$txt = SIS_Texto::recurrencia( $resumen );
+chk( false !== mb_strpos( $txt, 'promedio' ), 'La narrativa de recurrencia habla de promedios' );
+chk( false !== mb_strpos( $txt, 'no un calendario' ) || false !== mb_strpos( $txt, 'no siguen turnos' ), 'La narrativa advierte que no es un calendario' );
 
-$pron3 = SIS_Forecast::pronostico( $nuevo, array( 'ambito' => 'regional' ) );
-chk( $pron3['total']['esperados'] !== $pron['total']['esperados'], 'El pronóstico varía cuando cambia el catálogo' );
-chk( $pron3['replicas']['activo'], 'Un sismo grande reciente activa la componente de réplicas' );
-chk( $pron3['total']['esperados'] > $pron['total']['esperados'], 'Tras un sismo fuerte, la tasa esperada sube' );
+/* ------------------------------------------------------------------ */
+seccion( 'Marco de amenaza y comunicación del riesgo' );
 
-$rep = $pron3['meses'];
-chk( $rep[0]['replicas'] > $rep[5]['replicas'], 'El aporte de réplicas decae mes a mes (ley de Omori)' );
+$glosario = SIS_Amenaza::glosario();
+chk( 4 === count( $glosario ), 'El glosario separa los cuatro conceptos del marco USGS' );
 
-$cmp = SIS_Forecast::comparar( $pron3, $pron );
-chk( $cmp['hay_anterior'] && 'sube' === $cmp['sentido'], 'La comparación con el pronóstico anterior detecta el alza' );
+$prediccion = null;
+foreach ( $glosario as $g ) {
+	if ( 'Predicción' === $g['termino'] ) {
+		$prediccion = $g;
+	}
+}
+chk( $prediccion && false === $prediccion['es_posible'], 'El glosario declara imposible la predicción' );
 
-// Componentes puros.
-$holt = SIS_Forecast::holt_amortiguado( array( 2, 3, 4, 5, 6, 7 ), 6 );
-chk( 6 === count( $holt ) && $holt[0] > 6, 'Holt amortiguado proyecta al alza una serie creciente' );
-$plano = SIS_Forecast::holt_amortiguado( array( 3, 3, 3, 3, 3, 3 ), 6 );
-chk( abs( $plano[5] - 3.0 ) < 0.2, 'Holt amortiguado reproduce una serie constante' );
-$neg = SIS_Forecast::holt_amortiguado( array( 9, 7, 5, 3, 1, 0 ), 6 );
-chk( min( $neg ) >= 0.0, 'La proyección nunca es negativa' );
+$posibles = 0;
+foreach ( $glosario as $g ) {
+	if ( $g['es_posible'] ) {
+		$posibles++;
+	}
+}
+chk( 3 === $posibles, 'Los otros tres conceptos sí son posibles' );
 
-$om1 = SIS_Forecast::integral_omori( 10, 0.05, 1.08, 0, 30 );
-$om2 = SIS_Forecast::integral_omori( 10, 0.05, 1.08, 30, 60 );
-chk( $om1 > $om2, 'La integral de Omori decae con el tiempo' );
+chk( false !== mb_strpos( SIS_Amenaza::descargo(), 'Servicio Geológico Colombiano' ), 'El descargo nombra a la autoridad técnica' );
+chk( false !== mb_strpos( SIS_Amenaza::descargo(), 'no se predicen sismos' ), 'El descargo declara que no se predicen sismos' );
 
-$pr = SIS_Forecast::proporcion_sobre( 4.5, 4.5, 1.0 );
-chk( abs( $pr - 1.0 ) < 1e-9, 'La proporción sobre Mc es 1' );
-chk( SIS_Forecast::proporcion_sobre( SIS_Forecast::M_MAX_CREIBLE, 4.5, 1.0 ) <= 1e-9, 'La GR truncada anula la probabilidad en la magnitud máxima' );
+chk( count( SIS_Amenaza::fuentes_oficiales() ) >= 6, 'Hay directorio de fuentes oficiales' );
+$https = true;
+foreach ( SIS_Amenaza::fuentes_oficiales() as $f ) {
+	if ( 0 !== strpos( $f['url'], 'https://' ) ) {
+		$https = false;
+	}
+}
+chk( $https, 'Todas las fuentes oficiales enlazan por HTTPS' );
+
+chk( count( SIS_Amenaza::senales_falsas() ) >= 5, 'El panel anti-desinformación tiene señales suficientes' );
+chk( ! empty( SIS_Amenaza::replicas()['que_hacer'] ), 'La guía de réplicas trae recomendaciones' );
+
+$rep = SIS_Amenaza::replicas();
+$sin_cifras = true;
+foreach ( array_merge( array( $rep['que_son'], $rep['cuanto_duran'], $rep['donde_mirar'] ), $rep['que_hacer'], $rep['no_haga'] ) as $frase ) {
+	if ( preg_match( '/\b\d+\s*%/', $frase ) ) {
+		$sin_cifras = false;
+	}
+}
+chk( $sin_cifras, 'La guía de réplicas no publica porcentajes propios' );
+
+chk( ! empty( SIS_Amenaza::contexto_geologico() ), 'Hay contexto geológico del departamento' );
+chk( ! empty( SIS_Amenaza::normativa_por_defecto()['norma'] ), 'Hay referencia normativa por defecto' );
 
 /* ------------------------------------------------------------------ */
 echo "\n";

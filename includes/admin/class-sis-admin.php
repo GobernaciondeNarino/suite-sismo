@@ -3,8 +3,8 @@
  * Panel de administración.
  *
  * Cinco pantallas: Resumen (estado y acciones), Fuentes (configuración de las
- * APIs), Modelo (parámetros del pronóstico), Apariencia (variables CSS) y
- * Elementos (catálogo de shortcodes para copiar y pegar).
+ * APIs), Amenaza (referencia normativa y descargo institucional), Apariencia
+ * (variables CSS) y Elementos (catálogo de shortcodes para copiar y pegar).
  *
  * Toda escritura pasa por comprobación de capacidad (manage_options) y nonce.
  *
@@ -26,12 +26,11 @@ final class SIS_Admin {
 
 		// Guardado de formularios.
 		add_action( 'admin_post_sis_guardar_fuentes', array( $this, 'guardar_fuentes' ) );
-		add_action( 'admin_post_sis_guardar_modelo', array( $this, 'guardar_modelo' ) );
+		add_action( 'admin_post_sis_guardar_amenaza', array( $this, 'guardar_amenaza' ) );
 		add_action( 'admin_post_sis_guardar_estilo', array( $this, 'guardar_estilo' ) );
 
 		// Acciones asíncronas.
 		add_action( 'wp_ajax_sis_sincronizar', array( $this, 'ajax_sincronizar' ) );
-		add_action( 'wp_ajax_sis_recalcular', array( $this, 'ajax_recalcular' ) );
 		add_action( 'wp_ajax_sis_probar', array( $this, 'ajax_probar' ) );
 	}
 
@@ -56,7 +55,7 @@ final class SIS_Admin {
 		$sub = array(
 			''            => array( __( 'Resumen', 'sismos-narino' ), 'pantalla_resumen' ),
 			'-fuentes'    => array( __( 'Fuentes', 'sismos-narino' ), 'pantalla_fuentes' ),
-			'-modelo'     => array( __( 'Modelo de pronóstico', 'sismos-narino' ), 'pantalla_modelo' ),
+			'-amenaza'    => array( __( 'Amenaza y normativa', 'sismos-narino' ), 'pantalla_amenaza' ),
 			'-apariencia' => array( __( 'Apariencia', 'sismos-narino' ), 'pantalla_apariencia' ),
 			'-elementos'  => array( __( 'Elementos', 'sismos-narino' ), 'pantalla_elementos' ),
 		);
@@ -116,21 +115,29 @@ final class SIS_Admin {
 		$this->cabecera( __( 'Sismos Nariño — Resumen', 'sismos-narino' ) );
 
 		$fuentes = SIS_Sync::estado();
-		$ambito  = SIS_Forecast::opciones_modelo()['ambito'];
+		$ambito  = SIS_Regiones::por_defecto();
 		$cat     = SIS_Catalogo::obtener( $ambito );
-		$pron    = SIS_Forecast::obtener( $ambito );
+		$stats   = SIS_Estadistica::resumen( $cat['eventos'] );
 		?>
-		<p class="description">
+		<p class="description" style="max-width:820px">
 			<?php esc_html_e( 'Motor de datos: USGS FDSN Event Web Service y feeds GeoJSON de resumen (sin clave de API, actualización del feed cada minuto).', 'sismos-narino' ); ?>
 		</p>
+
+		<div class="notice notice-info inline" style="max-width:820px">
+			<p><strong><?php esc_html_e( 'Este plugin no pronostica sismos.', 'sismos-narino' ); ?></strong>
+			<?php esc_html_e( 'Publica estadística de lo ya ocurrido, contexto de amenaza y preparación ciudadana, y remite a la autoridad técnica. La predicción de un sismo —fecha, lugar y magnitud— no es posible, y el pronóstico probabilístico de réplicas es competencia del Servicio Geológico Colombiano, que hoy no lo emite.', 'sismos-narino' ); ?></p>
+		</div>
 
 		<h2><?php esc_html_e( 'Catálogo vigente', 'sismos-narino' ); ?></h2>
 		<table class="widefat striped" style="max-width:900px">
 			<tbody>
-				<tr><th><?php esc_html_e( 'Ámbito del modelo', 'sismos-narino' ); ?></th><td><?php echo esc_html( SIS_Regiones::obtener( $ambito )['nombre'] ); ?></td></tr>
+				<tr><th><?php esc_html_e( 'Ámbito de referencia', 'sismos-narino' ); ?></th><td><?php echo esc_html( SIS_Regiones::obtener( $ambito )['nombre'] ); ?></td></tr>
 				<tr><th><?php esc_html_e( 'Sismos cargados', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $cat['total'] ) ); ?></td></tr>
 				<tr><th><?php esc_html_e( 'Última actualización', 'sismos-narino' ); ?></th><td><?php echo esc_html( $cat['actualizado'] ? $cat['actualizado'] . ' UTC' : '—' ); ?></td></tr>
 				<tr><th><?php esc_html_e( 'Origen del dato', 'sismos-narino' ); ?></th><td><?php echo esc_html( $cat['origen'] ); ?></td></tr>
+				<tr><th><?php esc_html_e( 'Magnitud de completitud', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $stats['gutenberg']['mc'], 1 ) ); ?></td></tr>
+				<tr><th><?php esc_html_e( 'Valor b', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $stats['gutenberg']['b'], 2 ) . ' ± ' . number_format_i18n( $stats['gutenberg']['b_error'], 2 ) ); ?></td></tr>
+				<tr><th><?php esc_html_e( 'Ventana del catálogo', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $stats['anios'], 1 ) . ' ' . __( 'años', 'sismos-narino' ) ); ?></td></tr>
 			</tbody>
 		</table>
 
@@ -141,47 +148,29 @@ final class SIS_Admin {
 			<button type="button" class="button" data-sis-accion="sincronizar" data-fuente="usgs_feed">
 				<?php esc_html_e( 'Refrescar feed reciente', 'sismos-narino' ); ?>
 			</button>
-			<button type="button" class="button" data-sis-accion="recalcular">
-				<?php esc_html_e( 'Recalcular pronóstico', 'sismos-narino' ); ?>
-			</button>
 			<span class="sis-admin-estado" aria-live="polite"></span>
 		</p>
 
-		<h2><?php esc_html_e( 'Pronóstico a 6 meses', 'sismos-narino' ); ?></h2>
-		<?php if ( empty( $pron['meses'] ) ) : ?>
-			<div class="notice notice-warning inline"><p><?php echo esc_html( isset( $pron['mensaje'] ) ? $pron['mensaje'] : '' ); ?></p></div>
-		<?php else : ?>
-			<table class="widefat striped" style="max-width:900px">
-				<tbody>
-					<tr><th><?php esc_html_e( 'Ventana', 'sismos-narino' ); ?></th><td><?php echo esc_html( $pron['ventana']['desde'] . ' → ' . $pron['ventana']['hasta'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Sismos esperados', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $pron['total']['esperados'], 2 ) . ' (' . number_format_i18n( $pron['total']['banda_min'], 1 ) . ' – ' . number_format_i18n( $pron['total']['banda_max'], 1 ) . ')' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Magnitud de completitud', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $pron['base']['mc'], 1 ) ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Valor b', 'sismos-narino' ); ?></th><td><?php echo esc_html( number_format_i18n( $pron['base']['b'], 2 ) . ' ± ' . number_format_i18n( $pron['base']['b_error'], 2 ) ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Réplicas activas', 'sismos-narino' ); ?></th><td><?php echo esc_html( ! empty( $pron['replicas']['activo'] ) ? __( 'Sí', 'sismos-narino' ) : __( 'No', 'sismos-narino' ) ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Cambio respecto al anterior', 'sismos-narino' ); ?></th><td><?php echo esc_html( isset( $pron['comparacion']['texto'] ) ? $pron['comparacion']['texto'] : '—' ); ?></td></tr>
-				</tbody>
-			</table>
-
-			<h3><?php esc_html_e( 'Probabilidad por umbral', 'sismos-narino' ); ?></h3>
-			<table class="widefat striped" style="max-width:900px">
-				<thead><tr>
-					<th><?php esc_html_e( 'Magnitud', 'sismos-narino' ); ?></th>
-					<th><?php esc_html_e( 'Esperados (6 meses)', 'sismos-narino' ); ?></th>
-					<th><?php esc_html_e( 'Probabilidad', 'sismos-narino' ); ?></th>
-					<th><?php esc_html_e( 'Periodo de retorno', 'sismos-narino' ); ?></th>
-				</tr></thead>
-				<tbody>
-				<?php foreach ( $pron['umbrales'] as $u ) : ?>
-					<tr>
-						<td><?php echo esc_html( 'M ≥ ' . number_format_i18n( $u['magnitud'], 1 ) ); ?></td>
-						<td><?php echo esc_html( number_format_i18n( $u['esperados_6m'], 3 ) ); ?></td>
-						<td><?php echo esc_html( number_format_i18n( $u['probabilidad'], 1 ) . ' %' ); ?></td>
-						<td><?php echo esc_html( $u['periodo_retorno'] ? number_format_i18n( $u['periodo_retorno'], 1 ) . ' ' . __( 'años', 'sismos-narino' ) : '—' ); ?></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
+		<h2><?php esc_html_e( 'Recurrencia observada', 'sismos-narino' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Lo que registró el catálogo en la ventana consultada. Son promedios del pasado, no una proyección ni un calendario.', 'sismos-narino' ); ?></p>
+		<table class="widefat striped" style="max-width:900px">
+			<thead><tr>
+				<th><?php esc_html_e( 'Magnitud', 'sismos-narino' ); ?></th>
+				<th><?php esc_html_e( 'Sismos observados', 'sismos-narino' ); ?></th>
+				<th><?php esc_html_e( 'Tasa anual observada', 'sismos-narino' ); ?></th>
+				<th><?php esc_html_e( 'Intervalo medio', 'sismos-narino' ); ?></th>
+			</tr></thead>
+			<tbody>
+			<?php foreach ( $stats['umbrales'] as $u ) : ?>
+				<tr>
+					<td><?php echo esc_html( 'M ≥ ' . number_format_i18n( $u['magnitud'], 1 ) ); ?></td>
+					<td><?php echo esc_html( number_format_i18n( $u['observados'] ) ); ?></td>
+					<td><?php echo esc_html( number_format_i18n( $u['tasa_anual_obs'], 2 ) . ' /' . __( 'año', 'sismos-narino' ) ); ?></td>
+					<td><?php echo esc_html( $u['intervalo_medio'] ? number_format_i18n( $u['intervalo_medio'], 1 ) . ' ' . __( 'años', 'sismos-narino' ) : '—' ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
 
 		<h2><?php esc_html_e( 'Fuentes', 'sismos-narino' ); ?></h2>
 		<table class="widefat striped" style="max-width:900px">
@@ -361,115 +350,126 @@ final class SIS_Admin {
 	}
 
 	/* ----------------------------------------------------------------- */
-	/* Pantalla: Modelo                                                  */
+	/* Pantalla: Amenaza y normativa                                     */
 	/* ----------------------------------------------------------------- */
 
 	/**
-	 * Parámetros del modelo de pronóstico.
+	 * Referencia normativa publicada por los componentes de amenaza.
+	 *
+	 * Aquí NO hay parámetros de pronóstico: el plugin no estima sismos
+	 * futuros. Lo que se edita son las cifras de la norma vigente y las notas
+	 * de vigencia, que deben verificarse contra el texto oficial de la NSR-10
+	 * y actualizarse cuando cambie.
 	 */
-	public function pantalla_modelo() {
+	public function pantalla_amenaza() {
 		if ( ! current_user_can( self::CAP ) ) {
 			return;
 		}
 
-		$m = wp_parse_args( get_option( 'sis_modelo', array() ), SIS_Activator::modelo_por_defecto() );
+		$n = SIS_Amenaza::normativa();
 
-		$this->cabecera( __( 'Modelo de pronóstico', 'sismos-narino' ) );
+		$this->cabecera( __( 'Amenaza y normativa', 'sismos-narino' ) );
 		?>
-		<p class="description" style="max-width:800px">
-			<?php esc_html_e( 'El pronóstico suma tres componentes: el fondo de largo plazo (ley de Gutenberg-Richter), el estado reciente (suavizado exponencial con tendencia amortiguada) y las réplicas pendientes (ley de Omori-Utsu). Estos parámetros gobiernan la mezcla; los valores por defecto son conservadores y están documentados en cada gráfico.', 'sismos-narino' ); ?>
+		<div class="notice notice-warning inline" style="max-width:840px">
+			<p><strong><?php esc_html_e( 'Verifique antes de publicar.', 'sismos-narino' ); ?></strong>
+			<?php esc_html_e( 'Los coeficientes deben tomarse de la Tabla A.2.3-2 y del Apéndice A-4 de la NSR-10, o del sistema de consulta de amenaza del SGC. Si se adopta por decreto la actualización AIS 100-24, actualice estos valores y la nota de vigencia.', 'sismos-narino' ); ?></p>
+		</div>
+
+		<p class="description" style="max-width:840px">
+			<?php esc_html_e( 'Estos textos alimentan el shortcode [sismos_amenaza] y la ruta REST /amenaza. La amenaza probabilística oficial no se calcula aquí: se consulta en el Modelo Nacional de Amenaza Sísmica del SGC, al que la plataforma enlaza.', 'sismos-narino' ); ?>
 		</p>
 
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="sis_guardar_modelo">
-			<?php wp_nonce_field( 'sis_modelo' ); ?>
+			<input type="hidden" name="action" value="sis_guardar_amenaza">
+			<?php wp_nonce_field( 'sis_amenaza' ); ?>
 
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><label for="m_ambito"><?php esc_html_e( 'Ámbito por defecto', 'sismos-narino' ); ?></label></th>
+					<th scope="row"><label for="a_norma"><?php esc_html_e( 'Norma vigente', 'sismos-narino' ); ?></label></th>
+					<td><input type="text" class="large-text" id="a_norma" name="a_norma" value="<?php echo esc_attr( $n['norma'] ); ?>"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="a_zona_pasto"><?php esc_html_e( 'Zona de amenaza de Pasto', 'sismos-narino' ); ?></label></th>
+					<td><input type="text" class="regular-text" id="a_zona_pasto" name="a_zona_pasto" value="<?php echo esc_attr( $n['zona_pasto'] ); ?>"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="a_aa_pasto"><?php esc_html_e( 'Aa / Av en Pasto', 'sismos-narino' ); ?></label></th>
 					<td>
-						<select id="m_ambito" name="m_ambito">
-							<?php foreach ( SIS_Regiones::lista() as $a ) : ?>
-								<option value="<?php echo esc_attr( $a['slug'] ); ?>" <?php selected( $m['ambito'], $a['slug'] ); ?>><?php echo esc_html( $a['nombre'] ); ?></option>
-							<?php endforeach; ?>
-						</select>
+						<input type="text" class="small-text" id="a_aa_pasto" name="a_aa_pasto" value="<?php echo esc_attr( $n['aa_pasto'] ); ?>">
+						<input type="text" class="small-text" id="a_av_pasto" name="a_av_pasto" value="<?php echo esc_attr( $n['av_pasto'] ); ?>">
+						<p class="description"><?php esc_html_e( 'Aceleración pico efectiva de diseño y coeficiente de velocidad, para 10 % de probabilidad de excedencia en 50 años.', 'sismos-narino' ); ?></p>
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="m_horizonte"><?php esc_html_e( 'Horizonte (meses)', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" min="1" max="24" id="m_horizonte" name="m_horizonte" value="<?php echo esc_attr( (int) $m['horizonte'] ); ?>">
-						<p class="description"><?php esc_html_e( 'Seis meses es el valor de diseño del plugin.', 'sismos-narino' ); ?></p></td>
+					<th scope="row"><label for="a_aa_pacifico"><?php esc_html_e( 'Aa / Av máximos en el litoral', 'sismos-narino' ); ?></label></th>
+					<td>
+						<input type="text" class="small-text" id="a_aa_pacifico" name="a_aa_pacifico" value="<?php echo esc_attr( $n['aa_pacifico'] ); ?>">
+						<input type="text" class="small-text" id="a_av_pacifico" name="a_av_pacifico" value="<?php echo esc_attr( $n['av_pacifico'] ); ?>">
+					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="m_confianza"><?php esc_html_e( 'Confianza de la banda', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0.5" max="0.99" id="m_confianza" name="m_confianza" value="<?php echo esc_attr( $m['confianza'] ); ?>"></td>
+					<th scope="row"><label for="a_vigencia"><?php esc_html_e( 'Nota de vigencia', 'sismos-narino' ); ?></label></th>
+					<td><textarea class="large-text" rows="3" id="a_vigencia" name="a_vigencia"><?php echo esc_textarea( $n['vigencia'] ); ?></textarea></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="m_alfa"><?php esc_html_e( 'α — suavizado del nivel', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0.01" max="1" id="m_alfa" name="m_alfa" value="<?php echo esc_attr( $m['alfa'] ); ?>"></td>
+					<th scope="row"><label for="a_microzonificacion"><?php esc_html_e( 'Microzonificación', 'sismos-narino' ); ?></label></th>
+					<td><textarea class="large-text" rows="3" id="a_microzonificacion" name="a_microzonificacion"><?php echo esc_textarea( $n['microzonificacion'] ); ?></textarea></td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="m_beta"><?php esc_html_e( 'β — suavizado de la tendencia', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0" max="1" id="m_beta" name="m_beta" value="<?php echo esc_attr( $m['beta'] ); ?>"></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="m_phi"><?php esc_html_e( 'φ — amortiguamiento', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0.1" max="1" id="m_phi" name="m_phi" value="<?php echo esc_attr( $m['phi'] ); ?>"></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="m_peso0"><?php esc_html_e( 'Peso inicial del estado reciente', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0" max="1" id="m_peso0" name="m_peso0" value="<?php echo esc_attr( $m['peso0'] ); ?>"></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="m_phi_peso"><?php esc_html_e( 'Decaimiento del peso reciente', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" step="0.01" min="0.1" max="1" id="m_phi_peso" name="m_phi_peso" value="<?php echo esc_attr( $m['phi_peso'] ); ?>">
-						<p class="description"><?php esc_html_e( 'Con 0,75 el estado reciente pesa un 70 % en el primer mes y menos del 20 % en el sexto: la reversión a la climatología.', 'sismos-narino' ); ?></p></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="m_meses"><?php esc_html_e( 'Meses recientes usados', 'sismos-narino' ); ?></label></th>
-					<td><input type="number" min="12" max="600" id="m_meses" name="m_meses" value="<?php echo esc_attr( (int) $m['meses_recientes'] ); ?>"></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="m_umbrales"><?php esc_html_e( 'Umbrales de magnitud', 'sismos-narino' ); ?></label></th>
-					<td><input type="text" class="regular-text" id="m_umbrales" name="m_umbrales" value="<?php echo esc_attr( is_array( $m['umbrales'] ) ? implode( ', ', $m['umbrales'] ) : $m['umbrales'] ); ?>">
-						<p class="description"><?php esc_html_e( 'Separados por comas. La magnitud de completitud se añade siempre como primer umbral.', 'sismos-narino' ); ?></p></td>
+					<th scope="row"><label for="a_nota"><?php esc_html_e( 'Nota metodológica', 'sismos-narino' ); ?></label></th>
+					<td><textarea class="large-text" rows="3" id="a_nota" name="a_nota"><?php echo esc_textarea( $n['nota'] ); ?></textarea></td>
 				</tr>
 			</table>
 
 			<?php submit_button(); ?>
 		</form>
+
+		<h2><?php esc_html_e( 'Descargo institucional publicado', 'sismos-narino' ); ?></h2>
+		<p class="description" style="max-width:840px"><?php echo esc_html( SIS_Amenaza::descargo() ); ?></p>
+
+		<h2><?php esc_html_e( 'Fuentes oficiales enlazadas', 'sismos-narino' ); ?></h2>
+		<table class="widefat striped" style="max-width:900px">
+			<thead><tr>
+				<th><?php esc_html_e( 'Entidad', 'sismos-narino' ); ?></th>
+				<th><?php esc_html_e( 'Recurso', 'sismos-narino' ); ?></th>
+				<th><?php esc_html_e( 'Enlace', 'sismos-narino' ); ?></th>
+			</tr></thead>
+			<tbody>
+			<?php foreach ( SIS_Amenaza::fuentes_oficiales() as $f ) : ?>
+				<tr>
+					<td><?php echo esc_html( $f['entidad'] ); ?></td>
+					<td><?php echo esc_html( $f['nombre'] ); ?><p class="description"><?php echo esc_html( $f['descripcion'] ); ?></p></td>
+					<td><a href="<?php echo esc_url( $f['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $f['url'] ); ?></a></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Guarda los parámetros del modelo.
+	 * Guarda la referencia normativa.
 	 */
-	public function guardar_modelo() {
+	public function guardar_amenaza() {
 		if ( ! current_user_can( self::CAP ) ) {
 			wp_die( esc_html__( 'Sin permisos.', 'sismos-narino' ) );
 		}
-		check_admin_referer( 'sis_modelo' );
+		check_admin_referer( 'sis_amenaza' );
 
 		$post = wp_unslash( $_POST );
-		$m    = array(
-			'ambito'          => SIS_Security::sanitizar_ambito( isset( $post['m_ambito'] ) ? $post['m_ambito'] : '' ),
-			'horizonte'       => isset( $post['m_horizonte'] ) ? (int) $post['m_horizonte'] : 6,
-			'confianza'       => isset( $post['m_confianza'] ) ? (float) $post['m_confianza'] : 0.90,
-			'alfa'            => isset( $post['m_alfa'] ) ? (float) $post['m_alfa'] : 0.35,
-			'beta'            => isset( $post['m_beta'] ) ? (float) $post['m_beta'] : 0.12,
-			'phi'             => isset( $post['m_phi'] ) ? (float) $post['m_phi'] : 0.85,
-			'peso0'           => isset( $post['m_peso0'] ) ? (float) $post['m_peso0'] : 0.70,
-			'phi_peso'        => isset( $post['m_phi_peso'] ) ? (float) $post['m_phi_peso'] : 0.75,
-			'meses_recientes' => isset( $post['m_meses'] ) ? (int) $post['m_meses'] : 60,
-			'umbrales'        => isset( $post['m_umbrales'] ) ? sanitize_text_field( $post['m_umbrales'] ) : '5.0, 5.5, 6.0, 6.5, 7.0',
-		);
+		$n    = SIS_Amenaza::normativa_por_defecto();
 
-		update_option( 'sis_modelo', $m );
-		SIS_Cache::delete_grupo( 'pronostico' );
-		SIS_Sync::auditar( 'config', 'modelo', 'ok', 0, 'Parámetros del modelo actualizados' );
+		foreach ( array_keys( $n ) as $clave ) {
+			if ( isset( $post[ 'a_' . $clave ] ) ) {
+				$n[ $clave ] = sanitize_text_field( $post[ 'a_' . $clave ] );
+			}
+		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '-modelo&sis_ok=1' ) );
+		update_option( 'sis_amenaza', $n );
+		SIS_Sync::auditar( 'config', 'amenaza', 'ok', 0, 'Referencia normativa actualizada' );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '-amenaza&sis_ok=1' ) );
 		exit;
 	}
 
@@ -642,32 +642,6 @@ final class SIS_Admin {
 				number_format_i18n( $r['latencia_ms'] )
 			),
 			'detalle' => $r['mensaje'],
-		) );
-	}
-
-	/**
-	 * Fuerza el recálculo del pronóstico.
-	 */
-	public function ajax_recalcular() {
-		check_ajax_referer( 'sis_admin', 'nonce' );
-		if ( ! current_user_can( self::CAP ) ) {
-			wp_send_json_error( array( 'mensaje' => __( 'Sin permisos.', 'sismos-narino' ) ), 403 );
-		}
-
-		SIS_Cache::delete_grupo( 'pronostico' );
-		$p = SIS_Forecast::obtener();
-
-		SIS_Sync::auditar( 'pronostico', 'modelo', 'ok', isset( $p['base']['n_completos'] ) ? (int) $p['base']['n_completos'] : 0, 'Recálculo manual del pronóstico' );
-
-		wp_send_json_success( array(
-			'mensaje' => empty( $p['meses'] )
-				? __( 'Sin catálogo suficiente para pronosticar.', 'sismos-narino' )
-				: sprintf(
-					/* translators: 1: sismos esperados, 2: ventana */
-					__( 'Pronóstico recalculado: %1$s sismos esperados entre %2$s.', 'sismos-narino' ),
-					number_format_i18n( $p['total']['esperados'], 2 ),
-					$p['ventana']['desde'] . ' y ' . $p['ventana']['hasta']
-				),
 		) );
 	}
 

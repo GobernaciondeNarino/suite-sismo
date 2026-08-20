@@ -6,7 +6,7 @@
   var TITULOS = {
     eventos: 'catálogo de sismos',
     estadistica: 'indicadores estadísticos',
-    pronostico: 'pronóstico a 6 meses'
+    recurrencia: 'recurrencia observada por magnitud'
   };
 
   C.ready(function () {

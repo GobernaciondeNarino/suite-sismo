@@ -63,11 +63,11 @@ final class SIS_Plugin {
 		// Datos.
 		require_once $base . 'data/class-sis-municipios.php';
 		require_once $base . 'data/class-sis-regiones.php';
+		require_once $base . 'data/class-sis-amenaza.php';
 
-		// Análisis (orden: catálogo → estadística → pronóstico → texto).
+		// Análisis (orden: catálogo → estadística → texto).
 		require_once $base . 'analysis/class-sis-catalogo.php';
 		require_once $base . 'analysis/class-sis-estadistica.php';
-		require_once $base . 'analysis/class-sis-forecast.php';
 		require_once $base . 'analysis/class-sis-texto.php';
 
 		// Vistas del motor de gráficos (dependen de análisis).

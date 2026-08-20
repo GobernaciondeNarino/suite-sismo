@@ -144,47 +144,8 @@
 .sis-est__cifra { font-size: 1.6em; font-weight: 700; line-height: 1.1; color: var(--sis-acento, #003087); }
 .sis-est__etq { font-size: .8em; color: var(--sis-mute, #6b7280); }
 
-/* --- [sismos_pronostico] --- */
-.sis-pron__cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.sis-pron__etq {
-  font-size: .72em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: #6d28d9;
-  background: #f3e8ff;
-  border-radius: 999px;
-  padding: 3px 10px;
-}
-.sis-pron__ventana { font-size: .88em; color: var(--sis-mute, #6b7280); }
-.sis-pron__cifra { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: .5em 0; }
-.sis-pron__num { font-size: 2.6em; font-weight: 700; line-height: 1; color: var(--sis-acento, #003087); }
-.sis-pron__num-etq { font-size: .9em; color: var(--sis-mute, #6b7280); max-width: 380px; }
-.sis-pron__cambio { font-size: .88em; margin: .2em 0 .6em; padding-left: 10px; border-left: 3px solid var(--sis-mute, #6b7280); }
-.sis-pron__cambio--sube { border-left-color: #FF7300; }
-.sis-pron__cambio--baja { border-left-color: #3EBA6A; }
-.sis-pron__h { font-size: 1em; margin: 1em 0 .4em; }
-.sis-pron__grafico { margin: .6em 0; }
-.sis-pron__grafico svg { width: 100%; height: auto; }
-.sis-pron__mmax { font-size: .92em; margin: .6em 0; }
-.sis-pron__aviso {
-  font-size: .82em;
-  color: var(--sis-mute, #6b7280);
-  border-left: 3px solid var(--sis-acento-2, #FFD500);
-  padding-left: 10px;
-  margin-top: 1em;
-}
-.sis-pron__barra {
-  display: inline-block;
-  width: 90px; height: 8px;
-  background: var(--sis-borde-color, #e5e7eb);
-  border-radius: 999px;
-  overflow: hidden;
-  vertical-align: middle;
-  margin-right: 8px;
-}
-.sis-pron__barra-in { display: block; height: 100%; }
-.sis-pron__pct { font-variant-numeric: tabular-nums; }
+/* Encabezado interno de la ficha estadística. */
+.sis-est__h { font-size: 1em; margin: 1em 0 .4em; }
 
 /* --- [sismos_filtro] --- */
 .sis-filtro { display: inline-flex; align-items: center; gap: 8px; margin: 6px 10px 6px 0; }
@@ -205,9 +166,58 @@
 
 @media (max-width: 640px) {
   .sis-estado__mag { font-size: 2em; }
-  .sis-pron__num { font-size: 2.1em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .sis-btn, .sis-ultimos__item { transition: none; animation: none; }
+}
+
+/* =====================================================================
+   Componentes de amenaza y preparación (contenido oficial, sin pronóstico).
+   Son bloques de texto: heredan la tipografía del tema y solo aportan ritmo
+   de lectura, jerarquía y los avisos institucionales.
+   ===================================================================== */
+.sis-h2 { font-size: 1.25em; font-weight: 700; margin: 0 0 .5em; }
+.sis-h3 { font-size: 1.02em; font-weight: 600; margin: 1.1em 0 .35em; }
+
+.sis-lista { margin: .4em 0 .9em; padding-left: 1.2em; }
+.sis-lista li { margin: .3em 0; line-height: 1.55; }
+.sis-lista--senales { list-style: none; padding-left: 0; }
+.sis-lista--senales li {
+  margin: .7em 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--sis-acento-tecnico, #C0392B);
+}
+
+.sis-dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: .5em 0 .8em; }
+.sis-dl dt { color: var(--sis-mute, #6b7280); }
+.sis-dl dd { margin: 0; }
+
+.sis-nota { font-size: .86em; color: var(--sis-mute, #6b7280); }
+
+/* Aviso institucional: siempre visible, nunca en letra pequeña. */
+.sis-aviso {
+  font-size: .92em;
+  line-height: 1.55;
+  margin: .8em 0;
+  padding: .7em .9em;
+  border-left: 4px solid var(--sis-acento-2, #FFD500);
+  background: rgba(255, 213, 0, .08);
+}
+
+.sis-enlace { color: var(--sis-acento, #003087); text-decoration: underline; }
+.sis-enlace:hover { text-decoration: none; }
+
+.sis-fuentes-lista { list-style: none; margin: .6em 0; padding: 0; }
+.sis-fuentes-lista li {
+  margin: .6em 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--sis-borde-color, #e5e7eb);
+}
+
+.sis-glosario__item { margin: .9em 0; }
+.sis-glosario__item .sis-chip { font-size: .68em; vertical-align: middle; margin-left: 6px; }
+
+@media (max-width: 640px) {
+  .sis-dl { grid-template-columns: 1fr; }
 }

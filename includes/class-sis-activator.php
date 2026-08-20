@@ -100,7 +100,7 @@ final class SIS_Activator {
 	private static function sembrar_opciones() {
 		add_option( 'sis_api_config', self::config_apis_por_defecto() );
 		add_option( 'sis_estilo', self::estilo_por_defecto() );
-		add_option( 'sis_modelo', self::modelo_por_defecto() );
+		add_option( 'sis_amenaza', SIS_Amenaza::normativa_por_defecto() );
 	}
 
 	/**
@@ -125,20 +125,6 @@ final class SIS_Activator {
 			'ancho_max'      => '100%',
 			'espaciado'      => '0',
 		);
-	}
-
-	/**
-	 * Parámetros por defecto del modelo de pronóstico.
-	 *
-	 * Se exponen en el panel para que la entidad pueda ajustar el modelo sin
-	 * tocar código, y quedan documentados en la ficha de método de cada
-	 * gráfico (transparencia metodológica).
-	 *
-	 * @return array
-	 */
-	public static function modelo_por_defecto() {
-		// La definición vive en la clase del modelo: aquí solo se siembra.
-		return SIS_Forecast::modelo_por_defecto();
 	}
 
 	/**
@@ -213,17 +199,18 @@ final class SIS_Activator {
 			}
 		}
 
-		$modelo = get_option( 'sis_modelo', array() );
-		if ( is_array( $modelo ) ) {
-			$nuevo = wp_parse_args( $modelo, self::modelo_por_defecto() );
-			if ( $nuevo !== $modelo ) {
-				update_option( 'sis_modelo', $nuevo );
+		$amenaza = get_option( 'sis_amenaza', array() );
+		if ( is_array( $amenaza ) ) {
+			$nuevo = wp_parse_args( $amenaza, SIS_Amenaza::normativa_por_defecto() );
+			if ( $nuevo !== $amenaza ) {
+				update_option( 'sis_amenaza', $nuevo );
 				$cambio = true;
 			}
 		}
 
-		// Al cambiar de versión pueden cambiar los cálculos: se recalcula todo.
-		SIS_Cache::delete_grupo( 'pronostico' );
+		// La opción del modelo de pronóstico ya no existe: se retira al migrar.
+		delete_option( 'sis_modelo' );
+
 		self::agendar_cron();
 
 		if ( $cambio ) {

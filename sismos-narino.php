@@ -2,8 +2,8 @@
 /**
  * Plugin Name:  Sismos Nariño — Análisis Estadístico y Pronóstico Sísmico
  * Plugin URI:   https://gobiernoabierto.narino.gov.co/datos/sismos/
- * Description:  Análisis estadístico de la sismicidad de Nariño y la zona de subducción vecina con datos abiertos del USGS (FDSN Event + feeds GeoJSON). Gráficos D3plus con barra de herramientas, mapa de epicentros, datos abiertos y pronóstico probabilístico a 6 meses recalculado con cada actualización del catálogo.
- * Version:      1.0.0
+ * Description:  Análisis estadístico de la sismicidad de Nariño y la zona de subducción vecina con datos abiertos del USGS (FDSN Event + feeds GeoJSON). Gráficos D3plus con barra de herramientas, mapa de epicentros, datos abiertos y módulo de amenaza y preparación construido sobre fuentes oficiales. NO pronostica sismos: la autoridad técnica es el Servicio Geológico Colombiano.
+ * Version:      2.0.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       Gobernación de Nariño · Secretaría TIC, Innovación y Gobierno Abierto
@@ -15,9 +15,13 @@
  *
  * Fuentes de datos (atribución obligatoria): U.S. Geological Survey — Earthquake
  * Hazards Program (FDSN Event Web Service y feeds GeoJSON, dominio público),
- * DANE/DIVIPOLA (municipios de Nariño). Los pronósticos son estimaciones
- * probabilísticas propias del plugin; NO son avisos oficiales de emergencia
- * (esos corresponden al Servicio Geológico Colombiano y a la UNGRD).
+ * DANE/DIVIPOLA (municipios de Nariño), Servicio Geológico Colombiano y UNGRD
+ * (marco de amenaza y preparación).
+ *
+ * Alcance: el plugin publica estadística de lo ya ocurrido y contenido oficial
+ * de amenaza y preparación. NO predice ni pronostica sismos —eso no es posible,
+ * y el pronóstico de réplicas es competencia del Servicio Geológico Colombiano—.
+ * Ver docs/marco-comunicacion-riesgo.md.
  */
 
 // Salida directa bloqueada: ningún acceso fuera de WordPress.
@@ -29,7 +33,7 @@ use GobernacionNarino\Sismos\SIS_Activator;
 /* -------------------------------------------------------------------------
  * Constantes del plugin
  * ---------------------------------------------------------------------- */
-define( 'SIS_VERSION', '1.0.0' );
+define( 'SIS_VERSION', '2.0.0' );
 define( 'SIS_FILE', __FILE__ );
 define( 'SIS_DIR', plugin_dir_path( __FILE__ ) );       // .../sismos-narino/
 define( 'SIS_URL', plugin_dir_url( __FILE__ ) );        // URL pública de assets

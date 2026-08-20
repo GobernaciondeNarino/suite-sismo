@@ -39,7 +39,7 @@
         var msg = (j && j.data && j.data.mensaje) ? j.data.mensaje : 'Sin respuesta.';
         if (j && j.data && j.data.detalle) { msg += ' — ' + j.data.detalle; }
         if (estado) { estado.textContent = msg; }
-        if (accion === 'sincronizar' || accion === 'recalcular') {
+        if (accion === 'sincronizar') {
           setTimeout(function () { location.reload(); }, 1500);
         }
       })
