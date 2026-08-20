@@ -192,15 +192,25 @@ final class SIS_Sync {
 	/**
 	 * Estado de salud de las fuentes, para el panel público y el admin.
 	 *
+	 * En modo público se recorta el detalle: el mensaje de error de una fuente
+	 * puede incluir la URL consultada o la respuesta cruda del proveedor, y eso
+	 * no aporta nada al visitante mientras sí describe la instalación.
+	 *
+	 * @param bool $publico Recortar la información sensible.
 	 * @return array[]
 	 */
-	public static function estado() {
+	public static function estado( $publico = false ) {
 		$config = get_option( 'sis_api_config', array() );
 		$out    = array();
 
 		foreach ( self::FUENTES as $slug => $clase ) {
 			$cfg = isset( $config[ $slug ] ) ? $config[ $slug ] : array();
 			$ult = isset( $cfg['ultima_sync'] ) ? (int) $cfg['ultima_sync'] : 0;
+
+			$resultado = isset( $cfg['ultimo_resultado'] ) ? $cfg['ultimo_resultado'] : '';
+			if ( $publico ) {
+				$resultado = self::resultado_publico( $resultado );
+			}
 
 			$out[] = array(
 				'slug'             => $slug,
@@ -209,12 +219,31 @@ final class SIS_Sync {
 				'capa'             => isset( $cfg['capa'] ) ? $cfg['capa'] : 'cron',
 				'ultima_sync'      => $ult ? gmdate( 'c', $ult ) : '',
 				'hace_horas'       => $ult ? round( ( time() - $ult ) / 3600, 1 ) : null,
-				'ultimo_resultado' => isset( $cfg['ultimo_resultado'] ) ? $cfg['ultimo_resultado'] : '',
+				'ultimo_resultado' => $resultado,
 				'salud'            => self::salud( $cfg ),
 			);
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Reduce el resultado de la última sincronización a lo publicable:
+	 * el veredicto y el número de registros, sin detalle técnico.
+	 *
+	 * @param string $resultado Cadena guardada en la configuración.
+	 * @return string
+	 */
+	private static function resultado_publico( $resultado ) {
+		if ( '' === $resultado ) {
+			return '';
+		}
+		if ( 0 === strpos( $resultado, 'ERROR' ) ) {
+			return 'ERROR';
+		}
+		return preg_match( '/^OK · (\d+) reg/u', $resultado, $m )
+			? 'OK · ' . (int) $m[1] . ' registros'
+			: 'OK';
 	}
 
 	/**

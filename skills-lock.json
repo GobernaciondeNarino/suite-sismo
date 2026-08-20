@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "sourceCommit": "bc826e2267a36d98a2dcf5231e16c30ff546770f",
+      "sourceVersion": "2.13.0",
+      "license": "MIT",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "ea087c341bfb5b23195c7302027268ede86da802554c18a5c4896a6017b439f9",
+      "notas": "Instalada solo la skill ui-ux-pro-max. El repositorio de origen trae otras cinco (design, ui-styling, brand, design-system, slides, banner-design) que no se instalan para no ampliar la superficie de confianza sin necesidad. Revisada antes de instalar: sus scripts solo hacen busqueda local sobre JSON (BM25), sin red, sin subprocess fuera de sus pruebas y sin acceso a credenciales."
+    }
+  }
+}

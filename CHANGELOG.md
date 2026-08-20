@@ -1,5 +1,34 @@
 # Registro de cambios
 
+## 2.1.0 — 2026-08-20
+
+### Responsive
+
+Auditoría en Chromium a 320, 360, 414, 768, 1024 y 1440 px. Antes, la página entera se desplazaba en horizontal en móviles: una tabla de cuatro o cinco columnas empujaba el ancho del documento hasta 488 px en una pantalla de 320.
+
+- Las tablas de datos se envuelven en una región desplazable (`role="region"`, enfocable por teclado) en la ficha estadística, el panel de fuentes y el modal de datos del gráfico.
+- El selector de los filtros ya no impone 260 px fijos.
+- La altura del gráfico viaja como variable CSS y se acota al 62 % del alto visible en móvil, en vez de fijarse en línea.
+- En dispositivos táctiles los controles miden 44 px con 8 px de separación, y los enlaces de las listas de fuentes 32 px.
+- Nombres de lugar y URL largas ya pueden partirse; el panel del modal usa `dvh` para que la barra del navegador móvil no lo recorte.
+
+### Seguridad
+
+- Los archivos de prueba dejan de ser ejecutables por URL: exigen línea de comandos y responden 403 a una petición web.
+- Las celdas del CSV que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno de carro se neutralizan (inyección de fórmulas).
+- Las URL que llegan del feed del USGS se validan contra `^https?://` antes de convertirse en enlaces.
+- `/estado`, `/estadistica` y `/render` se cachean con clave derivada de la firma del catálogo, y el grupo de caché se poda a 200 entradas: dejan de servir como amplificador de carga sin permitir inflar la tabla variando parámetros.
+- D3plus y Leaflet se cargan con `integrity` y `crossorigin` (SRI verificado sobre los archivos servidos).
+- El saneador de CSS elimina además los esquemas `javascript:`, `vbscript:` y `data:`.
+- El panel público de fuentes ya no publica el detalle técnico de los errores.
+- Cada directorio suma su `index.php` silenciador y la lista blanca anti-SSRF incorpora los hosts de los servicios del SGC que ya usa el mapa.
+- Nuevo `tests/test-seguridad.php` y nuevo `SECURITY.md` con la superficie de ataque y la guía de operación.
+
+### Herramientas
+
+- Skill `ui-ux-pro-max` instalada en `.claude/skills/` y registrada en `skills-lock.json`, tras revisar que sus scripts solo hacen búsqueda local sobre JSON.
+- Flujos de trabajo `claude.yml` y `security-review.yml`, con las acciones fijadas por SHA de commit.
+
 ## 2.0.0 — 2026-08-19
 
 ### Retirado: el módulo de pronóstico

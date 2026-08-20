@@ -246,7 +246,7 @@
       var a = b.getAttribute('data-accion');
       if (a === 'explicacion') { openModal(fig, '¿Cómo funciona este gráfico?', explicacionNodo(st.payload)); }
       else if (a === 'detalle') { openModal(fig, 'Detalle del gráfico', detalleNodo(st.payload)); }
-      else if (a === 'datos') { openModal(fig, 'Datos de la vista', tablaNodo(st.payload)); }
+      else if (a === 'datos') { openModal(fig, 'Datos de la vista', C.tablaScroll(tablaNodo(st.payload))); }
       else if (a === 'imagen') { exportarPNG(chartEl, st); }
       else if (a === 'descarga') { descargarJSON(st.payload, st); }
       else if (a === 'compartir') { compartir(fig, b); }

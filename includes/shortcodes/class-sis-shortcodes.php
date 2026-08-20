@@ -23,9 +23,65 @@ final class SIS_Shortcodes {
 	/** Atribución por defecto al pie de cada componente. */
 	const FUENTE = 'U.S. Geological Survey — Earthquake Hazards Program (dominio público) · Gráficos: D3plus';
 
+	/**
+	 * Huellas SRI de las librerías servidas por CDN.
+	 *
+	 * Si el archivo servido cambia un solo byte, el navegador lo rechaza. Es la
+	 * defensa contra un CDN comprometido o un intermediario que altere el
+	 * script. Al recalcularlas hay que descargar el archivo de la versión
+	 * exacta que se declara en registrar_assets(). Mapa handle → integrity.
+	 */
+	const SRI = array(
+		'd3plus'  => 'sha384-4DR0HEBjq97japjfe8qc24TUqrsRRTP8vrp3BVJDSinq0vY9j9G/OQTkndy3Czhb',
+		'leaflet' => 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH',
+	);
+
+	/** Huella SRI de las hojas de estilo por CDN. */
+	const SRI_CSS = array(
+		'leaflet' => 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H',
+	);
+
 	public function __construct() {
 		add_action( 'init', array( $this, 'registrar_shortcodes' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'registrar_assets' ), 10 );
+		add_filter( 'script_loader_tag', array( $this, 'integridad_script' ), 10, 2 );
+		add_filter( 'style_loader_tag', array( $this, 'integridad_estilo' ), 10, 2 );
+	}
+
+	/**
+	 * Añade integrity y crossorigin a los scripts servidos por CDN.
+	 *
+	 * @param string $tag    Etiqueta <script> completa.
+	 * @param string $handle Handle registrado.
+	 * @return string
+	 */
+	public function integridad_script( $tag, $handle ) {
+		if ( ! isset( self::SRI[ $handle ] ) || false !== strpos( $tag, 'integrity=' ) ) {
+			return $tag;
+		}
+		return str_replace(
+			' src=',
+			' integrity="' . esc_attr( self::SRI[ $handle ] ) . '" crossorigin="anonymous" referrerpolicy="no-referrer" src=',
+			$tag
+		);
+	}
+
+	/**
+	 * Añade integrity y crossorigin a las hojas de estilo servidas por CDN.
+	 *
+	 * @param string $tag    Etiqueta <link> completa.
+	 * @param string $handle Handle registrado.
+	 * @return string
+	 */
+	public function integridad_estilo( $tag, $handle ) {
+		if ( ! isset( self::SRI_CSS[ $handle ] ) || false !== strpos( $tag, 'integrity=' ) ) {
+			return $tag;
+		}
+		return str_replace(
+			' href=',
+			' integrity="' . esc_attr( self::SRI_CSS[ $handle ] ) . '" crossorigin="anonymous" referrerpolicy="no-referrer" href=',
+			$tag
+		);
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -267,7 +323,7 @@ final class SIS_Shortcodes {
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<figcaption class="sis-g__title"<?php echo $atts['titulo'] ? ' data-fijo="1"' : ''; ?>><?php echo esc_html( $atts['titulo'] ? $atts['titulo'] : __( 'Gráfico', 'sismos-narino' ) ); ?></figcaption>
 			<div class="sis-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
-				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>
+				style="--sis-g-alto:<?php echo esc_attr( $alto ); ?>"></div>
 			<?php echo $this->skeleton( __( 'Cargando gráfico…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</figure>

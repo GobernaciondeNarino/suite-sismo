@@ -130,6 +130,9 @@ final class SIS_Estilos {
 		$v = str_replace( array( ';', '{', '}', '<', '>', '\\', '"', "'", '@', '`' ), '', $v );
 		$v = str_replace( array( '/*', '*/' ), '', $v );
 		$v = preg_replace( '/(?:url|expression|image-set|-moz-binding)\s*\(/i', '', $v );
+		// Esquemas que no pintan nada en CSS y sí sirven de vector en motores
+		// antiguos o en propiedades heredadas.
+		$v = preg_replace( '/(?:javascript|vbscript|data)\s*:/i', '', $v );
 		$v = trim( $v );
 		return function_exists( 'mb_substr' ) ? mb_substr( $v, 0, 200 ) : substr( $v, 0, 200 );
 	}

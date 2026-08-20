@@ -12,6 +12,19 @@
  * @package SismosNarino
  */
 
+/*
+ * Este archivo vive dentro del plugin y, por tanto, es alcanzable por URL en
+ * cualquier instalación de WordPress. Solo debe ejecutarse por línea de
+ * comandos: una petición web recibe 403 y no ejecuta nada.
+ */
+if ( 'cli' !== PHP_SAPI || isset( $_SERVER['REQUEST_METHOD'] ) ) {
+	if ( ! headers_sent() ) {
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		http_response_code( 403 );
+	}
+	exit( 'Este archivo es una prueba y solo se ejecuta por linea de comandos.' );
+}
+
 error_reporting( E_ALL & ~E_DEPRECATED );
 define( 'ABSPATH', 1 );
 define( 'SIS_DIR', dirname( __DIR__ ) . '/' );

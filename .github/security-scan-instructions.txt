@@ -1,0 +1,26 @@
+Contexto del proyecto: plugin de WordPress publicado por una entidad pública
+(Gobernación de Nariño). Corre en un sitio institucional con contenido abierto
+y sin datos personales. Priorice, en este orden:
+
+1. Cualquier ruta que un visitante anónimo pueda invocar: rutas REST del
+   espacio de nombres sismos/v1, shortcodes y sus atributos, y archivos PHP del
+   plugin accesibles por URL directa. Verifique que todo archivo tenga la
+   guarda `defined( 'ABSPATH' ) || exit;` o su equivalente para CLI.
+2. Peticiones salientes del servidor: solo deben permitirse servidores de la
+   lista blanca de SIS_Security::HOSTS y siempre por HTTPS. Cualquier vía por
+   la que una URL controlable por el usuario llegue a wp_remote_get es un
+   hallazgo (SSRF).
+3. Escritura de opciones y ejecución de acciones administrativas: toda entrada
+   debe exigir capacidad `manage_options` y nonce.
+4. Salida a HTML, atributos y CSS: escape con esc_html/esc_attr/esc_url y
+   saneamiento de valores CSS. En JavaScript, revise cualquier uso de innerHTML
+   con datos que vengan de una API externa.
+5. Exportación de datos: inyección de fórmulas en CSV (valores que empiezan por
+   =, +, -, @, tabulador o retorno de carro).
+6. Amplificación de carga: rutas públicas que recalculen estadística pesada sin
+   caché y puedan usarse para agotar CPU o llenar la tabla de opciones.
+
+No reporte como hallazgo: la ausencia deliberada de nonce en las rutas REST
+públicas de solo lectura (documentada en el código, para que la caché de página
+no rompa la lectura anónima), ni el uso de CDN públicas para D3plus y Leaflet
+cuando lleven atributo integrity.

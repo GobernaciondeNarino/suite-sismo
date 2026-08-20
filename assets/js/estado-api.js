@@ -53,7 +53,7 @@
     });
 
     tabla.appendChild(tb);
-    box.appendChild(tabla);
+    box.appendChild(C.tablaScroll(tabla));
     box.appendChild(C.el('p', 'sis-fuentes',
       'Servicios consultados: USGS FDSN Event Web Service y feeds GeoJSON de resumen.'));
   }

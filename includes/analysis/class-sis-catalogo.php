@@ -235,6 +235,24 @@ final class SIS_Catalogo {
 	}
 
 	/**
+	 * Firma corta del catálogo: cambia en cuanto cambian los datos.
+	 *
+	 * Sirve para construir claves de caché que se invalidan solas cuando llega
+	 * un sismo nuevo, sin tener que vaciar nada a mano.
+	 *
+	 * @param array[] $eventos Eventos ordenados.
+	 * @return string
+	 */
+	public static function firma( array $eventos ) {
+		$n = count( $eventos );
+		if ( 0 === $n ) {
+			return 'vacio';
+		}
+		$ultimo = $eventos[ $n - 1 ];
+		return substr( md5( $n . '|' . $ultimo['id'] . '|' . $ultimo['ts'] ), 0, 12 );
+	}
+
+	/**
 	 * Eventos recientes cacheados del feed de resumen, recortados al ámbito.
 	 *
 	 * @param string $ambito Slug del ámbito.

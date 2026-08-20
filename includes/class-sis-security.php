@@ -22,11 +22,18 @@ final class SIS_Security {
 	 * Cualquier URL configurada fuera de esta lista se rechaza (anti-SSRF).
 	 */
 	const HOSTS = array(
+		// USGS: catálogo FDSN y feeds GeoJSON (motor de datos del plugin).
 		'earthquake.usgs.gov',
-		'service.iris.edu',
-		'www.fdsn.org',
+		// Servicios del Servicio Geológico Colombiano: amenaza sísmica (WMS que
+		// consume el mapa) y portales de consulta a los que se puede apuntar
+		// una fuente FDSN nacional cuando el SGC la publique.
+		'srvags.sgc.gov.co',
+		'amenazasismica.sgc.gov.co',
 		'sismo.sgc.gov.co',
 		'www.sgc.gov.co',
+		// Federación FDSN: alternativa si algún día se cambia de proveedor.
+		'service.iris.edu',
+		'www.fdsn.org',
 	);
 
 	/* ----------------------------------------------------------------- */

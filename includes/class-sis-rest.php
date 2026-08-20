@@ -200,6 +200,38 @@ final class SIS_Rest {
 	}
 
 	/**
+	 * Sirve una respuesta cacheada o la construye y la cachea.
+	 *
+	 * Las rutas públicas de estadística y de gráficos recorren el catálogo
+	 * completo y ajustan la ley de Gutenberg-Richter en cada petición: sin
+	 * caché, cualquiera puede convertirlas en un amplificador de carga. La
+	 * clave incluye la firma del catálogo, así que un sismo nuevo la invalida
+	 * sola, y el grupo se poda para que la tabla no crezca sin límite.
+	 *
+	 * @param string   $nombre       Nombre lógico de la ruta.
+	 * @param array    $parametros   Parámetros que definen la respuesta.
+	 * @param int      $ttl          Vida en segundos.
+	 * @param callable $constructor  Función que construye la respuesta.
+	 * @return mixed
+	 */
+	private function cacheado( $nombre, $parametros, $ttl, $constructor ) {
+		$catalogo = SIS_Catalogo::obtener( isset( $parametros['ambito'] ) ? $parametros['ambito'] : '' );
+		$firma    = SIS_Catalogo::firma( $catalogo['eventos'] );
+		$clave    = 'rest_' . md5( $nombre . '|' . wp_json_encode( $parametros ) . '|' . $firma );
+
+		$valor = SIS_Cache::get( $clave );
+		if ( null !== $valor ) {
+			return $valor;
+		}
+
+		$valor = call_user_func( $constructor );
+		SIS_Cache::set( $clave, $valor, $ttl, 'rest' );
+		SIS_Cache::podar_grupo( 'rest', 200 );
+
+		return $valor;
+	}
+
+	/**
 	 * Bloque de metadatos y atribución que acompaña a toda respuesta.
 	 *
 	 * @param array $p   Parámetros.
@@ -231,12 +263,17 @@ final class SIS_Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function ruta_estado( $req ) {
-		$p   = $this->parametros( $req );
-		$c   = $this->catalogo( $p );
-		$res = SIS_Catalogo::resumen( $c['eventos'], $p['ambito'] );
+		$p = $this->parametros( $req );
 
-		$res['narrativa'] = SIS_Texto::actividad( $res );
-		$res['meta']      = $this->meta( $p, $c['catalogo'] );
+		$res = $this->cacheado( 'estado', $p, 5 * MINUTE_IN_SECONDS, function () use ( $p ) {
+			$c   = $this->catalogo( $p );
+			$res = SIS_Catalogo::resumen( $c['eventos'], $p['ambito'] );
+
+			$res['narrativa'] = SIS_Texto::actividad( $res );
+			$res['meta']      = $this->meta( $p, $c['catalogo'] );
+
+			return $res;
+		} );
 
 		return rest_ensure_response( $res );
 	}
@@ -271,13 +308,18 @@ final class SIS_Rest {
 	 */
 	public function ruta_estadistica( $req ) {
 		$p = $this->parametros( $req );
-		$c = $this->catalogo( $p );
 
-		$resumen                = SIS_Estadistica::resumen( $c['eventos'] );
-		$resumen['narrativa']   = SIS_Texto::gutenberg( $resumen['gutenberg'] );
-		$resumen['recurrencia'] = SIS_Texto::recurrencia( $resumen );
-		$resumen['aviso']       = SIS_Texto::advertencia();
-		$resumen['meta']        = $this->meta( $p, $c['catalogo'] );
+		$resumen = $this->cacheado( 'estadistica', $p, 15 * MINUTE_IN_SECONDS, function () use ( $p ) {
+			$c = $this->catalogo( $p );
+
+			$resumen                = SIS_Estadistica::resumen( $c['eventos'] );
+			$resumen['narrativa']   = SIS_Texto::gutenberg( $resumen['gutenberg'] );
+			$resumen['recurrencia'] = SIS_Texto::recurrencia( $resumen );
+			$resumen['aviso']       = SIS_Texto::advertencia();
+			$resumen['meta']        = $this->meta( $p, $c['catalogo'] );
+
+			return $resumen;
+		} );
 
 		return rest_ensure_response( $resumen );
 	}
@@ -337,7 +379,7 @@ final class SIS_Rest {
 	 */
 	public function ruta_estado_apis() {
 		return rest_ensure_response( array(
-			'fuentes'  => SIS_Sync::estado(),
+			'fuentes'  => SIS_Sync::estado( true ),
 			'generado' => gmdate( 'c' ),
 		) );
 	}
@@ -357,6 +399,29 @@ final class SIS_Rest {
 		}
 
 		$p    = $this->parametros( $req );
+		$tipo = sanitize_key( (string) $req->get_param( 'type' ) );
+
+		$payload = $this->cacheado(
+			'render',
+			array( 'view' => $view_id, 'type' => $tipo, 'ambito' => $p['ambito'], 'anios' => $p['anios'], 'min_mag' => $p['min_mag'] ),
+			15 * MINUTE_IN_SECONDS,
+			function () use ( $view_id, $tipo, $p ) {
+				return $this->construir_render( $view_id, $tipo, $p );
+			}
+		);
+
+		return rest_ensure_response( $payload );
+	}
+
+	/**
+	 * Construye el payload del motor de gráficos para una vista y un tipo.
+	 *
+	 * @param string $view_id Id de vista (ya validado contra la lista blanca).
+	 * @param string $tipo    Tipo solicitado.
+	 * @param array  $p       Parámetros normalizados.
+	 * @return array
+	 */
+	private function construir_render( $view_id, $tipo, $p ) {
 		$view = SIS_Views::obtener( $view_id, array(
 			'ambito'  => $p['ambito'],
 			'anios'   => $p['anios'],
@@ -364,7 +429,6 @@ final class SIS_Rest {
 		) );
 
 		$compatibles = SIS_Views::compatibles( $view['category'] );
-		$tipo        = sanitize_key( (string) $req->get_param( 'type' ) );
 		if ( '' === $tipo || ! in_array( $tipo, $compatibles, true ) ) {
 			$tipo = SIS_Views::default_tipo( $view_id );
 		}
@@ -373,7 +437,7 @@ final class SIS_Rest {
 		$chart        = isset( $tipos[ $tipo ] ) ? $tipos[ $tipo ] : $tipos['bar'];
 		$chart['key'] = $tipo;
 
-		return rest_ensure_response( array(
+		return array(
 			'chart'      => $chart,
 			'view'       => array(
 				'id'                => $view['id'],
@@ -392,7 +456,7 @@ final class SIS_Rest {
 			'data'       => $view['data'],
 			'mapping'    => array( 'links' => array() ),
 			'compatible' => $compatibles,
-		) );
+		);
 	}
 
 	/* ================================================================= */
@@ -481,6 +545,28 @@ final class SIS_Rest {
 	}
 
 	/**
+	 * Neutraliza la inyección de fórmulas en hojas de cálculo.
+	 *
+	 * Excel y LibreOffice interpretan como fórmula toda celda que empiece por
+	 * =, +, - o @ (y algunas variantes con tabulador o retorno de carro). Como
+	 * la descripción del lugar viene del proveedor y es texto libre, se antepone
+	 * un apóstrofo para que la celda se lea siempre como texto.
+	 *
+	 * @param mixed $valor Valor de la celda.
+	 * @return string
+	 */
+	private function celda_csv( $valor ) {
+		$valor = (string) $valor;
+		if ( '' === $valor ) {
+			return $valor;
+		}
+		if ( preg_match( '/^[=+\-@\t\r]/', $valor ) ) {
+			return "'" . $valor;
+		}
+		return $valor;
+	}
+
+	/**
 	 * Sirve un CSV descargable y termina la petición.
 	 *
 	 * @param array[] $filas  Filas.
@@ -502,12 +588,12 @@ final class SIS_Rest {
 
 		if ( ! empty( $filas ) ) {
 			$columnas = array_keys( (array) reset( $filas ) );
-			fputcsv( $salida, $columnas );
+			fputcsv( $salida, array_map( array( $this, 'celda_csv' ), $columnas ) );
 			foreach ( $filas as $f ) {
 				$linea = array();
 				foreach ( $columnas as $c ) {
 					$v       = isset( $f[ $c ] ) ? $f[ $c ] : '';
-					$linea[] = is_scalar( $v ) ? $v : wp_json_encode( $v );
+					$linea[] = $this->celda_csv( is_scalar( $v ) ? $v : wp_json_encode( $v ) );
 				}
 				fputcsv( $salida, $linea );
 			}

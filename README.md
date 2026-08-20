@@ -219,10 +219,17 @@ El catálogo se lee en cascada: **caché viva → caché durable expirada → se
 
 ### Seguridad
 
-- Todo endpoint es público de solo lectura, con rate-limiting por IP.
-- Las URL configurables se validan contra una **lista blanca de servidores** (USGS, IRIS, SGC) y se exige HTTPS: no hay forma de apuntar el plugin a un host arbitrario (anti-SSRF).
+- Todo endpoint es público de solo lectura, con límite por IP y respuestas pesadas cacheadas para que no sirvan de amplificador de carga.
+- Las URL configurables se validan contra una **lista blanca de servidores** (USGS y SGC) y se exige HTTPS: no hay forma de apuntar el plugin a un host arbitrario (anti-SSRF).
 - Los parámetros geográficos de la consulta salen del catálogo de ámbitos, nunca de la entrada del usuario.
 - El panel exige `manage_options` y nonce en cada escritura; toda salida se escapa y los valores CSS se sanean contra inyección.
+- D3plus y Leaflet se cargan con **SRI** (`integrity` + `crossorigin`); las celdas de CSV se neutralizan contra inyección de fórmulas; los archivos de prueba solo se ejecutan por línea de comandos.
+
+El detalle completo, con la lista de puertas y la guía para quien opera el sitio, está en [`SECURITY.md`](SECURITY.md).
+
+### Accesibilidad y responsive
+
+Verificado en Chromium a 320, 360, 414, 768, 1024 y 1440 px: ningún componente desborda la página, las tablas se desplazan dentro de su propia región (anunciada con `role="region"` y foco por teclado) y en dispositivos táctiles los controles miden al menos 44 px con 8 px de separación. Los gráficos D3plus se redibujan con el contenedor (`detectResize`) y la altura de la tarjeta se acota en móvil para no empujar el resto de la página.
 
 ---
 
@@ -233,11 +240,23 @@ php tests/test-analisis.php        # catálogo, estadística y marco de amenaza 
 php tests/test-vistas.php          # vistas del motor de gráficos y caché (WordPress simulado)
 php tests/test-render.php          # render de los componentes de amenaza y preparación
 php tests/test-sin-pronostico.php  # salvaguarda: el plugin no debe pronosticar sismos
+php tests/test-seguridad.php       # defensas: acceso directo, SSRF, XSS, CSV, SRI
 ```
+
+Las pruebas solo corren por línea de comandos: una petición web a cualquiera de esos archivos recibe 403.
 
 No requieren WordPress: definen los stubs mínimos necesarios. Comprueban, entre otras cosas, que ninguna vista publica meses futuros, que todas llevan el aviso de alcance, que la estadística no expone métodos de probabilidad hacia adelante y que el glosario declara imposible la predicción.
 
 ---
+
+## Herramientas de desarrollo
+
+El repositorio incluye la skill **ui-ux-pro-max** en `.claude/skills/` (MIT, [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)), registrada con su origen y huella en `skills-lock.json`, y dos flujos de trabajo de GitHub Actions:
+
+- `.github/workflows/claude.yml` — responde a menciones de `@claude` en issues y pull requests.
+- `.github/workflows/security-review.yml` — revisión de seguridad automática del diff de cada pull request, con las instrucciones específicas del proyecto en `.github/security-scan-instructions.txt`.
+
+Ambas acciones están fijadas por SHA de commit y requieren el secreto `ANTHROPIC_API_KEY`.
 
 ## Licencia y atribución
 

@@ -53,7 +53,7 @@
         tb.appendChild(tr);
       });
       t.appendChild(tb);
-      cuerpo.appendChild(t);
+      cuerpo.appendChild(C.tablaScroll(t));
     }
 
     if (r.energia_tnt) {

@@ -98,8 +98,14 @@
 }
 .sis-g__caret { position: absolute; right: 8px; pointer-events: none; color: var(--sis-g-soft); font-size: 11px; }
 
-/* Área del gráfico. */
-.sis-g__chart { padding: 12px; position: relative; transition: opacity .2s ease; }
+/* Área del gráfico. La altura llega como variable desde el shortcode para
+   poder acotarla en pantallas pequeñas sin pelear con un estilo en línea. */
+.sis-g__chart {
+  padding: 12px;
+  position: relative;
+  transition: opacity .2s ease;
+  min-height: var(--sis-g-alto, 420px);
+}
 .sis-g__chart svg { max-width: 100%; height: auto; }
 .sis-g__chart.is-loading { opacity: .55; }
 .sis-g__chart.is-loading::after {
@@ -160,6 +166,12 @@
 .sis-g .sis-fuentes { padding-left: 16px; padding-right: 16px; }
 .sis-g .sis-error { margin: 12px 16px; }
 
+/* En móvil, un gráfico de 420 px deja el resto de la página fuera de pantalla:
+   se acota a una fracción del alto visible. */
+@media (max-width: 640px) {
+  .sis-g__chart { min-height: min(var(--sis-g-alto, 420px), 62vh); }
+}
+
 /* Modal reutilizable (Cómo funciona / Detalle / Datos). */
 .sis-g__modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; }
 .sis-g__modal[hidden] { display: none; }
@@ -168,6 +180,8 @@
   position: relative;
   width: min(760px, 92vw);
   max-height: 85vh;
+  /* dvh evita que la barra del navegador móvil recorte el panel. */
+  max-height: 85dvh;
   display: flex; flex-direction: column;
   background: var(--sis-g-bg, #fff);
   color: var(--sis-g-ink, #0f172a);
@@ -181,7 +195,16 @@
   border-bottom: 1px solid var(--sis-g-border, #e2e8f0);
   background: var(--sis-g-surface, #f8fafc);
 }
-.sis-g__modal-x { font-size: 22px; line-height: 1; background: none; border: 0; cursor: pointer; color: var(--sis-g-soft, #64748b); }
+.sis-g__modal-x {
+  font-size: 22px;
+  line-height: 1;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--sis-g-soft, #64748b);
+  min-width: 32px;
+  min-height: 32px;
+}
 .sis-g__modal-body { padding: 14px 16px; overflow: auto; }
 
 .sis-g__dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: .6em 0 0; font-size: 14px; }
@@ -197,6 +220,15 @@
   .sis-g__title { font-size: 14px; }
   .sis-g__action-txt { display: none; }
   .sis-g__dl { grid-template-columns: 1fr; }
+}
+
+/* Dispositivos táctiles: controles de 44 px con 8 px de separación. */
+@media (pointer: coarse) {
+  .sis-g__toolbar { gap: 8px; }
+  .sis-g__action,
+  .sis-g__swap { min-height: 44px; min-width: 44px; justify-content: center; }
+  .sis-g__swap select { min-height: 44px; }
+  .sis-g__modal-x { min-width: 44px; min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

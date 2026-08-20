@@ -109,8 +109,10 @@
   border-radius: 6px;
 }
 .sis-ultimos__txt { display: flex; flex-direction: column; min-width: 0; }
-.sis-ultimos__lugar { font-size: .95em; }
-.sis-ultimos__lugar a { color: inherit; }
+.sis-ultimos__lugar { font-size: .95em; overflow-wrap: anywhere; }
+/* Los nombres de lugar del USGS son largos: el enlace debe poder partirse y
+   ofrecer una zona de toque cómoda sin dejar de ser un enlace en línea. */
+.sis-ultimos__lugar a { color: inherit; display: inline-block; padding: 2px 0; min-height: 24px; }
 .sis-ultimos__meta { font-size: .8em; color: var(--sis-mute, #6b7280); }
 .sis-ultimos__vacio { color: var(--sis-mute, #6b7280); font-size: .9em; }
 
@@ -148,8 +150,8 @@
 .sis-est__h { font-size: 1em; margin: 1em 0 .4em; }
 
 /* --- [sismos_filtro] --- */
-.sis-filtro { display: inline-flex; align-items: center; gap: 8px; margin: 6px 10px 6px 0; }
-.sis-filtro__label { font-size: .85em; color: var(--sis-mute, #6b7280); }
+.sis-filtro { display: inline-flex; align-items: center; gap: 8px; margin: 6px 10px 6px 0; max-width: 100%; }
+.sis-filtro__label { font-size: .85em; color: var(--sis-mute, #6b7280); flex: 0 0 auto; }
 .sis-filtro__select {
   font: inherit;
   font-size: .9em;
@@ -158,14 +160,41 @@
   border-radius: 6px;
   background: transparent;
   color: inherit;
-  max-width: 260px;
+  /* En pantallas estrechas el selector debe encoger, no empujar la página. */
+  max-width: min(260px, 100%);
+  min-width: 0;
 }
 
 /* Gráfico SVG propio (fichas sin D3plus). */
 .sis-grafico { width: 100%; height: auto; display: block; }
 
+/* Tabla desplazable: evita que una tabla ancha empuje el ancho de la página.
+   El contenedor es enfocable para que también se pueda desplazar con teclado. */
+.sis-tabla-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.sis-tabla-scroll:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
+.sis-tabla-scroll > table { min-width: 100%; }
+
+/* Ninguna tabla del plugin debe superar su contenedor aunque no esté envuelta. */
+.sis table { max-width: 100%; }
+
 @media (max-width: 640px) {
   .sis-estado__mag { font-size: 2em; }
+}
+
+/* Dispositivos táctiles: objetivos de 44 px y separación de 8 px como mínimo
+   (guías de tamaño y espaciado de objetivos táctiles). */
+@media (pointer: coarse) {
+  .sis-btn { min-height: 44px; display: inline-flex; align-items: center; }
+  .sis-filtro__select { min-height: 44px; }
+  .sis-datos__botones { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* Enlaces de navegación en listas: 32 px de alto útil. Los enlaces dentro de
+     una frase quedan exentos, como permite la regla de tamaño de objetivo. */
+  .sis-fuentes-lista a,
+  .sis-lista a { display: inline-block; min-height: 32px; padding: 4px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -205,7 +234,7 @@
   background: rgba(255, 213, 0, .08);
 }
 
-.sis-enlace { color: var(--sis-acento, #003087); text-decoration: underline; }
+.sis-enlace { color: var(--sis-acento, #003087); text-decoration: underline; overflow-wrap: anywhere; }
 .sis-enlace:hover { text-decoration: none; }
 
 .sis-fuentes-lista { list-style: none; margin: .6em 0; padding: 0; }
@@ -213,6 +242,7 @@
   margin: .6em 0;
   padding-left: 12px;
   border-left: 3px solid var(--sis-borde-color, #e5e7eb);
+  overflow-wrap: anywhere;
 }
 
 .sis-glosario__item { margin: .9em 0; }

@@ -65,6 +65,12 @@
     return lat >= a.lat_min && lat <= a.lat_max && lon >= a.lon_min && lon <= a.lon_max;
   }
 
+  /** Acepta una URL solo si es http o https; en cualquier otro caso la anula. */
+  function urlSegura(u) {
+    if (typeof u !== 'string') { return ''; }
+    return /^https?:\/\//i.test(u.trim()) ? u.trim() : '';
+  }
+
   /** Normaliza un feature del USGS al mismo esquema que usa el backend. */
   function normalizar(f) {
     if (!f || !f.properties || !f.geometry || !f.geometry.coordinates) { return null; }
@@ -83,7 +89,9 @@
       lat: c[1],
       lon: c[0],
       lugar: p.place || '',
-      url: p.url || '',
+      // Solo http(s): un feed alterado no debe poder colar javascript: en un
+      // enlace que el visitante va a pulsar.
+      url: urlSegura(p.url),
       tsunami: p.tsunami ? 1 : 0,
       reportes: p.felt || 0,
       intensidad: p.cdi || p.mmi || 0,
@@ -170,6 +178,18 @@
     });
   }
 
+  /** Envuelve una tabla en un contenedor desplazable en horizontal.
+      Sin esto, una tabla de cuatro o cinco columnas empuja el ancho de la
+      página entera en móviles y rompe el layout del tema anfitrión. */
+  function tablaScroll(tabla) {
+    var caja = el('div', 'sis-tabla-scroll');
+    caja.setAttribute('role', 'region');
+    caja.setAttribute('tabindex', '0');
+    caja.setAttribute('aria-label', 'Tabla de datos, desplazable en horizontal');
+    caja.appendChild(tabla);
+    return caja;
+  }
+
   function quitarSkeleton(cont) {
     var s = cont.querySelector('.sis-skeleton');
     if (s) { s.parentNode.removeChild(s); }
@@ -233,10 +253,12 @@
     colorProfundidad: colorProfundidad,
     el: el,
     esc: esc,
+    tablaScroll: tablaScroll,
     quitarSkeleton: quitarSkeleton,
     error: error,
     ready: ready,
     consulta: consulta,
+    urlSegura: urlSegura,
     cadaMinuto: cadaMinuto
   };
 })();

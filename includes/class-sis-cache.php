@@ -155,6 +155,48 @@ final class SIS_Cache {
 	}
 
 	/**
+	 * Acota el tamaño de un grupo de caché borrando las entradas más antiguas.
+	 *
+	 * Las respuestas de la API se cachean por combinación de parámetros. Como
+	 * los parámetros los elige quien llama, sin un tope alguien podría crear
+	 * miles de filas variando la consulta: esto lo impide.
+	 *
+	 * @param string $grupo Grupo lógico.
+	 * @param int    $max   Nº máximo de entradas que se conservan.
+	 * @return int Filas borradas.
+	 */
+	public static function podar_grupo( $grupo, $max = 200 ) {
+		global $wpdb;
+		$tabla = $wpdb->prefix . 'sis_cache';
+		$max   = max( 10, (int) $max );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$sobran = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM {$tabla} WHERE grupo = %s", $grupo )
+		) - $max;
+
+		if ( $sobran <= 0 ) {
+			return 0;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$claves = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT clave FROM {$tabla} WHERE grupo = %s ORDER BY actualizado ASC LIMIT %d",
+				$grupo,
+				$sobran
+			)
+		);
+
+		$n = 0;
+		foreach ( (array) $claves as $c ) {
+			self::delete( $c );
+			$n++;
+		}
+		return $n;
+	}
+
+	/**
 	 * Carga una semilla JSON de la carpeta data/ (último fallback).
 	 *
 	 * @param string $archivo Nombre de archivo dentro de data/.

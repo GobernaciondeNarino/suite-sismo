@@ -1,0 +1,37 @@
+name: Revisión de seguridad
+
+# Analiza el diff de cada pull request en busca de vulnerabilidades y comenta
+# los hallazgos. Requiere el secreto ANTHROPIC_API_KEY.
+#
+# Nota del propio proyecto: la acción no está endurecida contra inyección de
+# prompt, así que solo debe ejecutarse sobre PR de confianza. En Settings →
+# Actions → General, deje activada la opción «Require approval for all external
+# contributors» para que los PR de terceros no ejecuten flujos sin revisión.
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  seguridad:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Claude Code Security Review
+        # anthropics/claude-code-security-review@main fijado por SHA.
+        uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda
+        with:
+          claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          comment-pr: true
+          upload-results: true
+          exclude-directories: '.claude,data,docs'
+          custom-security-scan-instructions: .github/security-scan-instructions.txt
