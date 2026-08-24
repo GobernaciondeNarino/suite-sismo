@@ -20,6 +20,23 @@ final class SIS_Shortcodes {
 	/** @var int Contador para ids únicos. */
 	private static $contador = 0;
 
+	/** @var bool El importmap de Three.js solo puede imprimirse una vez por documento. */
+	private static $importmap_impreso = false;
+
+	/**
+	 * Versión de Three.js y huellas SRI de sus dos archivos.
+	 *
+	 * Un importmap no admite `integrity`, pero `<link rel="modulepreload">` sí:
+	 * al precargar con huella, el módulo que después resuelve el importmap sale
+	 * de esa misma respuesta ya verificada. Así el globo mantiene la misma
+	 * garantía de integridad que el resto de librerías por CDN.
+	 */
+	const THREE_VERSION = '0.160.0';
+	const THREE_SRI = array(
+		'build/three.module.js'                  => 'sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ',
+		'examples/jsm/controls/OrbitControls.js' => 'sha384-qlO/ZugKPxAQUAvTlQoo0QECzxJIJySZmCF/DHdb2Xn/hHndFwX/vfUAC9Hbk6LP',
+	);
+
 	/** Atribución por defecto al pie de cada componente. */
 	const FUENTE = 'U.S. Geological Survey — Earthquake Hazards Program (dominio público) · Gráficos: D3plus';
 
@@ -44,6 +61,7 @@ final class SIS_Shortcodes {
 	public function __construct() {
 		add_action( 'init', array( $this, 'registrar_shortcodes' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'registrar_assets' ), 10 );
+		add_filter( 'script_loader_tag', array( $this, 'marcar_modulo' ), 9, 3 );
 		add_filter( 'script_loader_tag', array( $this, 'integridad_script' ), 10, 2 );
 		add_filter( 'style_loader_tag', array( $this, 'integridad_estilo' ), 10, 2 );
 	}
@@ -108,6 +126,8 @@ final class SIS_Shortcodes {
 		add_shortcode( 'sismos_estado', array( $this, 'sc_estado' ) );
 		add_shortcode( 'sismos_ultimos', array( $this, 'sc_ultimos' ) );
 		add_shortcode( 'sismos_mapa', array( $this, 'sc_mapa' ) );
+		add_shortcode( 'sismos_globo', array( $this, 'sc_globo' ) );
+		add_shortcode( 'sismos_timeline', array( $this, 'sc_timeline' ) );
 		add_shortcode( 'sismos_estadistica', array( $this, 'sc_estadistica' ) );
 		add_shortcode( 'sismos_datos', array( $this, 'sc_datos' ) );
 		add_shortcode( 'sismos_estado_api', array( $this, 'sc_estado_api' ) );
@@ -158,6 +178,55 @@ final class SIS_Shortcodes {
 		wp_register_script( 'sis-estadistica', SIS_URL . 'assets/js/estadistica.js', array( 'sis-core' ), SIS_VERSION, true );
 		wp_register_script( 'sis-datos', SIS_URL . 'assets/js/datos.js', array( 'sis-core' ), SIS_VERSION, true );
 		wp_register_script( 'sis-estado-api', SIS_URL . 'assets/js/estado-api.js', array( 'sis-core' ), SIS_VERSION, true );
+		wp_register_script( 'sis-timeline', SIS_URL . 'assets/js/timeline.js', array( 'sis-core' ), SIS_VERSION, true );
+		// El globo es un módulo ES: el importmap de Three.js se imprime aparte.
+		wp_register_script( 'sis-globo', SIS_URL . 'assets/js/globo.js', array(), SIS_VERSION, true );
+	}
+
+	/**
+	 * Convierte el script del globo en `<script type="module">`.
+	 *
+	 * @param string $tag    Etiqueta HTML generada por WordPress.
+	 * @param string $handle Handle del script.
+	 * @param string $src    URL del script.
+	 * @return string
+	 */
+	public function marcar_modulo( $tag, $handle, $src ) {
+		if ( 'sis-globo' !== $handle ) {
+			return $tag;
+		}
+		return '<script type="module" src="' . esc_url( $src ) . '" id="sis-globo-js"></script>' . "\n";
+	}
+
+	/**
+	 * Importmap de Three.js con precarga verificada por huella.
+	 * Se imprime una sola vez por documento aunque haya varios globos.
+	 *
+	 * @return string
+	 */
+	private function importmap_three() {
+		if ( self::$importmap_impreso ) {
+			return '';
+		}
+		self::$importmap_impreso = true;
+
+		$base = 'https://cdn.jsdelivr.net/npm/three@' . self::THREE_VERSION . '/';
+
+		$html = '';
+		foreach ( self::THREE_SRI as $ruta => $huella ) {
+			$html .= '<link rel="modulepreload" href="' . esc_url( $base . $ruta ) . '"'
+				. ' integrity="' . esc_attr( $huella ) . '" crossorigin="anonymous">' . "\n";
+		}
+
+		$mapa = array(
+			'imports' => array(
+				'three'          => $base . 'build/three.module.js',
+				'three/addons/'  => $base . 'examples/jsm/',
+			),
+		);
+
+		$html .= '<script type="importmap">' . wp_json_encode( $mapa ) . '</script>' . "\n";
+		return $html;
 	}
 
 	/**
@@ -679,6 +748,132 @@ final class SIS_Shortcodes {
 			style="<?php echo esc_attr( SIS_Estilos::estilo_inline( $atts ) ); ?>"
 			data-sis-estado-api>
 			<?php echo $this->skeleton( __( 'Consultando el estado de las fuentes…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [sismos_globo] — globo 3D con los últimos sismos del ámbito.
+	 *
+	 * Cada sismo se dibuja con dos líneas sobre su epicentro: hacia afuera la
+	 * magnitud, con el color del mapa de calor, y hacia adentro la profundidad
+	 * focal. Alrededor se siembra el campo de calor, que comparte esa escala.
+	 *
+	 * @param array $atts Atributos.
+	 * @return string
+	 */
+	public function sc_globo( $atts ) {
+		$atts = $this->fusionar( array_merge(
+			$this->defaults_consulta(),
+			array(
+				'limite'     => '50',
+				'calidad'    => 'auto',
+				// El globo abre encuadrando la zona sísmica: si además girase
+				// solo, en pocos segundos la perdería de vista. Quien quiera el
+				// planeta en rotación lo pide con autorotar="si".
+				'autorotar'  => 'no',
+				'alto'       => '70vh',
+				'textura'    => 'si',
+				'municipios' => 'si',
+				'timeline'   => 'no',
+			)
+		), $atts, 'sismos_globo' );
+
+		wp_enqueue_style( 'sis-estilos' );
+		wp_enqueue_script( 'sis-globo' );
+
+		$limite  = max( 5, min( 200, (int) $atts['limite'] ) );
+		$calidad = in_array( $atts['calidad'], array( 'auto', 'alta', 'ligera' ), true ) ? $atts['calidad'] : 'auto';
+		$alto    = preg_match( '/^\d{1,4}(px|vh|dvh|rem|em)$/', $atts['alto'] ) ? $atts['alto'] : '70vh';
+		$conMuni = 'no' !== $atts['municipios'];
+
+		wp_localize_script( 'sis-globo', 'SISGLOBO', array(
+			'rest'         => esc_url_raw( rest_url( self::rest_ns() ) ),
+			'ambito'       => SIS_Security::sanitizar_ambito( $atts['ambito'] ),
+			'limite'       => $limite,
+			'calidad'      => $calidad,
+			'autorotar'    => 'no' !== $atts['autorotar'],
+			// Textura del planeta servida por CDN; si no carga, el globo dibuja
+			// un planeta propio con retícula y sigue funcionando.
+			'textura'      => 'no' === $atts['textura'] ? '' : 'https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg',
+			'geojson'      => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_municipios.geojson' ) : '',
+			'geojsonDepto' => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_departamento.geojson' ) : '',
+		) );
+
+		$id = $this->id();
+
+		ob_start();
+		echo $this->importmap_three(); // phpcs:ignore WordPress.Security.EscapeOutput
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="sis sis-globo"
+			style="<?php echo esc_attr( SIS_Estilos::estilo_inline( $atts ) ); ?>"
+			data-sis-globo
+			data-limite="<?php echo esc_attr( $limite ); ?>"
+			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+
+			<div class="sis-globo__lienzo" style="height:<?php echo esc_attr( $alto ); ?>" role="img"
+				aria-label="<?php esc_attr_e( 'Globo terráqueo con los últimos sismos: cada epicentro levanta una línea cuya altura y color indican la magnitud, y hunde otra proporcional a la profundidad.', 'sismos-narino' ); ?>"></div>
+
+			<div class="sis-globo__controles" role="toolbar" aria-label="<?php esc_attr_e( 'Vista y capas del globo', 'sismos-narino' ); ?>">
+				<button type="button" class="sis-globo__btn" data-camara="global"><?php esc_html_e( 'Global', 'sismos-narino' ); ?></button>
+				<button type="button" class="sis-globo__btn is-activo" data-camara="sismos"><?php esc_html_e( 'Zona sísmica', 'sismos-narino' ); ?></button>
+				<button type="button" class="sis-globo__btn" data-camara="narino"><?php esc_html_e( 'Nariño', 'sismos-narino' ); ?></button>
+				<span class="sis-globo__sep-btn" aria-hidden="true"></span>
+				<button type="button" class="sis-globo__btn is-activo" data-capa="calor" aria-pressed="true"><?php esc_html_e( 'Mapa de calor', 'sismos-narino' ); ?></button>
+				<button type="button" class="sis-globo__btn is-activo" data-capa="profundidad" aria-pressed="true"><?php esc_html_e( 'Profundidad', 'sismos-narino' ); ?></button>
+				<?php if ( $conMuni ) : ?>
+					<button type="button" class="sis-globo__btn is-activo" data-capa="municipios" aria-pressed="true"><?php esc_html_e( 'Municipios', 'sismos-narino' ); ?></button>
+				<?php endif; ?>
+				<button type="button" class="sis-globo__btn" data-rotar aria-pressed="false"><?php esc_html_e( 'Girar', 'sismos-narino' ); ?></button>
+			</div>
+
+			<div class="sis-globo__cintillo" aria-live="polite"></div>
+
+			<div class="sis-globo__leyenda">
+				<span class="sis-globo__leyenda-tit"><?php esc_html_e( 'Magnitud', 'sismos-narino' ); ?></span>
+				<span class="sis-globo__rampa" aria-hidden="true"></span>
+				<span class="sis-globo__leyenda-esc"><span>3</span><span>4</span><span>5</span><span>6</span><span>7+</span></span>
+				<span class="sis-globo__leyenda-pie"><?php esc_html_e( 'Hacia afuera: magnitud · Hacia adentro: profundidad', 'sismos-narino' ); ?></span>
+			</div>
+
+			<?php echo $this->skeleton( __( 'Cargando el globo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'Sismos: USGS · Cartografía municipal: DANE · Motor 3D: Three.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		$salida = ob_get_clean();
+
+		if ( 'si' === $atts['timeline'] ) {
+			$salida .= $this->sc_timeline( array( 'ambito' => $atts['ambito'], 'limite' => (string) $limite ) );
+		}
+
+		return $salida;
+	}
+
+	/**
+	 * [sismos_timeline] — recorre los últimos sismos y enfoca el globo.
+	 *
+	 * @param array $atts Atributos.
+	 * @return string
+	 */
+	public function sc_timeline( $atts ) {
+		$atts = $this->fusionar( array_merge(
+			$this->defaults_consulta(),
+			array( 'limite' => '50' )
+		), $atts, 'sismos_timeline' );
+
+		wp_enqueue_style( 'sis-estilos' );
+		wp_enqueue_script( 'sis-timeline' );
+
+		$id = $this->id();
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="sis sis-tl"
+			style="<?php echo esc_attr( SIS_Estilos::estilo_inline( $atts ) ); ?>"
+			data-sis-timeline
+			data-limite="<?php echo esc_attr( max( 5, min( 200, (int) $atts['limite'] ) ) ); ?>"
+			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+			<?php echo $this->skeleton( __( 'Cargando la línea de tiempo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

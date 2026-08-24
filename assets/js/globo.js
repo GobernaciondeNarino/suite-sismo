@@ -1,0 +1,834 @@
+/* [sismos_globo] — Globo 3D de la sismicidad reciente (Three.js 0.160, módulo ES).
+
+   Dibuja los últimos sismos del ámbito sobre un planeta que se puede girar y
+   acercar. Cada sismo aporta DOS líneas sobre el mismo epicentro:
+
+     · hacia AFUERA, la magnitud: la longitud crece con la magnitud y el color
+       sigue el mapa de calor (azul → verde → amarillo → naranja → rojo);
+     · hacia ADENTRO, la profundidad: el segmento se hunde hacia el centro del
+       planeta en proporción a la profundidad focal, de modo que la nube de
+       segmentos dibuja el plano de la placa que subduce.
+
+   Alrededor de los epicentros se siembra un campo de partículas cuya intensidad
+   acumula la energía de los sismos cercanos: es el mapa de calor propiamente
+   dicho, y comparte escala de color con las líneas.
+
+   Todo el dato viene de la REST del propio plugin (/eventos). El globo se
+   sincroniza con [sismos_timeline] mediante el evento 'sis:sismo'.
+
+   Rendimiento: pausa fuera del viewport, modo ligero en equipos modestos y
+   respeto por prefers-reduced-motion. */
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+var CFG = window.SISGLOBO || {
+  rest: '', ambito: 'regional', limite: 50, autorotar: true,
+  calidad: 'auto', textura: '', geojson: '', geojsonDepto: ''
+};
+
+/* Escala de color del mapa de calor, compartida con las líneas y la leyenda.
+   Dominio fijo (magnitud 3 a 7) para que un color signifique lo mismo hoy y
+   dentro de un mes, aunque cambie el conjunto de sismos cargado. */
+var HEAT = [
+  { m: 3.0, c: 0x0080C3 },
+  { m: 4.0, c: 0x3EBA6A },
+  { m: 5.0, c: 0xFFC53B },
+  { m: 6.0, c: 0xFF7300 },
+  { m: 7.0, c: 0xC0392B }
+];
+var _hc1 = new THREE.Color(), _hc2 = new THREE.Color(), _hcOut = new THREE.Color();
+
+function colorPorMagnitud(mag) {
+  var m = Math.max(HEAT[0].m, Math.min(HEAT[HEAT.length - 1].m, Number(mag) || 0));
+  for (var i = 0; i < HEAT.length - 1; i++) {
+    if (m <= HEAT[i + 1].m) {
+      var t = (m - HEAT[i].m) / (HEAT[i + 1].m - HEAT[i].m);
+      _hc1.setHex(HEAT[i].c);
+      _hc2.setHex(HEAT[i + 1].c);
+      return _hcOut.lerpColors(_hc1, _hc2, t);
+    }
+  }
+  return _hcOut.setHex(HEAT[HEAT.length - 1].c);
+}
+
+/* Coordenadas geográficas → punto en la esfera. */
+function latLngAVector3(lat, lng, radio) {
+  radio = radio === undefined ? 1 : radio;
+  var phi = (90 - lat) * Math.PI / 180;
+  var theta = (lng + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -radio * Math.sin(phi) * Math.cos(theta),
+    radio * Math.cos(phi),
+    radio * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+/* Distancia ortodrómica aproximada en kilómetros (para el campo de calor). */
+function distanciaKm(lat1, lon1, lat2, lon2) {
+  var R = 6371.0088, rad = Math.PI / 180;
+  var f1 = lat1 * rad, f2 = lat2 * rad;
+  var df = (lat2 - lat1) * rad, dl = (lon2 - lon1) * rad;
+  var a = Math.sin(df / 2) * Math.sin(df / 2) + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
+function esLigero() {
+  if (CFG.calidad === 'ligera') { return true; }
+  if (CFG.calidad === 'alta') { return false; }
+  var nucleos = navigator.hardwareConcurrency || 4;
+  var memoria = navigator.deviceMemory || 4;
+  return nucleos <= 4 || memoria <= 4 || window.innerWidth < 700;
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function num(v, dec) {
+  try { return Number(v).toLocaleString('es-CO', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+  catch (e) { return String(v); }
+}
+
+/* Textura de punto suave: partículas redondas en vez de cuadradas. */
+var _texPunto = null;
+function texturaPunto() {
+  if (_texPunto) { return _texPunto; }
+  var c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  var ctx = c.getContext('2d');
+  var g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(32, 32, 32, 0, Math.PI * 2);
+  ctx.fill();
+  _texPunto = new THREE.CanvasTexture(c);
+  return _texPunto;
+}
+
+/* Planeta de respaldo dibujado en un canvas: océano en degradado con retícula
+   de meridianos y paralelos. Se usa si la textura remota no carga, para que el
+   componente nunca dependa de un tercero para funcionar. */
+function texturaProcedural() {
+  var c = document.createElement('canvas');
+  c.width = 1024; c.height = 512;
+  var ctx = c.getContext('2d');
+
+  var g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#0b2135');
+  g.addColorStop(0.5, '#123c5c');
+  g.addColorStop(1, '#0b2135');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 1;
+  for (var lng = 0; lng <= 1024; lng += 1024 / 12) {
+    ctx.beginPath(); ctx.moveTo(lng, 0); ctx.lineTo(lng, 512); ctx.stroke();
+  }
+  for (var lat = 0; lat <= 512; lat += 512 / 6) {
+    ctx.beginPath(); ctx.moveTo(0, lat); ctx.lineTo(1024, lat); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+  ctx.beginPath(); ctx.moveTo(0, 256); ctx.lineTo(1024, 256); ctx.stroke();
+
+  return new THREE.CanvasTexture(c);
+}
+
+/* Anillos exteriores de un feature GeoJSON, en pares [lng, lat]. */
+function anillosDeFeature(feat) {
+  var g = feat.geometry || {};
+  if (g.type === 'Polygon') { return [g.coordinates[0]]; }
+  if (g.type === 'MultiPolygon') { return g.coordinates.map(function (p) { return p[0]; }); }
+  return [];
+}
+
+/* ================================================================= */
+
+class GloboSismico {
+
+  constructor(cont) {
+    this.cont = cont;
+    this.lienzo = cont.querySelector('.sis-globo__lienzo') || cont;
+    this.ligero = esLigero();
+    this.reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.visible = true;
+    this.eventos = [];
+    this.seleccionado = -1;
+    this._camTransicion = null;
+    this._t = 0;
+
+    this.capas = { sismos: true, calor: true, municipios: true, profundidad: true };
+
+    this._escena();
+    this._planeta();
+    this._estrellas();
+    this._grupoDatos();
+    this._interaccion();
+    this._controlesUI();
+    this._sincronizacion();
+    this._cargar();
+    this._loop();
+  }
+
+  _ancho() { return this.lienzo.clientWidth || 480; }
+
+  _alto() {
+    var h = this.lienzo.clientHeight || 0;
+    if (h > 120) { return h; }
+    return Math.max(320, Math.round(this._ancho() * 0.62));
+  }
+
+  /* ---------------- escena ---------------- */
+
+  _escena() {
+    var self = this;
+
+    this.escena = new THREE.Scene();
+    this.escena.background = new THREE.Color(0x00080f);
+
+    this.camara = new THREE.PerspectiveCamera(45, this._ancho() / this._alto(), 0.1, 100);
+    this.camDefault = new THREE.Vector3(0, 1.1, 4.0);
+    // La vista de los datos se calcula al cargarlos; hasta entonces, el centro
+    // del ámbito sirve de aproximación.
+    this.camDatos = latLngAVector3(0.5, -80, 2.9);
+    this.camNarino = latLngAVector3(1.3, -77.5, 2.1);
+    this.camara.position.copy(this.camDatos);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this.ligero, alpha: false });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.ligero ? 1 : 2));
+    this.renderer.setSize(this._ancho(), this._alto());
+    this.lienzo.appendChild(this.renderer.domElement);
+
+    this.escena.add(new THREE.AmbientLight(0xffffff, 0.42));
+    this.escena.add(new THREE.HemisphereLight(0xbfd4ff, 0x101c28, 0.35));
+    var sol = new THREE.DirectionalLight(0xffffff, 1.15);
+    sol.position.set(4, 2.5, 4.5);
+    this.escena.add(sol);
+
+    this.controles = new OrbitControls(this.camara, this.renderer.domElement);
+    this.controles.enableDamping = true;
+    this.controles.dampingFactor = 0.07;
+    this.controles.rotateSpeed = 0.55;
+    this.controles.minDistance = 1.35;
+    this.controles.maxDistance = 8;
+    this.controles.autoRotate = !!CFG.autorotar && !this.reducido;
+    this.controles.autoRotateSpeed = 0.32;
+
+    window.addEventListener('resize', function () { self.redimensionar(); });
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(function () { self.redimensionar(); }).observe(this.lienzo);
+    }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { self.visible = es[0].isIntersecting; }, { threshold: 0.05 })
+        .observe(this.lienzo);
+    }
+  }
+
+  redimensionar() {
+    if (!this.renderer) { return; }
+    var a = this._ancho(), h = this._alto();
+    this.camara.aspect = a / h;
+    this.camara.updateProjectionMatrix();
+    this.renderer.setSize(a, h);
+
+    // Al cambiar la forma del lienzo (girar el teléfono, redimensionar la
+    // ventana) el encuadre de la nube ya no sirve: se recalcula para la
+    // próxima vez que se pida la vista «Zona sísmica». La cámara no se mueve
+    // sola: mover el punto de vista sin que nadie lo pida desorienta.
+    if (this.centroDatos) {
+      this.camDatos = this.centroDatos.clone().multiplyScalar(this._distanciaEncuadre());
+    }
+  }
+
+  /* ---------------- planeta y atmósfera ---------------- */
+
+  _planeta() {
+    var self = this;
+    var seg = this.ligero ? 48 : 72;
+
+    this.globo = new THREE.Mesh(
+      new THREE.SphereGeometry(1, seg, seg),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, map: texturaProcedural() })
+    );
+    this.escena.add(this.globo);
+
+    // Textura remota: si carga, sustituye a la procedural; si no, no pasa nada.
+    if (CFG.textura) {
+      new THREE.TextureLoader().load(
+        CFG.textura,
+        function (tex) {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          self.globo.material.map = tex;
+          self.globo.material.needsUpdate = true;
+        },
+        undefined,
+        function () { /* se conserva el planeta procedural */ }
+      );
+    }
+
+    // Atmósfera: halo fresnel dibujado por la cara interna de una esfera mayor.
+    this.atmosfera = new THREE.Mesh(
+      new THREE.SphereGeometry(1.045, seg, seg),
+      new THREE.ShaderMaterial({
+        transparent: true,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        uniforms: { uColor: { value: new THREE.Color(0x4fa8e0) } },
+        vertexShader: [
+          'varying vec3 vNormal;',
+          'void main() {',
+          '  vNormal = normalize(normalMatrix * normal);',
+          '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+          '}'
+        ].join('\n'),
+        fragmentShader: [
+          'uniform vec3 uColor;',
+          'varying vec3 vNormal;',
+          'void main() {',
+          '  float intensidad = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.4);',
+          '  gl_FragColor = vec4(uColor, 1.0) * intensidad;',
+          '}'
+        ].join('\n')
+      })
+    );
+    this.escena.add(this.atmosfera);
+  }
+
+  _estrellas() {
+    var n = this.ligero ? 700 : 1600;
+    var pos = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) {
+      var v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
+        .normalize()
+        .multiplyScalar(18 + Math.random() * 22);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.escena.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      size: 0.09, color: 0xbcd4f0, transparent: true, opacity: 0.65, depthWrite: false, sizeAttenuation: true
+    })));
+  }
+
+  _grupoDatos() {
+    this.gSismos = new THREE.Group();
+    this.gCalor = new THREE.Group();
+    this.gMapa = new THREE.Group();
+    this.escena.add(this.gSismos);
+    this.escena.add(this.gCalor);
+    this.escena.add(this.gMapa);
+  }
+
+  /* ---------------- datos ---------------- */
+
+  _cargar() {
+    var self = this;
+
+    fetch(CFG.rest + '/eventos?ambito=' + encodeURIComponent(CFG.ambito) + '&limite=' + encodeURIComponent(CFG.limite))
+      .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+      .then(function (j) {
+        // La REST entrega del más reciente al más antiguo.
+        self.eventos = (j.eventos || []).slice(0, CFG.limite);
+        self._encuadrarDatos();
+        self._pintarSismos();
+        self._pintarCalor();
+        self._quitarSkeleton();
+        self._cintilloEvento(0);
+        self._emitirCargados();
+      })
+      .catch(function () { self._error('No se pudieron cargar los sismos del globo.'); });
+
+    if (CFG.geojsonDepto) { this._pintarContorno(CFG.geojsonDepto, 0xFFD500, 0.9, 1.004); }
+    if (CFG.geojson) { this._pintarContorno(CFG.geojson, 0x8fb3d9, 0.42, 1.002); }
+  }
+
+  /* Encuadre inicial: el globo debe abrirse mirando donde están los sismos,
+     no a un punto genérico del planeta. Se promedia la dirección de los
+     epicentros (media vectorial, que no sufre con el meridiano 180°) y se
+     coloca la cámara sobre ella, a una distancia que abarca la nube. */
+  _encuadrarDatos() {
+    if (!this.eventos.length) { return; }
+
+    var centro = new THREE.Vector3();
+    var maxSep = 0;
+    var self = this;
+
+    this.eventos.forEach(function (e) { centro.add(latLngAVector3(e.lat, e.lon, 1)); });
+    if (centro.lengthSq() < 1e-6) { return; }
+    centro.normalize();
+
+    this.eventos.forEach(function (e) {
+      var d = centro.angleTo(latLngAVector3(e.lat, e.lon, 1));
+      if (d > maxSep) { maxSep = d; }
+    });
+
+    this.centroDatos = centro.clone();
+    this.sepDatos = maxSep;
+
+    this.camDatos = centro.clone().multiplyScalar(this._distanciaEncuadre());
+    this._volarA(this.camDatos);
+
+    var btn = this.cont.querySelector('[data-camara="sismos"]');
+    if (btn) {
+      this.cont.querySelectorAll('[data-camara]').forEach(function (x) { x.classList.toggle('is-activo', x === btn); });
+    }
+    void self;
+  }
+
+  /* Distancia de cámara que deja toda la nube dentro del encuadre.
+
+     El campo de visión vertical es fijo (45°), así que el límite real cambia
+     con la forma del lienzo: en uno apaisado manda la altura y en uno vertical
+     —un móvil— manda el ancho, mucho más estrecho. Si se ignora, el mismo
+     conjunto de sismos se ve bien en un escritorio y diminuto en un teléfono. */
+  _distanciaEncuadre() {
+    var sep = Math.max(this.sepDatos || 0, 0.06);
+    var mitadV = (this.camara.fov / 2) * Math.PI / 180;
+    var mitadH = Math.atan(Math.tan(mitadV) * (this.camara.aspect || 1));
+    var mitad = Math.min(mitadV, mitadH) * 0.72; // 28 % de aire alrededor.
+    var dist = Math.cos(sep) + Math.sin(sep) / Math.tan(mitad);
+    return Math.max(1.75, Math.min(4.0, dist));
+  }
+
+  /* Contorno geográfico como líneas sobre la esfera. */
+  _pintarContorno(url, color, opacidad, radio) {
+    var self = this;
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (geo) {
+        var puntos = [];
+        (geo.features || []).forEach(function (f) {
+          anillosDeFeature(f).forEach(function (anillo) {
+            for (var i = 0; i < anillo.length - 1; i++) {
+              puntos.push(latLngAVector3(anillo[i][1], anillo[i][0], radio));
+              puntos.push(latLngAVector3(anillo[i + 1][1], anillo[i + 1][0], radio));
+            }
+          });
+        });
+        if (!puntos.length) { return; }
+        var linea = new THREE.LineSegments(
+          new THREE.BufferGeometry().setFromPoints(puntos),
+          new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: opacidad, depthWrite: false })
+        );
+        self.gMapa.add(linea);
+      })
+      .catch(function () { /* la cartografía es un adorno: si falla, el globo sigue */ });
+  }
+
+  /* Longitud del asta exterior según la magnitud, y del segmento interior
+     según la profundidad focal. */
+  _alturaMagnitud(mag) {
+    var m = Math.max(2.5, Math.min(8, Number(mag) || 0));
+    return 0.03 + Math.pow((m - 2.5) / 5.5, 1.25) * 0.34;
+  }
+
+  _hundimiento(prof) {
+    var p = Math.max(0, Math.min(300, Number(prof) || 0));
+    return (p / 300) * 0.22;
+  }
+
+  _pintarSismos() {
+    var self = this;
+    while (this.gSismos.children.length) { this.gSismos.remove(this.gSismos.children[0]); }
+    if (!this.eventos.length) { return; }
+
+    var n = this.eventos.length;
+    var posMag = new Float32Array(n * 6), colMag = new Float32Array(n * 6);
+    var posProf = new Float32Array(n * 6), colProf = new Float32Array(n * 6);
+    var posBase = new Float32Array(n * 3), colBase = new Float32Array(n * 3), tamBase = new Float32Array(n);
+
+    this.eventos.forEach(function (e, i) {
+      var base = latLngAVector3(e.lat, e.lon, 1.001);
+      var alto = self._alturaMagnitud(e.mag);
+      var hondo = self._hundimiento(e.profundidad);
+      var punta = latLngAVector3(e.lat, e.lon, 1.001 + alto);
+      var fondo = latLngAVector3(e.lat, e.lon, Math.max(0.2, 1 - hondo));
+      var c = colorPorMagnitud(e.mag);
+
+      // Asta de magnitud: del suelo hacia afuera.
+      posMag[i * 6] = base.x; posMag[i * 6 + 1] = base.y; posMag[i * 6 + 2] = base.z;
+      posMag[i * 6 + 3] = punta.x; posMag[i * 6 + 4] = punta.y; posMag[i * 6 + 5] = punta.z;
+      // El color se atenúa en la base y satura en la punta: la línea "arde".
+      colMag[i * 6] = c.r * 0.55; colMag[i * 6 + 1] = c.g * 0.55; colMag[i * 6 + 2] = c.b * 0.55;
+      colMag[i * 6 + 3] = c.r; colMag[i * 6 + 4] = c.g; colMag[i * 6 + 5] = c.b;
+
+      // Segmento de profundidad: del suelo hacia el interior.
+      posProf[i * 6] = base.x; posProf[i * 6 + 1] = base.y; posProf[i * 6 + 2] = base.z;
+      posProf[i * 6 + 3] = fondo.x; posProf[i * 6 + 4] = fondo.y; posProf[i * 6 + 5] = fondo.z;
+      colProf[i * 6] = c.r * 0.75; colProf[i * 6 + 1] = c.g * 0.75; colProf[i * 6 + 2] = c.b * 0.75;
+      colProf[i * 6 + 3] = c.r * 0.12; colProf[i * 6 + 4] = c.g * 0.12; colProf[i * 6 + 5] = c.b * 0.12;
+
+      posBase[i * 3] = base.x; posBase[i * 3 + 1] = base.y; posBase[i * 3 + 2] = base.z;
+      colBase[i * 3] = c.r; colBase[i * 3 + 1] = c.g; colBase[i * 3 + 2] = c.b;
+      tamBase[i] = 0.045 + Math.max(0, (e.mag - 3)) * 0.022;
+    });
+
+    var geoMag = new THREE.BufferGeometry();
+    geoMag.setAttribute('position', new THREE.BufferAttribute(posMag, 3));
+    geoMag.setAttribute('color', new THREE.BufferAttribute(colMag, 3));
+    this.lineasMag = new THREE.LineSegments(geoMag, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending
+    }));
+    this.gSismos.add(this.lineasMag);
+
+    var geoProf = new THREE.BufferGeometry();
+    geoProf.setAttribute('position', new THREE.BufferAttribute(posProf, 3));
+    geoProf.setAttribute('color', new THREE.BufferAttribute(colProf, 3));
+    // El segmento de profundidad va POR DENTRO del planeta: para que se vea,
+    // la capa lo dibuja discontinuo y vuelve el planeta translúcido, como una
+    // radiografía en la que se distingue el plano de la placa que subduce.
+    this.lineasProf = new THREE.LineSegments(geoProf, new THREE.LineDashedMaterial({
+      vertexColors: true, transparent: true, opacity: 0.85,
+      dashSize: 0.016, gapSize: 0.012, depthWrite: false
+    }));
+    this.lineasProf.computeLineDistances();
+    this.gSismos.add(this.lineasProf);
+    this._modoRadiografia(this.capas.profundidad);
+
+    var geoBase = new THREE.BufferGeometry();
+    geoBase.setAttribute('position', new THREE.BufferAttribute(posBase, 3));
+    geoBase.setAttribute('color', new THREE.BufferAttribute(colBase, 3));
+    geoBase.setAttribute('size', new THREE.BufferAttribute(tamBase, 1));
+    this.puntos = new THREE.Points(geoBase, new THREE.PointsMaterial({
+      // Mezcla normal, no aditiva: 50 epicentros juntos deben leerse como
+      // puntos de colores distintos, no como una mancha blanca.
+      size: 0.032, map: texturaPunto(), vertexColors: true, transparent: true,
+      opacity: 0.95, depthWrite: false, sizeAttenuation: true
+    }));
+    this.gSismos.add(this.puntos);
+
+    // Anillo que late sobre el sismo seleccionado (por defecto, el más reciente).
+    this.anillo = new THREE.Mesh(
+      new THREE.RingGeometry(0.020, 0.028, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })
+    );
+    this.gSismos.add(this.anillo);
+    this._situarAnillo(0);
+  }
+
+  /* Planeta translúcido para ver los segmentos de profundidad por dentro. */
+  _modoRadiografia(activo) {
+    if (!this.globo) { return; }
+    this.globo.material.transparent = !!activo;
+    this.globo.material.opacity = activo ? 0.55 : 1;
+    this.globo.material.needsUpdate = true;
+  }
+
+  _situarAnillo(indice) {
+    if (!this.anillo || !this.eventos.length) { return; }
+    var e = this.eventos[Math.max(0, Math.min(this.eventos.length - 1, indice))];
+    var v = latLngAVector3(e.lat, e.lon, 1.006);
+    this.anillo.position.copy(v);
+    this.anillo.lookAt(v.clone().multiplyScalar(2));
+    this.anillo.material.color.copy(colorPorMagnitud(e.mag));
+    this.seleccionado = indice;
+  }
+
+  /* Campo de calor: partículas sembradas alrededor de los epicentros cuya
+     intensidad acumula la energía de los sismos cercanos. Comparte la escala
+     de color con las líneas, así que una zona roja es una zona donde se
+     liberó más energía. */
+  _pintarCalor() {
+    while (this.gCalor.children.length) { this.gCalor.remove(this.gCalor.children[0]); }
+    if (!this.eventos.length) { return; }
+
+    // La mezcla aditiva suma el color de cada partícula: con demasiadas
+    // superpuestas el racimo se quema en blanco y deja de leerse la escala.
+    // Se limita el número por sismo y se normaliza la intensidad.
+    var porSismo = this.ligero ? 10 : 16;
+    var n = this.eventos.length * porSismo;
+    var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    this._calorPts = [];
+
+    var k = 0;
+    for (var i = 0; i < this.eventos.length; i++) {
+      var e = this.eventos[i];
+      // Radio de dispersión: los sismos grandes se sienten más lejos.
+      var radioGrados = 0.35 + Math.max(0, e.mag - 3) * 0.55;
+
+      for (var j = 0; j < porSismo; j++) {
+        // Dispersión gaussiana aproximada (suma de uniformes) alrededor del epicentro.
+        var rr = ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * 2;
+        var ang = Math.random() * Math.PI * 2;
+        var lat = e.lat + rr * radioGrados * Math.sin(ang);
+        var lng = e.lon + rr * radioGrados * Math.cos(ang) / Math.max(0.2, Math.cos(e.lat * Math.PI / 180));
+
+        var d = distanciaKm(e.lat, e.lon, lat, lng);
+        var caida = Math.exp(-d / (40 + Math.max(0, e.mag - 3) * 90));
+        // El factor de normalización compensa el número de partículas por
+        // sismo: la suma de la nube tiende al mismo brillo con 14 que con 26.
+        var intensidad = Math.max(0.05, Math.min(1, caida)) * (13 / porSismo);
+
+        var p = { lat: lat, lng: lng, fase: Math.random() * 6.28, intensidad: intensidad, mag: e.mag };
+        this._calorPts.push(p);
+
+        var v = latLngAVector3(lat, lng, 1.008);
+        pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z;
+
+        var c = colorPorMagnitud(e.mag);
+        col[k * 3] = c.r * intensidad;
+        col[k * 3 + 1] = c.g * intensidad;
+        col[k * 3 + 2] = c.b * intensidad;
+        k++;
+      }
+    }
+
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    this.calor = new THREE.Points(geo, new THREE.PointsMaterial({
+      size: this.ligero ? 0.05 : 0.062, map: texturaPunto(), vertexColors: true,
+      transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+    }));
+    this.gCalor.add(this.calor);
+  }
+
+  /* ---------------- interacción ---------------- */
+
+  _interaccion() {
+    var self = this;
+    var dom = this.renderer.domElement;
+
+    this.raycaster = new THREE.Raycaster();
+    this.raycaster.params.Points.threshold = 0.035;
+    this.puntero = new THREE.Vector2();
+
+    this.tip = document.createElement('div');
+    this.tip.className = 'sis-globo__tip';
+    this.tip.hidden = true;
+    this.cont.appendChild(this.tip);
+
+    var indiceEn = function (ev) {
+      if (!self.puntos) { return -1; }
+      var rect = dom.getBoundingClientRect();
+      self.puntero.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      self.puntero.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      self.raycaster.setFromCamera(self.puntero, self.camara);
+      var hits = self.raycaster.intersectObject(self.puntos, false);
+      return hits.length ? hits[0].index : -1;
+    };
+
+    dom.addEventListener('pointermove', function (ev) {
+      var i = indiceEn(ev);
+      if (i < 0) { self.tip.hidden = true; dom.style.cursor = ''; return; }
+      self._tooltip(ev, self.eventos[i]);
+      dom.style.cursor = 'pointer';
+    });
+
+    dom.addEventListener('pointerleave', function () { self.tip.hidden = true; dom.style.cursor = ''; });
+
+    dom.addEventListener('click', function (ev) {
+      var i = indiceEn(ev);
+      if (i < 0) { return; }
+      self._situarAnillo(i);
+      self._cintilloEvento(i);
+      window.dispatchEvent(new CustomEvent('sis:sismo', { detail: { indice: i, evento: self.eventos[i], origen: 'globo' } }));
+    });
+  }
+
+  _tooltip(ev, e) {
+    if (!e) { return; }
+    var rect = this.cont.getBoundingClientRect();
+    this.tip.innerHTML =
+      '<strong>Magnitud ' + esc(num(e.mag, 1)) + '</strong><br>' +
+      esc(e.lugar || '') + '<br>' +
+      esc(e.fecha || '') + ' UTC<br>' +
+      'Profundidad ' + esc(num(e.profundidad, 0)) + ' km' +
+      (e.municipio ? '<br>Cerca de ' + esc(e.municipio) : '');
+    this.tip.style.left = Math.round(ev.clientX - rect.left + 14) + 'px';
+    this.tip.style.top = Math.round(ev.clientY - rect.top + 14) + 'px';
+    this.tip.hidden = false;
+  }
+
+  /* ---------------- interfaz ---------------- */
+
+  _controlesUI() {
+    var self = this;
+
+    this.cont.querySelectorAll('[data-camara]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var destino = { global: self.camDefault, sismos: self.camDatos, narino: self.camNarino }[b.getAttribute('data-camara')];
+        if (destino) { self._pararRotacion(); self._volarA(destino); }
+        self.cont.querySelectorAll('[data-camara]').forEach(function (x) { x.classList.toggle('is-activo', x === b); });
+      });
+    });
+
+    this.cont.querySelectorAll('[data-capa]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var capa = b.getAttribute('data-capa');
+        self.capas[capa] = !self.capas[capa];
+        b.setAttribute('aria-pressed', self.capas[capa] ? 'true' : 'false');
+        b.classList.toggle('is-activo', self.capas[capa]);
+        if (capa === 'sismos') { self.gSismos.visible = self.capas.sismos; }
+        if (capa === 'calor') { self.gCalor.visible = self.capas.calor; }
+        if (capa === 'municipios') { self.gMapa.visible = self.capas.municipios; }
+        if (capa === 'profundidad') {
+          if (self.lineasProf) { self.lineasProf.visible = self.capas.profundidad; }
+          self._modoRadiografia(self.capas.profundidad);
+        }
+      });
+    });
+
+    var rot = this.cont.querySelector('[data-rotar]');
+    if (rot) {
+      rot.setAttribute('aria-pressed', this.controles.autoRotate ? 'true' : 'false');
+      rot.classList.toggle('is-activo', this.controles.autoRotate);
+      rot.addEventListener('click', function () {
+        self.controles.autoRotate = !self.controles.autoRotate;
+        rot.setAttribute('aria-pressed', self.controles.autoRotate ? 'true' : 'false');
+        rot.classList.toggle('is-activo', self.controles.autoRotate);
+      });
+    }
+  }
+
+  /* La rotación automática y un encuadre pedido a mano se estorban: al pedir
+     una vista concreta —o al elegir un sismo— la rotación se detiene. */
+  _pararRotacion() {
+    if (!this.controles || !this.controles.autoRotate) { return; }
+    this.controles.autoRotate = false;
+    var rot = this.cont.querySelector('[data-rotar]');
+    if (rot) {
+      rot.setAttribute('aria-pressed', 'false');
+      rot.classList.remove('is-activo');
+    }
+  }
+
+  _volarA(destino) {
+    this._camTransicion = { desde: this.camara.position.clone(), hasta: destino.clone(), t: 0 };
+  }
+
+  _cintilloEvento(i) {
+    var e = this.eventos[i];
+    if (!e) { return; }
+    var caja = this.cont.querySelector('.sis-globo__cintillo');
+    if (!caja) { return; }
+    var etq = i === 0 ? 'Último sismo' : 'Sismo ' + (i + 1) + ' de ' + this.eventos.length;
+    caja.innerHTML =
+      '<strong class="sis-globo__cintillo-mag" style="color:' + '#' + colorPorMagnitud(e.mag).getHexString() + '">' +
+      esc(num(e.mag, 1)) + '</strong>' +
+      '<span class="sis-globo__cintillo-etq">' + esc(etq) + '</span>' +
+      '<span class="sis-globo__sep">·</span>' +
+      '<span class="sis-globo__cintillo-lugar">' + esc(e.lugar || '') + '</span>' +
+      '<span class="sis-globo__sep">·</span>' +
+      '<span>' + esc(num(e.profundidad, 0)) + ' km</span>' +
+      '<span class="sis-globo__sep">·</span>' +
+      '<span>' + esc((e.fecha || '').slice(0, 16)) + ' UTC</span>';
+  }
+
+  _quitarSkeleton() {
+    var s = this.cont.querySelector('.sis-skeleton');
+    if (s && s.parentNode) { s.parentNode.removeChild(s); }
+  }
+
+  _error(msg) {
+    this._quitarSkeleton();
+    var p = document.createElement('p');
+    p.className = 'sis-globo__error';
+    p.setAttribute('role', 'alert');
+    p.textContent = msg;
+    this.cont.appendChild(p);
+  }
+
+  /* Publica el conjunto cargado para que la línea de tiempo lo use sin
+     volver a pedirlo, y escucha sus cambios de selección. */
+  _emitirCargados() {
+    window.dispatchEvent(new CustomEvent('sis:sismos-cargados', { detail: { eventos: this.eventos } }));
+  }
+
+  _sincronizacion() {
+    var self = this;
+    window.addEventListener('sis:sismo', function (ev) {
+      var d = ev.detail || {};
+      if (d.origen === 'globo' || typeof d.indice !== 'number') { return; }
+      self._situarAnillo(d.indice);
+      self._cintilloEvento(d.indice);
+      var e = self.eventos[d.indice];
+      if (e && d.enfocar !== false) {
+        self._pararRotacion();
+        self._volarA(latLngAVector3(e.lat, e.lon, 2.2));
+      }
+    });
+  }
+
+  /* ---------------- bucle ---------------- */
+
+  _loop() {
+    var self = this;
+    var ultimo = performance.now();
+
+    function tick(ahora) {
+      requestAnimationFrame(tick);
+      if (!self.visible) { ultimo = ahora; return; }
+
+      var dt = Math.min(0.05, (ahora - ultimo) / 1000);
+      ultimo = ahora;
+      self._t += dt;
+
+      // Transición de cámara entre vistas predefinidas.
+      if (self._camTransicion) {
+        var tr = self._camTransicion;
+        tr.t = Math.min(1, tr.t + dt * 1.1);
+        var s = tr.t * tr.t * (3 - 2 * tr.t); // suavizado
+        self.camara.position.lerpVectors(tr.desde, tr.hasta, s);
+        if (tr.t >= 1) { self._camTransicion = null; }
+      }
+
+      // Latido del sismo seleccionado.
+      if (self.anillo && !self.reducido) {
+        var pulso = 1 + Math.sin(self._t * 3.4) * 0.22;
+        self.anillo.scale.setScalar(pulso);
+        self.anillo.material.opacity = 0.35 + Math.sin(self._t * 3.4) * 0.25;
+      }
+
+      // Respiración del campo de calor: la intensidad ondula suavemente para
+      // que la capa se lea como energía y no como puntos fijos.
+      if (self.calor && self._calorPts && !self.reducido) {
+        var col = self.calor.geometry.attributes.color.array;
+        for (var i = 0; i < self._calorPts.length; i++) {
+          var p = self._calorPts[i];
+          var f = p.intensidad * (0.72 + 0.28 * Math.sin(self._t * 1.6 + p.fase));
+          var c = colorPorMagnitud(p.mag);
+          col[i * 3] = c.r * f;
+          col[i * 3 + 1] = c.g * f;
+          col[i * 3 + 2] = c.b * f;
+        }
+        self.calor.geometry.attributes.color.needsUpdate = true;
+      }
+
+      self.controles.update();
+      self.renderer.render(self.escena, self.camara);
+    }
+
+    requestAnimationFrame(tick);
+  }
+}
+
+/* ================================================================= */
+
+function arrancar() {
+  document.querySelectorAll('[data-sis-globo]').forEach(function (cont) {
+    if (cont.dataset.sisGloboListo) { return; }
+    cont.dataset.sisGloboListo = '1';
+    try {
+      new GloboSismico(cont);
+    } catch (e) {
+      var s = cont.querySelector('.sis-skeleton');
+      if (s && s.parentNode) { s.parentNode.removeChild(s); }
+      var p = document.createElement('p');
+      p.className = 'sis-globo__error';
+      p.textContent = 'Este navegador no puede dibujar el globo 3D (WebGL no disponible). El resto de componentes funciona con normalidad.';
+      cont.appendChild(p);
+    }
+  });
+}
+
+if (document.readyState !== 'loading') { arrancar(); }
+else { document.addEventListener('DOMContentLoaded', arrancar); }
+
+export { GloboSismico, colorPorMagnitud, latLngAVector3 };

@@ -1,5 +1,47 @@
 # Registro de cambios
 
+## 2.2.0 — 2026-08-24
+
+### Globo 3D de sismos recientes
+
+Recreación del globo del plugin de referencia (`suite-oni`) con datos sísmicos y una codificación propia del dominio.
+
+- Nuevo `[sismos_globo]`: globo terráqueo WebGL con los últimos sismos (50 por defecto, 5–200). Cada epicentro dibuja una **línea radial hacia afuera** cuya altura codifica la magnitud y cuyo color sigue la rampa de calor de la suite (3,0 azul → 4,0 verde → 5,0 ámbar → 6,0 naranja → 7,0+ rojo), y una **línea punteada hacia adentro** proporcional a la profundidad del hipocentro.
+- **Mapa de calor sobre la esfera**: un campo de partículas aditivas alrededor de cada epicentro, con intensidad proporcional a la magnitud; donde los sismos se agrupan, los campos se suman y forman la mancha caliente.
+- Vistas de cámara —Global, Zona sísmica y Nariño— con encuadre calculado a partir del centroide de los datos, no de una posición fija: si la sismicidad se desplaza, la cámara la sigue.
+- Capa de profundidad en **modo radiografía** (el planeta se vuelve traslúcido para ver las líneas que entran) y contorno municipal de Nariño sobre la esfera.
+- Selección por clic o teclado sobre el epicentro, con anillo pulsante, cintillo `aria-live` y vuelo suave de cámara.
+- Nuevo `[sismos_timeline]`: línea de tiempo con reproducción automática, sincronizada en ambos sentidos con el globo de la misma página mediante eventos `sis:sismo` y `sis:sismos-cargados`. También se publica junto al globo con `timeline="si"`.
+- El globo consume la ruta REST existente `/eventos`; no incrusta datos en el HTML ni añade rutas nuevas.
+- Cartografía de Nariño (departamento y municipios) servida en GeoJSON desde `data/`, tomada del plugin de referencia.
+
+### Responsive del globo y de la línea de tiempo
+
+Auditoría en Chromium a 320, 360, 414, 768, 1024 y 1440 px, con emulación táctil por debajo de 768.
+
+- Los ocho controles del globo ocupaban tres filas en un móvil y tapaban un tercio de la escena: pasan a una sola fila que se desplaza en horizontal.
+- La leyenda de magnitud se solapaba con el cintillo del último sismo; ahora se sitúa bajo la barra de controles.
+- La tira de marcas de la línea de tiempo (una por sismo) ensanchaba la página entera hasta 510 px en una pantalla de 320: se convierte en una región desplazable y la marca activa se centra sola.
+- Cada marca es ahora un área de toque de 44 px en dispositivos táctiles, con una barra interior que sigue codificando la magnitud por color y altura; el deslizador también mide 44 px.
+- El encuadre de la cámara tiene en cuenta la forma del lienzo: el campo de visión vertical es fijo, así que en un móvil vertical manda el ancho. Sin ese ajuste el mismo conjunto de sismos se veía bien en un escritorio y diminuto en un teléfono. El encuadre se recalcula al girar el dispositivo, sin mover la cámara por su cuenta.
+- La rotación automática deja de estar activa por defecto y se detiene al pedir una vista o al elegir un sismo: giraba y perdía de vista la zona que acababa de encuadrar.
+
+### Rendimiento y resiliencia del globo
+
+- Calidad automática: en equipos modestos o pantallas pequeñas se reduce el número de partículas, se limita el `devicePixelRatio` y se desactivan las estrellas.
+- El bucle de animación se detiene cuando el globo sale de la ventana (`IntersectionObserver`) y se redimensiona con `ResizeObserver`.
+- Si la textura del planeta no carga, se dibuja un planeta propio con retícula. Si el navegador no soporta WebGL, se publica un aviso y el resto de la página sigue funcionando.
+
+### Seguridad
+
+- Three.js se carga por CDN con la versión fijada y huella SRI. Como un módulo ES no admite `integrity` en su etiqueta `<script>`, la huella viaja en `<link rel="modulepreload">` impreso junto al `importmap`, que se emite una sola vez por página.
+- Los atributos del globo se acotan en servidor: límite a 5–200, `alto` solo si es una medida CSS válida, ámbito contra la lista de regiones y calidad contra lista blanca.
+- `tests/test-seguridad.php` cubre las huellas de los módulos, el importmap y el filtro que marca el globo como módulo; `tests/test-render.php` cubre el HTML publicado por ambos componentes nuevos.
+
+### Documentación
+
+- `README.md` y la pantalla **Elementos** del panel documentan los dos shortcodes nuevos, sus atributos y su ejemplo.
+
 ## 2.1.0 — 2026-08-20
 
 ### Responsive

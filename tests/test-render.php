@@ -50,7 +50,12 @@ function wp_rand() { return 12345; }
 function shortcode_atts( $pairs, $atts, $sc = '' ) { $atts = (array) $atts; $out = array(); foreach ( $pairs as $n => $d ) { $out[ $n ] = array_key_exists( $n, $atts ) ? $atts[ $n ] : $d; } return $out; }
 function add_action() {} function add_filter() {} function add_shortcode() {}
 function wp_enqueue_style() {} function wp_enqueue_script() {}
-function wp_register_style() {} function wp_register_script() {} function wp_localize_script() {}
+function wp_register_style() {} function wp_register_script() {}
+function wp_json_encode( $v ) { return json_encode( $v ); }
+function esc_html_e( $s, $d = null ) { echo esc_html( $s ); }
+function esc_attr_e( $s, $d = null ) { echo esc_attr( $s ); }
+$GLOBALS['sis_localizado'] = array();
+function wp_localize_script( $handle, $objeto, $datos ) { $GLOBALS['sis_localizado'][ $objeto ] = $datos; }
 function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; }
 
 require SIS_DIR . 'includes/class-sis-security.php';
@@ -70,6 +75,7 @@ require SIS_DIR . 'includes/sync/class-sis-sync.php';
 require SIS_DIR . 'includes/shortcodes/class-sis-shortcodes.php';
 
 use GobernacionNarino\Sismos\SIS_Shortcodes;
+use GobernacionNarino\Sismos\SIS_Regiones;
 
 $sc = new SIS_Shortcodes();
 $fallos = 0;
@@ -122,6 +128,84 @@ if ( false !== mb_strpos( $glosario, 'No es posible' ) ) {
 	echo "  ok   [sismos_glosario] marca la predicción como imposible\n";
 } else {
 	echo "FAIL  [sismos_glosario] no marca la predicción como imposible\n";
+	$fallos++;
+}
+
+/* ------------------------------------------------------------------ */
+/* Globo 3D y línea de tiempo                                          */
+/* ------------------------------------------------------------------ */
+
+// El globo publica solo el esqueleto con data-*: los datos llegan por REST.
+$globo = $sc->sc_globo( array( 'limite' => '50' ) );
+
+$comprobaciones = array(
+	'importmap de three.js'          => false !== strpos( $globo, '<script type="importmap">' ),
+	'modulepreload con integrity'    => 2 === substr_count( $globo, 'rel="modulepreload"' ) && 2 === substr_count( $globo, 'integrity="sha384-' ),
+	'gancho data-sis-globo'          => false !== strpos( $globo, 'data-sis-globo' ),
+	'lienzo con rol de imagen'       => false !== strpos( $globo, 'sis-globo__lienzo' ) && false !== strpos( $globo, 'role="img"' ),
+	'barra de vistas y capas'        => false !== strpos( $globo, 'data-camara="global"' ) && false !== strpos( $globo, 'data-capa="calor"' ),
+	'leyenda de magnitud'            => false !== strpos( $globo, 'sis-globo__rampa' ),
+	'sin datos incrustados'          => false === strpos( $globo, '"features"' ) && false === strpos( $globo, '<?php' ),
+);
+foreach ( $comprobaciones as $que => $bien ) {
+	printf( "%s  [sismos_globo] %s\n", $bien ? '  ok ' : 'FAIL', $que );
+	if ( ! $bien ) { $fallos++; }
+}
+
+// El límite se recorta al rango soportado y el ámbito se sanea.
+$sc->sc_globo( array( 'limite' => '9000', 'ambito' => 'narino"><script>' ) );
+$conf = isset( $GLOBALS['sis_localizado']['SISGLOBO'] ) ? $GLOBALS['sis_localizado']['SISGLOBO'] : array();
+$ambito_ok = isset( $conf['ambito'] ) && SIS_Regiones::existe( $conf['ambito'] );
+if ( isset( $conf['limite'] ) && 200 === $conf['limite'] && $ambito_ok ) {
+	echo "  ok   [sismos_globo] recorta el límite a 200 y descarta un ámbito inválido\n";
+} else {
+	echo "FAIL  [sismos_globo] no recorta el límite o acepta un ámbito inválido\n";
+	$fallos++;
+}
+
+// El límite mínimo también se respeta.
+$sc->sc_globo( array( 'limite' => '1' ) );
+$conf_min = isset( $GLOBALS['sis_localizado']['SISGLOBO'] ) ? $GLOBALS['sis_localizado']['SISGLOBO'] : array();
+if ( isset( $conf_min['limite'] ) && 5 === $conf_min['limite'] ) {
+	echo "  ok   [sismos_globo] eleva el límite al mínimo de 5\n";
+} else {
+	echo "FAIL  [sismos_globo] no respeta el límite mínimo\n";
+	$fallos++;
+}
+
+// Un «alto» arbitrario no debe llegar al atributo style del lienzo.
+$sucio = $sc->sc_globo( array( 'alto' => '10px;background:url(javascript:alert(1))' ) );
+if ( false !== strpos( $sucio, 'height:70vh' ) && false === stripos( $sucio, 'javascript:' ) ) {
+	echo "  ok   [sismos_globo] descarta un «alto» que no sea una medida CSS\n";
+} else {
+	echo "FAIL  [sismos_globo] acepta un «alto» arbitrario\n";
+	$fallos++;
+}
+
+// El importmap se imprime una sola vez por página aunque haya varios globos.
+$primero = $sc->sc_globo( array() );
+if ( false === strpos( $primero, '<script type="importmap">' ) ) {
+	echo "  ok   el importmap de three.js se imprime una sola vez por página\n";
+} else {
+	echo "FAIL  el importmap de three.js se repite en cada globo\n";
+	$fallos++;
+}
+
+// La línea de tiempo publica su gancho y su límite recortado.
+$tl = $sc->sc_timeline( array( 'limite' => '3' ) );
+if ( false !== strpos( $tl, 'data-sis-timeline' ) && false !== strpos( $tl, 'data-limite="5"' ) && false === strpos( $tl, '<?php' ) ) {
+	echo "  ok   [sismos_timeline] publica su gancho con el límite recortado\n";
+} else {
+	echo "FAIL  [sismos_timeline] no publica su gancho o no recorta el límite\n";
+	$fallos++;
+}
+
+// Con timeline="si" el globo arrastra la línea de tiempo en la misma salida.
+$par = $sc->sc_globo( array( 'timeline' => 'si', 'limite' => '25' ) );
+if ( false !== strpos( $par, 'data-sis-globo' ) && false !== strpos( $par, 'data-sis-timeline' ) && false !== strpos( $par, 'data-limite="25"' ) ) {
+	echo "  ok   [sismos_globo timeline=\"si\"] publica ambos componentes sincronizados\n";
+} else {
+	echo "FAIL  [sismos_globo timeline=\"si\"] no publica la línea de tiempo\n";
 	$fallos++;
 }
 

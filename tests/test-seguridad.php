@@ -35,6 +35,7 @@ define( 'SIS_VERSION', '2.0.0-test' );
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
 function esc_attr( $s ) { return esc_html( $s ); }
 function esc_url( $s ) { return (string) $s; }
+function wp_json_encode( $v ) { return json_encode( $v ); }
 function esc_url_raw( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return esc_html( $s ); }
 function esc_textarea( $s ) { return esc_html( $s ); }
@@ -242,6 +243,25 @@ $tag  = '<script src="https://cdn.jsdelivr.net/npm/d3plus@2.0.0/build/d3plus.ful
 $sale = $sc->integridad_script( $tag, 'd3plus' );
 chk( false !== strpos( $sale, 'integrity="sha384-' ) && false !== strpos( $sale, 'crossorigin="anonymous"' ), 'El filtro inyecta integrity y crossorigin' );
 chk( $sc->integridad_script( $tag, 'otro-handle' ) === $tag, 'Los scripts propios no se tocan' );
+
+foreach ( SIS_Shortcodes::THREE_SRI as $ruta => $hash ) {
+	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "El módulo «{$ruta}» declara huella SRI válida" );
+}
+
+// Un módulo ES no acepta el atributo integrity en su etiqueta <script>: la
+// huella viaja en el <link rel="modulepreload"> que el importmap imprime antes.
+$mimp = ( new ReflectionClass( 'GobernacionNarino\Sismos\SIS_Shortcodes' ) )->getMethod( 'importmap_three' );
+$mimp->setAccessible( true );
+$importmap = $mimp->invoke( $sc );
+chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'rel="modulepreload"' ), 'Cada módulo de three.js se precarga con su huella' );
+chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'integrity="sha384-' ), 'Todas las precargas llevan integrity' );
+chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'crossorigin="anonymous"' ), 'Todas las precargas llevan crossorigin' );
+chk( false !== strpos( $importmap, '<script type="importmap">' ), 'El importmap se publica antes del módulo' );
+chk( 2 === substr_count( $importmap, 'https://cdn.jsdelivr.net/npm/three@' . SIS_Shortcodes::THREE_VERSION . '/' ), 'Los módulos se piden a la versión fijada de three.js' );
+
+$modulo = $sc->marcar_modulo( '<script src="https://example.test/globo.js" id="sis-globo-js"></script>', 'sis-globo', 'https://example.test/globo.js' );
+chk( false !== strpos( $modulo, 'type="module"' ), 'El globo se carga como módulo ES' );
+chk( $sc->marcar_modulo( $tag, 'otro-handle', 'x' ) === $tag, 'Los demás scripts no se convierten en módulo' );
 
 /* ------------------------------------------------------------------ */
 seccion( 'Información que se publica de la instalación' );

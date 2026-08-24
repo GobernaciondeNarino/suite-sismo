@@ -37,6 +37,22 @@ return array(
 	),
 
 	array(
+		'shortcode' => '[sismos_globo]',
+		'titulo'    => 'Globo 3D de sismos recientes',
+		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye vistas de cámara (global, zona sísmica, Nariño), capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
+		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (si|no) · municipios (si|no) · timeline (si|no)',
+		'ejemplo'   => '[sismos_globo ambito="regional" limite="50" alto="70vh" autorotar="si"]',
+	),
+
+	array(
+		'shortcode' => '[sismos_timeline]',
+		'titulo'    => 'Línea de tiempo de sismos',
+		'que_hace'  => 'Barra deslizante con reproducción automática que recorre los sismos del periodo en orden cronológico. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
+		'atributos' => 'ambito · limite',
+		'ejemplo'   => '[sismos_globo limite="50"] [sismos_timeline limite="50"]',
+	),
+
+	array(
 		'shortcode' => '[sismos_grafico]',
 		'titulo'    => 'Gráfico estadístico (motor D3plus)',
 		'que_hace'  => 'Tarjeta de gráfico con barra de herramientas: Cómo funciona, Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y cambio de tipo en vivo. Elija el conjunto de datos con «view» y el tipo con «type».',

@@ -254,3 +254,178 @@
 
 /* Nota de la capa oficial dentro de la leyenda del mapa. */
 .sis-mapa__nota { color: #475569; font-size: 10px; line-height: 1.35; display: inline-block; margin-top: 4px; }
+
+/* =====================================================================
+   [sismos_globo] — globo 3D de la sismicidad reciente.
+   El componente sí impone su propio chrome: es una escena oscura y necesita
+   contraste propio para que los controles se lean sobre el planeta.
+   ===================================================================== */
+.sis-globo { position: relative; overflow: hidden; border-radius: var(--sis-borde-radio, 12px); background: #00080f; }
+.sis-globo__lienzo { width: 100%; min-height: 320px; display: block; }
+.sis-globo__lienzo canvas { display: block; width: 100% !important; height: 100% !important; }
+
+.sis-globo__controles {
+  position: absolute; top: 10px; left: 10px; right: 10px;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  pointer-events: none;
+}
+.sis-globo__controles > * { pointer-events: auto; }
+.sis-globo__sep-btn { width: 1px; height: 20px; background: rgba(255, 255, 255, .25); margin: 0 2px; }
+.sis-globo__btn {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 7px 11px;
+  color: #e8f0f8;
+  background: rgba(8, 18, 32, .55);
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+  transition: background .15s ease, border-color .15s ease;
+}
+.sis-globo__btn:hover { background: rgba(12, 26, 44, .78); border-color: rgba(255, 255, 255, .55); }
+.sis-globo__btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.sis-globo__btn.is-activo { background: rgba(0, 48, 135, .8); border-color: #FFD500; color: #fff; }
+
+.sis-globo__cintillo {
+  position: absolute; left: 10px; right: 10px; bottom: 10px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: #c9d6e6;
+  background: rgba(6, 14, 26, .62);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 10px;
+  backdrop-filter: blur(3px);
+}
+.sis-globo__cintillo-mag { font-size: 20px; font-weight: 700; line-height: 1; }
+.sis-globo__cintillo-etq { text-transform: uppercase; letter-spacing: .04em; font-size: 10.5px; color: #8fa6c0; }
+.sis-globo__cintillo-lugar { color: #fff; }
+.sis-globo__sep { opacity: .45; }
+
+.sis-globo__leyenda {
+  position: absolute; right: 10px; top: 54px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  color: #c9d6e6;
+  background: rgba(6, 14, 26, .58);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  max-width: 180px;
+}
+.sis-globo__leyenda-tit { font-weight: 700; color: #fff; letter-spacing: .03em; text-transform: uppercase; font-size: 9.5px; }
+.sis-globo__rampa {
+  display: block; height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg, #0080C3 0%, #3EBA6A 25%, #FFC53B 50%, #FF7300 75%, #C0392B 100%);
+}
+.sis-globo__leyenda-esc { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.sis-globo__leyenda-pie { color: #8fa6c0; line-height: 1.35; margin-top: 2px; }
+
+.sis-globo__tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  padding: 8px 10px;
+  font-size: 12px; line-height: 1.45;
+  color: #eaf1f8;
+  background: rgba(6, 14, 26, .92);
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 8px;
+  max-width: 260px;
+}
+.sis-globo__tip[hidden] { display: none; }
+.sis-globo__error { color: #ffd7d7; background: rgba(120, 20, 20, .35); padding: 14px; margin: 0; font-size: .9em; }
+.sis-globo .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
+.sis-globo .sis-fuentes { padding: 8px 12px; margin: 0; color: #7f93a9; background: #00080f; }
+
+/* --- [sismos_timeline] --- */
+.sis-tl { margin: 10px 0; }
+.sis-tl__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.sis-tl__titulo { font-weight: 600; font-size: .95em; }
+.sis-tl__ficha { font-size: .86em; color: var(--sis-mute, #6b7280); }
+.sis-tl__fila { display: flex; align-items: center; gap: 10px; }
+.sis-tl__btn {
+  flex: 0 0 auto;
+  width: 38px; height: 38px;
+  font-size: 14px;
+  border: 1px solid var(--sis-borde-color, #d8dbe0);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.sis-tl__btn:hover { border-color: var(--sis-acento, #003087); }
+.sis-tl__btn:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
+.sis-tl__rango {
+  flex: 1 1 auto; min-width: 0;
+  height: 28px;
+  accent-color: var(--sis-acento, #003087);
+}
+/* La tira se desplaza dentro de su propia caja: con 50 marcas nunca debe
+   ensanchar la página en un móvil. */
+.sis-tl__tira {
+  display: flex; align-items: flex-end;
+  gap: 2px; margin-top: 8px;
+  min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+/* El botón es el área de toque —alta y uniforme—; la barra interior codifica
+   la magnitud con su color y su altura. */
+.sis-tl__marca {
+  flex: 1 1 0; min-width: 3px;
+  display: flex; align-items: flex-end; justify-content: stretch;
+  height: 34px;
+  border: 0; padding: 0; background: transparent;
+  cursor: pointer;
+  opacity: .68;
+  transition: opacity .15s ease;
+}
+.sis-tl__barra {
+  display: block; width: 100%;
+  border-radius: 2px 2px 0 0;
+  transition: transform .15s ease;
+}
+.sis-tl__marca:hover { opacity: 1; }
+.sis-tl__marca.is-activo { opacity: 1; }
+.sis-tl__marca.is-activo .sis-tl__barra { transform: scaleY(1.25); transform-origin: bottom; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
+.sis-tl__marca:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 1px; }
+
+@media (max-width: 640px) {
+  /* En un móvil los ocho controles ocupaban tres filas y tapaban un tercio del
+     globo: pasan a una sola fila que se desplaza en horizontal. */
+  .sis-globo__controles {
+    top: 8px; left: 0; right: 0; gap: 5px;
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    padding: 0 8px;
+    pointer-events: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sis-globo__controles::-webkit-scrollbar { display: none; }
+  .sis-globo__btn { font-size: 11px; padding: 6px 9px; flex: 0 0 auto; white-space: nowrap; }
+  .sis-globo__sep-btn { flex: 0 0 auto; }
+  /* La leyenda vivía sobre el cintillo y se solapaba con él: baja bajo la
+     barra de controles, que ahora mide una sola fila. */
+  .sis-globo__leyenda { top: 62px; bottom: auto; right: 8px; max-width: 46vw; font-size: 10px; }
+  .sis-globo__leyenda-pie { font-size: 9.5px; }
+  .sis-globo__cintillo { font-size: 11.5px; padding: 8px 10px; gap: 5px; }
+  .sis-globo__cintillo-mag { font-size: 17px; }
+}
+
+@media (max-width: 640px) and (pointer: coarse) {
+  .sis-globo__leyenda { top: 68px; }
+}
+
+@media (pointer: coarse) {
+  .sis-globo__btn { min-height: 44px; }
+  .sis-tl__btn { width: 44px; height: 44px; }
+  .sis-tl__rango { height: 44px; }
+  /* Marcas tocables: la tira se desplaza en horizontal dentro de su caja. */
+  .sis-tl__marca { flex: 0 0 auto; min-width: 14px; height: 44px; }
+  .sis-tl__tira { gap: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sis-tl__marca, .sis-tl__barra { transition: none; }
+}
