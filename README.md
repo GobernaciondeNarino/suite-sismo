@@ -58,7 +58,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
 | `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
 | `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
-| `[sismos_timeline]` | Línea de tiempo con reproducción automática, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite` |
+| `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
 | `[sismos_datos]` | Botones de datos abiertos (JSON / CSV / Ver API) | `recurso`, `ambito`, `anios`, `dias`, `min_mag`, `texto` |
@@ -212,6 +212,7 @@ assets/css                     estilos.css (minimalista) · grafico.css (tarjeta
 assets/js                      sis-core · renderer · grafico · grupo · composable ·
                                estado · ultimos · mapa · globo (ES module, three.js) ·
                                timeline · estadistica · datos · estado-api · admin
+assets/img                     Marca institucional de la Secretaría TIC
 data/                          Semilla local del catálogo (resiliencia) y cartografía
                                de Nariño en GeoJSON (departamento y municipios)
 docs/                          Marco de comunicación del riesgo y metodología estadística

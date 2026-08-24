@@ -18,7 +18,7 @@
   function init(box) {
     var q = C.consulta(box);
     var limite = parseInt(box.getAttribute('data-limite') || '50', 10);
-    var st = { eventos: [], indice: 0, reproduciendo: false, temporizador: null };
+    var st = { eventos: [], indice: 0, reproduciendo: false, temporizador: null, velocidad: 1400 };
 
     // Si el globo ya cargó el conjunto, se reaprovecha en vez de volver a pedirlo.
     var recibido = false;
@@ -51,6 +51,23 @@
       seleccionar(0, false);
     }
 
+    function boton(texto, etiqueta, alPulsar) {
+      var b = C.el('button', 'sis-tl__btn');
+      b.type = 'button';
+      b.textContent = texto;
+      b.setAttribute('aria-label', etiqueta);
+      b.addEventListener('click', alPulsar);
+      return b;
+    }
+
+    /* Avanza o retrocede un sismo, sin dar la vuelta: en los extremos se queda
+       donde está para que se note que se llegó al principio o al final. */
+    function mover(paso) {
+      var pos = aControl(st.indice) + paso;
+      if (pos < 0 || pos > st.eventos.length - 1) { return; }
+      seleccionar(aDatos(pos), true);
+    }
+
     /* El índice del control va del más antiguo (0) al más reciente (n-1);
        el índice de los datos es el inverso. */
     function aDatos(pos) { return st.eventos.length - 1 - pos; }
@@ -61,6 +78,19 @@
       box.innerHTML = '';
 
       var cab = C.el('div', 'sis-tl__cab');
+
+      // Marca institucional: si el archivo no estuviera, la imagen se retira
+      // sola y la barra sigue funcionando.
+      var logo = box.getAttribute('data-logo');
+      if (logo) {
+        var img = document.createElement('img');
+        img.className = 'sis-tl__logo';
+        img.src = logo;
+        img.alt = 'Gobernación de Nariño · Secretaría TIC';
+        img.onerror = function () { img.parentNode && img.parentNode.removeChild(img); };
+        cab.appendChild(img);
+      }
+
       cab.appendChild(C.el('span', 'sis-tl__titulo', 'Últimos ' + st.eventos.length + ' sismos'));
       var ficha = C.el('span', 'sis-tl__ficha');
       cab.appendChild(ficha);
@@ -68,12 +98,23 @@
 
       var fila = C.el('div', 'sis-tl__fila');
 
-      var play = C.el('button', 'sis-tl__btn');
+      var anterior = boton('‹', 'Sismo anterior', function () {
+        detener(play);
+        mover(-1);
+      });
+      fila.appendChild(anterior);
+
+      var play = C.el('button', 'sis-tl__btn sis-tl__btn--play');
       play.type = 'button';
       play.setAttribute('aria-label', 'Reproducir la secuencia');
       play.textContent = '▶';
       play.addEventListener('click', function () { alternarReproduccion(play); });
       fila.appendChild(play);
+
+      fila.appendChild(boton('›', 'Sismo siguiente', function () {
+        detener(play);
+        mover(1);
+      }));
 
       var rango = document.createElement('input');
       rango.type = 'range';
@@ -88,6 +129,24 @@
         seleccionar(aDatos(parseInt(rango.value, 10)), true);
       });
       fila.appendChild(rango);
+
+      var vel = document.createElement('select');
+      vel.className = 'sis-tl__vel';
+      vel.setAttribute('aria-label', 'Velocidad de reproducción');
+      [['2200', 'Lento'], ['1400', 'Normal'], ['700', 'Rápido']].forEach(function (o) {
+        var op = document.createElement('option');
+        op.value = o[0];
+        op.textContent = o[1];
+        if (o[0] === '1400') { op.selected = true; }
+        vel.appendChild(op);
+      });
+      vel.addEventListener('change', function () {
+        st.velocidad = parseInt(vel.value, 10) || 1400;
+        // Si está reproduciendo, se reinicia el temporizador con el nuevo ritmo.
+        if (st.reproduciendo) { detener(play); alternarReproduccion(play); }
+      });
+      fila.appendChild(vel);
+
       box.appendChild(fila);
 
       // Tira de marcas: una por sismo, coloreada por magnitud.
@@ -149,7 +208,7 @@
       st.temporizador = setInterval(function () {
         pos = (pos + 1) % st.eventos.length;
         seleccionar(aDatos(pos), true);
-      }, 1400);
+      }, st.velocidad);
     }
 
     function detener(play) {

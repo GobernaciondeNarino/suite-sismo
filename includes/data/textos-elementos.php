@@ -47,8 +47,8 @@ return array(
 	array(
 		'shortcode' => '[sismos_timeline]',
 		'titulo'    => 'Línea de tiempo de sismos',
-		'que_hace'  => 'Barra deslizante con reproducción automática que recorre los sismos del periodo en orden cronológico. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
-		'atributos' => 'ambito · limite',
+		'que_hace'  => 'Barra que recorre los sismos del periodo en orden cronológico: botones de sismo anterior y siguiente, reproducción a tres velocidades, deslizador y una tira con una marca por sismo coloreada por magnitud. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
+		'atributos' => 'ambito · limite · logo (si|no)',
 		'ejemplo'   => '[sismos_globo limite="50"] [sismos_timeline limite="50"]',
 	),
 

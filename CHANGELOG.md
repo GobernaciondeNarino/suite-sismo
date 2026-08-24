@@ -11,7 +11,8 @@ Recreación del globo del plugin de referencia (`suite-oni`) con datos sísmicos
 - Vistas de cámara —Global, Zona sísmica y Nariño— con encuadre calculado a partir del centroide de los datos, no de una posición fija: si la sismicidad se desplaza, la cámara la sigue.
 - Capa de profundidad en **modo radiografía** (el planeta se vuelve traslúcido para ver las líneas que entran) y contorno municipal de Nariño sobre la esfera.
 - Selección por clic o teclado sobre el epicentro, con anillo pulsante, cintillo `aria-live` y vuelo suave de cámara.
-- Nuevo `[sismos_timeline]`: línea de tiempo con reproducción automática, sincronizada en ambos sentidos con el globo de la misma página mediante eventos `sis:sismo` y `sis:sismos-cargados`. También se publica junto al globo con `timeline="si"`.
+- Nuevo `[sismos_timeline]`: barra de recorrido con botones de sismo anterior y siguiente, reproducción a tres velocidades (lento, normal, rápido), deslizador y una tira con una marca por sismo coloreada por magnitud. Se sincroniza en ambos sentidos con el globo de la misma página mediante eventos `sis:sismo` y `sis:sismos-cargados`. También se publica junto al globo con `timeline="si"`.
+- La barra lleva la marca institucional de la Secretaría TIC, como en el plugin de referencia; se retira sola si el archivo no está y puede desactivarse con `logo="no"`.
 - El globo consume la ruta REST existente `/eventos`; no incrusta datos en el HTML ni añade rutas nuevas.
 - Cartografía de Nariño (departamento y municipios) servida en GeoJSON desde `data/`, tomada del plugin de referencia.
 

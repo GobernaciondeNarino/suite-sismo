@@ -844,7 +844,10 @@ final class SIS_Shortcodes {
 		$salida = ob_get_clean();
 
 		if ( 'si' === $atts['timeline'] ) {
-			$salida .= $this->sc_timeline( array( 'ambito' => $atts['ambito'], 'limite' => (string) $limite ) );
+			$salida .= $this->sc_timeline( array(
+				'ambito' => $atts['ambito'],
+				'limite' => (string) $limite,
+			) );
 		}
 
 		return $salida;
@@ -859,18 +862,26 @@ final class SIS_Shortcodes {
 	public function sc_timeline( $atts ) {
 		$atts = $this->fusionar( array_merge(
 			$this->defaults_consulta(),
-			array( 'limite' => '50' )
+			array(
+				'limite' => '50',
+				'logo'   => 'si',
+			)
 		), $atts, 'sismos_timeline' );
 
 		wp_enqueue_style( 'sis-estilos' );
 		wp_enqueue_script( 'sis-timeline' );
 
 		$id = $this->id();
+		// La marca institucional viaja como atributo, no como script aparte: si
+		// el archivo no estuviera, la imagen se oculta sola y la barra sigue.
+		$logo = 'no' === $atts['logo'] ? '' : SIS_URL . 'assets/img/TIC.png';
+
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>" class="sis sis-tl"
 			style="<?php echo esc_attr( SIS_Estilos::estilo_inline( $atts ) ); ?>"
 			data-sis-timeline
+			data-logo="<?php echo esc_url( $logo ); ?>"
 			data-limite="<?php echo esc_attr( max( 5, min( 200, (int) $atts['limite'] ) ) ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Cargando la línea de tiempo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>

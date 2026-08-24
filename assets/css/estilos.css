@@ -340,7 +340,8 @@
 
 /* --- [sismos_timeline] --- */
 .sis-tl { margin: 10px 0; }
-.sis-tl__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.sis-tl__cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sis-tl__logo { height: 22px; width: auto; flex: 0 0 auto; }
 .sis-tl__titulo { font-weight: 600; font-size: .95em; }
 .sis-tl__ficha { font-size: .86em; color: var(--sis-mute, #6b7280); }
 .sis-tl__fila { display: flex; align-items: center; gap: 10px; }
@@ -356,6 +357,17 @@
 }
 .sis-tl__btn:hover { border-color: var(--sis-acento, #003087); }
 .sis-tl__btn:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
+.sis-tl__btn--play { font-size: 13px; }
+.sis-tl__vel {
+  flex: 0 0 auto;
+  font: inherit; font-size: .82em;
+  padding: 5px 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--sis-borde-color, #d8dbe0);
+  border-radius: 6px;
+}
+.sis-tl__vel:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
 .sis-tl__rango {
   flex: 1 1 auto; min-width: 0;
   height: 28px;
@@ -392,6 +404,12 @@
 .sis-tl__marca:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 1px; }
 
 @media (max-width: 640px) {
+  /* Con tres botones, el deslizador y el selector de velocidad no cabe todo en
+     una línea: el deslizador salta a la suya y ocupa el ancho completo. */
+  .sis-tl__fila { flex-wrap: wrap; gap: 8px; }
+  .sis-tl__rango { order: 3; flex: 1 0 100%; }
+  .sis-tl__logo { height: 18px; }
+
   /* En un móvil los ocho controles ocupaban tres filas y tapaban un tercio del
      globo: pasan a una sola fila que se desplaza en horizontal. */
   .sis-globo__controles {
@@ -421,6 +439,7 @@
   .sis-globo__btn { min-height: 44px; }
   .sis-tl__btn { width: 44px; height: 44px; }
   .sis-tl__rango { height: 44px; }
+  .sis-tl__vel { min-height: 44px; }
   /* Marcas tocables: la tira se desplaza en horizontal dentro de su caja. */
   .sis-tl__marca { flex: 0 0 auto; min-width: 14px; height: 44px; }
   .sis-tl__tira { gap: 3px; }
