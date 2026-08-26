@@ -145,6 +145,132 @@ function texturaProcedural() {
   return new THREE.CanvasTexture(c);
 }
 
+/* ---------------- textura del planeta ----------------
+
+   La Tierra se dibuja en el navegador a partir de la costa mundial que viaja
+   con el plugin (TopoJSON de 54 KB), no de una fotografía por satélite de
+   1,4 MB pedida a un tercero. Además de pesar veinticinco veces menos, permite
+   elegir los colores: un planeta oscuro y de bajo contraste deja que los
+   epicentros —que son el dato— dominen la escena.
+
+   TopoJSON guarda los arcos como enteros cuantizados y en incrementos: cada
+   par es la diferencia con el punto anterior, y el «transform» los devuelve a
+   grados. Decodificarlo son veinte líneas y ahorra traer una librería. */
+
+function arcosTopo(topo) {
+  var t = topo.transform || { scale: [1, 1], translate: [0, 0] };
+  return topo.arcs.map(function (arco) {
+    var x = 0, y = 0;
+    return arco.map(function (d) {
+      x += d[0];
+      y += d[1];
+      return [x * t.scale[0] + t.translate[0], y * t.scale[1] + t.translate[1]];
+    });
+  });
+}
+
+/* Un anillo se describe como una lista de índices de arco; el índice negativo
+   significa «este arco, del revés» y se codifica como ~i. */
+function anilloTopo(indices, arcos) {
+  var pts = [];
+  indices.forEach(function (i) {
+    var a = i < 0 ? arcos[~i].slice().reverse() : arcos[i];
+    // El último punto de un arco es el primero del siguiente: se omite para no
+    // repetirlo en la unión.
+    pts = pts.concat(pts.length ? a.slice(1) : a);
+  });
+  return pts;
+}
+
+function poligonosTopo(topo, nombre) {
+  var obj = (topo.objects || {})[nombre];
+  if (!obj) { return []; }
+  var arcos = arcosTopo(topo);
+  var geoms = obj.type === 'GeometryCollection' ? obj.geometries : [obj];
+  var salida = [];
+  geoms.forEach(function (g) {
+    if (g.type === 'Polygon') { salida.push(g.arcs.map(function (r) { return anilloTopo(r, arcos); })); }
+    if (g.type === 'MultiPolygon') {
+      g.arcs.forEach(function (p) { salida.push(p.map(function (r) { return anilloTopo(r, arcos); })); });
+    }
+  });
+  return salida;
+}
+
+/* Lienzo equirectangular: la longitud es la x y la latitud la y, sin más
+   proyección, que es justo lo que espera una esfera de three.js. */
+function texturaMundo(topo, ligero) {
+  var W = ligero ? 2048 : 4096;
+  var H = W / 2;
+  var c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  var ctx = c.getContext('2d');
+
+  var mar = ctx.createLinearGradient(0, 0, 0, H);
+  mar.addColorStop(0, '#0a1d2e');
+  mar.addColorStop(0.28, '#123f60');
+  mar.addColorStop(0.5, '#15507a');
+  mar.addColorStop(0.72, '#123f60');
+  mar.addColorStop(1, '#0a1d2e');
+  ctx.fillStyle = mar;
+  ctx.fillRect(0, 0, W, H);
+
+  var x = function (lon) { return (lon + 180) / 360 * W; };
+  var y = function (lat) { return (90 - lat) / 180 * H; };
+
+  /* La cartografía mundial se detiene en el borde sur de la Antártida —unos
+     85,6° S— porque más abajo no hay costa que describir. Sin esto, el casquete
+     queda como una franja de océano y el planeta enseña una costura. */
+  var t = topo.transform || { translate: [-180, -90] };
+  var borde = y(t.translate[1]);
+  if (borde < H) {
+    ctx.fillStyle = '#2e4a41';
+    ctx.fillRect(0, borde, W, H - borde);
+  }
+
+  var polis = poligonosTopo(topo, 'land');
+  ctx.fillStyle = '#2e4a41';
+  ctx.strokeStyle = 'rgba(150, 200, 180, 0.30)';
+  ctx.lineWidth = Math.max(1, W / 2048);
+
+  polis.forEach(function (anillos) {
+    ctx.beginPath();
+    anillos.forEach(function (anillo) {
+      anillo.forEach(function (p, i) {
+        var px = x(p[0]), py = y(p[1]);
+        if (i === 0) { ctx.moveTo(px, py); } else { ctx.lineTo(px, py); }
+      });
+      ctx.closePath();
+    });
+    // «evenodd» hace que los anillos interiores —lagos— queden como agua.
+    ctx.fill('evenodd');
+    ctx.stroke();
+  });
+
+  retícula(ctx, W, H);
+
+  var tex = new THREE.CanvasTexture(c);
+  if ('SRGBColorSpace' in THREE) { tex.colorSpace = THREE.SRGBColorSpace; }
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/* Meridianos y paralelos, tenues: dan sensación de esfera sin competir con los
+   epicentros. Se dibujan sobre la tierra y sobre el mar por igual. */
+function retícula(ctx, W, H) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = Math.max(1, W / 2048);
+  var paso = W / 12;
+  for (var lng = 0; lng <= W; lng += paso) {
+    ctx.beginPath(); ctx.moveTo(lng, 0); ctx.lineTo(lng, H); ctx.stroke();
+  }
+  for (var lat = 0; lat <= H; lat += H / 6) {
+    ctx.beginPath(); ctx.moveTo(0, lat); ctx.lineTo(W, lat); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+}
+
 /* Anillos exteriores de un feature GeoJSON, en pares [lng, lat]. */
 function anillosDeFeature(feat) {
   var g = feat.geometry || {};
@@ -263,17 +389,28 @@ class GloboSismico {
     );
     this.escena.add(this.globo);
 
-    // Textura remota: si carga, sustituye a la procedural; si no, no pasa nada.
+    /* La Tierra llega en dos tiempos. El planeta con retícula ya está en
+       pantalla; en cuanto la costa mundial termina de descargarse —54 KB del
+       propio sitio— se sustituye por el mapa dibujado. Así nunca hay un hueco
+       esperando a una imagen. */
+    if (CFG.mundo) {
+      fetch(CFG.mundo)
+        .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+        .then(function (topo) { self._aplicarTextura(texturaMundo(topo, self.ligero)); })
+        .catch(function () { /* se conserva el planeta con retícula */ });
+    }
+
+    // Fotografía por satélite: solo si alguien la pidió a propósito, porque
+    // pesa 1,4 MB y es lo único que el globo trae de fuera del sitio.
     if (CFG.textura) {
       new THREE.TextureLoader().load(
         CFG.textura,
         function (tex) {
           tex.colorSpace = THREE.SRGBColorSpace;
-          self.globo.material.map = tex;
-          self.globo.material.needsUpdate = true;
+          self._aplicarTextura(tex);
         },
         undefined,
-        function () { /* se conserva el planeta procedural */ }
+        function () { /* se conserva lo que ya hubiera */ }
       );
     }
 
@@ -303,6 +440,16 @@ class GloboSismico {
       })
     );
     this.escena.add(this.atmosfera);
+  }
+
+  /* Sustituye el mapa del planeta liberando el anterior: una textura de 4096
+     píxeles ocupa memoria de GPU y el navegador no la recoge solo. */
+  _aplicarTextura(tex) {
+    if (!this.globo) { return; }
+    var vieja = this.globo.material.map;
+    this.globo.material.map = tex;
+    this.globo.material.needsUpdate = true;
+    if (vieja && vieja !== tex) { vieja.dispose(); }
   }
 
   _estrellas() {

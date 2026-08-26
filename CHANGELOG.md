@@ -1,5 +1,23 @@
 # Registro de cambios
 
+## 2.6.0 — 2026-08-26
+
+### El planeta vuelve a tener geografía
+
+En 2.5.0 se desactivó la fotografía por satélite del globo porque pesaba 1,4 MB y se pedía a un tercero. El planeta quedó legible pero sin continentes, y sin ellos cuesta situar dónde está temblando.
+
+El plugin de referencia (`suite-oni`) resuelve esto con la misma imagen por CDN más tres capas adicionales —especular, relieve y luces nocturnas—, con un respaldo de seis elipses dibujadas a mano si todo falla. Aquí se hizo distinto:
+
+- **La Tierra se dibuja en el navegador** a partir de la costa mundial que viaja con el plugin: `data/mundo_tierra.topo.json`, **54 KB** de TopoJSON, veinticinco veces menos que la fotografía y sin salir del sitio.
+- El decodificador de TopoJSON son veinte líneas dentro de `globo.js` —arcos cuantizados y en incrementos, más un `transform`—, así que no entra ninguna librería nueva.
+- Al dibujarla nosotros se eligen los colores: un océano en degradado y una tierra oscura y desaturada dejan que los epicentros, que son el dato, dominen la escena. Una fotografía a plena luz competiría con ellos.
+- La textura llega **en dos tiempos**: el planeta con retícula ya está en pantalla y se sustituye en cuanto la costa termina de descargarse. Nunca hay un hueco esperando a una imagen.
+- El casquete antártico se rellena hasta el polo: la cartografía se detiene en los 85,6° S y sin ese relleno el globo enseñaba una costura.
+
+El atributo `textura` pasa a tener tres valores: `mapa` (por defecto), `foto` —la imagen por satélite, única descarga externa del plugin— y `no` —solo retícula—. El antiguo `textura="si"` se sigue aceptando con el sentido de `foto`, para no romper las páginas ya publicadas.
+
+Medido en Chromium con servidor concurrente: el lienzo sigue apareciendo en **1,05 s** y generar la textura cuesta **19 ms**.
+
 ## 2.5.0 — 2026-08-26
 
 ### Las librerías dejan de venir de una CDN

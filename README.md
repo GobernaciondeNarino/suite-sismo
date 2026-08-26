@@ -59,7 +59,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
 | `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
 | `[sismos_historico]` | **El registro completo en dos lecturas**: barras de sismos por año y línea mensual con media móvil de 12 meses. Recorre todo el catálogo y llega hasta el mes en curso | `ambito`, `min_mag`, `alto`, `theme`, `toolbar`, `analisis`, `titulo` |
-| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. `textura="si"` añade la foto del planeta (1,4 MB, la única descarga externa del plugin) | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
+| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. La Tierra se dibuja en el navegador desde la costa mundial incluida en el plugin; `textura="foto"` la cambia por la imagen por satélite (1,4 MB, la única descarga externa) | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
 | `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
@@ -228,9 +228,10 @@ assets/js                      sis-core · renderer · grafico · grupo · compo
                                estado · ultimos · mapa · globo (ES module, three.js) ·
                                timeline · estadistica · datos · estado-api · admin
 assets/img                     Marca institucional de la Secretaría TIC
-data/                          Semilla local del catálogo (resiliencia) y cartografía
-                               de Nariño en GeoJSON: completa para el mapa y
-                               simplificada (*_globo) para el globo 3D
+data/                          Semilla local del catálogo (resiliencia), cartografía
+                               de Nariño en GeoJSON —completa para el mapa y
+                               simplificada (*_globo) para el globo— y la costa
+                               mundial en TopoJSON para la textura del planeta
 docs/                          Marco de comunicación del riesgo y metodología estadística
 tests/                         Pruebas CLI sin WordPress
 ```

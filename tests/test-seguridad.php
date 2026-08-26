@@ -297,12 +297,24 @@ $externos = array_values( array_unique( array_filter( $externos, static function
 } ) ) );
 chk( ! $externos, 'Ningún componente carga recursos de terceros' . ( $externos ? ': ' . implode( ', ', $externos ) : '' ) );
 
-// La textura del planeta es la única excepción, y viene desactivada.
+// La Tierra se dibuja desde la costa mundial incluida en el plugin; la
+// fotografía por satélite es la única excepción externa y viene desactivada.
+$sc->sc_globo( array() );
 $conf = isset( $GLOBALS['sis_localizado']['SISGLOBO'] ) ? $GLOBALS['sis_localizado']['SISGLOBO'] : array();
-chk( isset( $conf['textura'] ) && '' === $conf['textura'], 'El globo no descarga la textura del planeta por defecto' );
-$sc->sc_globo( array( 'textura' => 'si' ) );
-$conf2 = $GLOBALS['sis_localizado']['SISGLOBO'];
-chk( ! empty( $conf2['textura'] ), 'Con textura="si" sí se pide, porque alguien lo decidió' );
+chk( isset( $conf['textura'] ) && '' === $conf['textura'], 'El globo no descarga la fotografía del planeta por defecto' );
+chk( ! empty( $conf['mundo'] ) && false !== strpos( $conf['mundo'], 'mundo_tierra.topo.json' ), 'El globo dibuja la Tierra desde la cartografía local' );
+chk( is_readable( SIS_DIR . 'data/mundo_tierra.topo.json' ), 'La cartografía mundial viaja con el plugin' );
+chk( filesize( SIS_DIR . 'data/mundo_tierra.topo.json' ) < 200 * 1024, 'La cartografía mundial se mantiene por debajo de 200 KB' );
+
+foreach ( array( 'foto', 'si' ) as $valor ) {
+	$sc->sc_globo( array( 'textura' => $valor ) );
+	$c = $GLOBALS['sis_localizado']['SISGLOBO'];
+	chk( ! empty( $c['textura'] ), "Con textura=\"{$valor}\" sí se pide la fotografía, porque alguien lo decidió" );
+}
+
+$sc->sc_globo( array( 'textura' => 'no' ) );
+$c = $GLOBALS['sis_localizado']['SISGLOBO'];
+chk( '' === $c['textura'] && '' === $c['mundo'], 'Con textura="no" el planeta se queda con la retícula' );
 
 $modulo = $sc->marcar_modulo( '<script src="https://example.test/globo.js" id="sis-globo-js"></script>', 'sis-globo', 'https://example.test/globo.js' );
 chk( false !== strpos( $modulo, 'type="module"' ), 'El globo se carga como módulo ES' );

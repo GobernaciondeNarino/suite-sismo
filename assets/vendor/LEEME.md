@@ -28,3 +28,10 @@ servidores de terceros.
 
 Use siempre la build **minificada** cuando exista. La de `three.module.js` sin
 minificar pesa 1.243 KB frente a los 655 KB de `three.module.min.js`.
+
+## Cartografía
+
+`data/mundo_tierra.topo.json` (54 KB) es la costa mundial en TopoJSON, tomada de
+[`world-atlas@2/land-110m.json`](https://github.com/topojson/world-atlas) —Natural
+Earth, dominio público—. El globo la decodifica y dibuja la textura del planeta
+en un canvas, sin librería de terceros.

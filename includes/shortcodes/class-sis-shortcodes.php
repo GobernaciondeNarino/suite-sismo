@@ -45,10 +45,11 @@ final class SIS_Shortcodes {
 	);
 
 	/**
-	 * Textura fotográfica opcional del planeta (1,4 MB).
+	 * Fotografía por satélite opcional del planeta (1,4 MB).
 	 *
 	 * Es lo único que el globo puede pedir fuera del sitio, y solo si alguien
-	 * lo activa a propósito con textura="si". Por defecto no se carga.
+	 * lo activa a propósito con textura="foto". Por defecto la Tierra se dibuja
+	 * en el navegador a partir de la costa mundial incluida en el plugin.
 	 */
 	const TEXTURA_PLANETA = 'https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg';
 
@@ -801,11 +802,11 @@ final class SIS_Shortcodes {
 				// planeta en rotación lo pide con autorotar="si".
 				'autorotar'  => 'no',
 				'alto'       => '70vh',
-				// La textura fotográfica del planeta pesa 1,4 MB y es
-				// decorativa: el globo dibuja su propio planeta con retícula y
-				// los sismos se leen igual —o mejor— sobre él. Quien la quiera
-				// la pide con textura="si" y asume la descarga.
-				'textura'    => 'no',
+				// «mapa» (por defecto) dibuja la Tierra en el navegador desde
+				// la costa mundial que viaja con el plugin: 54 KB. «foto» pide
+				// la imagen por satélite a un tercero, 1,4 MB. «no» deja el
+				// planeta con solo la retícula.
+				'textura'    => 'mapa',
 				'municipios' => 'si',
 				'timeline'   => 'no',
 			)
@@ -827,7 +828,10 @@ final class SIS_Shortcodes {
 			'autorotar'    => 'no' !== $atts['autorotar'],
 			// Textura del planeta servida por CDN; si no carga, el globo dibuja
 			// un planeta propio con retícula y sigue funcionando.
-			'textura'      => 'si' === $atts['textura'] ? self::TEXTURA_PLANETA : '',
+			// «si» se aceptaba antes con el sentido de «foto»: se respeta para
+			// no romper las páginas ya publicadas.
+			'textura'      => in_array( $atts['textura'], array( 'foto', 'si' ), true ) ? self::TEXTURA_PLANETA : '',
+			'mundo'        => 'no' === $atts['textura'] ? '' : esc_url_raw( SIS_URL . 'data/mundo_tierra.topo.json' ),
 			// Versión simplificada para el globo: a esta escala el detalle de la
 			// cartografía completa no llega ni a un píxel, y son 300 KB menos
 			// que descargar. El mapa Leaflet sigue usando la original.
