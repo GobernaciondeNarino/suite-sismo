@@ -23,6 +23,9 @@ final class SIS_Sync_Feed {
 	/** Base de los feeds de resumen. */
 	const BASE = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/';
 
+	/** Tope de eventos que se guardan del feed sin recortar (vista global). */
+	const TOPE_MUNDO = 1500;
+
 	/**
 	 * Feeds admitidos (lista blanca: evita construir URLs arbitrarias).
 	 *
@@ -93,6 +96,26 @@ final class SIS_Sync_Feed {
 		);
 
 		SIS_Cache::set( 'feed', $payload, $ttl, 'feed' );
+
+		// Además se guarda el feed sin recortar, que es lo que alimenta la
+		// vista global del globo. Se limita a los más recientes para que la
+		// respuesta no crezca sin control cuando el feed trae un enjambre.
+		$mundo = SIS_Catalogo::normalizar( $json, array( 'ambito' => 'mundo' ) );
+		if ( count( $mundo ) > self::TOPE_MUNDO ) {
+			$mundo = array_slice( $mundo, -1 * self::TOPE_MUNDO );
+		}
+		SIS_Cache::set(
+			'feed_mundo',
+			array(
+				'eventos'     => $mundo,
+				'feed'        => $slug,
+				'consulta'    => $url,
+				'actualizado' => current_time( 'mysql', true ),
+				'fuente'      => 'USGS — feed GeoJSON de resumen (' . $slug . ')',
+			),
+			$ttl,
+			'feed'
+		);
 
 		return array(
 			'ok'        => true,

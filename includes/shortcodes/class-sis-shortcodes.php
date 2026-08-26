@@ -126,6 +126,7 @@ final class SIS_Shortcodes {
 		add_shortcode( 'sismos_estado', array( $this, 'sc_estado' ) );
 		add_shortcode( 'sismos_ultimos', array( $this, 'sc_ultimos' ) );
 		add_shortcode( 'sismos_mapa', array( $this, 'sc_mapa' ) );
+		add_shortcode( 'sismos_historico', array( $this, 'sc_historico' ) );
 		add_shortcode( 'sismos_globo', array( $this, 'sc_globo' ) );
 		add_shortcode( 'sismos_timeline', array( $this, 'sc_timeline' ) );
 		add_shortcode( 'sismos_estadistica', array( $this, 'sc_estadistica' ) );
@@ -763,6 +764,70 @@ final class SIS_Shortcodes {
 	 * @param array $atts Atributos.
 	 * @return string
 	 */
+	/**
+	 * [sismos_historico] — el registro completo en dos lecturas.
+	 *
+	 * Publica juntas las dos gráficas que responden a «¿cómo ha sido esto a lo
+	 * largo del tiempo?»: barras de sismos por año, que dan la perspectiva
+	 * larga, y una línea mensual con su media móvil de doce meses, que separa
+	 * la tendencia del ruido de las secuencias de réplicas. Ambas recorren
+	 * todo el catálogo disponible, no una ventana reciente.
+	 *
+	 * @param array $atts Atributos.
+	 * @return string
+	 */
+	public function sc_historico( $atts ) {
+		$atts = $this->fusionar( array_merge(
+			$this->defaults_consulta(),
+			array(
+				'alto'     => '380px',
+				'theme'    => 'claro',
+				'toolbar'  => 'si',
+				'analisis' => 'no',
+				'titulo'   => '',
+			)
+		), $atts, 'sismos_historico' );
+
+		$comunes = array(
+			'ambito'   => $atts['ambito'],
+			'min_mag'  => $atts['min_mag'],
+			// Sin ventana: el histórico es todo el catálogo, no los últimos años.
+			'anios'    => '0',
+			'alto'     => $atts['alto'],
+			'theme'    => $atts['theme'],
+			'toolbar'  => $atts['toolbar'],
+			'analisis' => $atts['analisis'],
+		);
+
+		$titulo = sanitize_text_field( (string) $atts['titulo'] );
+
+		ob_start();
+		?>
+		<section class="sis sis-historico">
+			<?php if ( $titulo ) : ?>
+				<h2 class="sis-historico__titulo"><?php echo esc_html( $titulo ); ?></h2>
+			<?php endif; ?>
+
+			<div class="sis-historico__par">
+				<?php
+				echo $this->sc_grafico( array_merge( $comunes, array( // phpcs:ignore WordPress.Security.EscapeOutput
+					'view'   => 'sismos_anuales',
+					'type'   => 'bar',
+					'titulo' => __( 'Sismos por año', 'sismos-narino' ),
+				) ) );
+
+				echo $this->sc_grafico( array_merge( $comunes, array( // phpcs:ignore WordPress.Security.EscapeOutput
+					'view'   => 'historico_mensual',
+					'type'   => 'line',
+					'titulo' => __( 'Serie mensual y tendencia a 12 meses', 'sismos-narino' ),
+				) ) );
+				?>
+			</div>
+		</section>
+		<?php
+		return ob_get_clean();
+	}
+
 	public function sc_globo( $atts ) {
 		$atts = $this->fusionar( array_merge(
 			$this->defaults_consulta(),

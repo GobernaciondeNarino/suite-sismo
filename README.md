@@ -45,6 +45,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `regional` *(por defecto)* | lat −1,50–4,00 · lon −81,50 a −75,50 | Suroccidente de Colombia y norte de Ecuador, incluida la fosa Nazca–Sudamérica |
 | `radio` | 300 km alrededor de Pasto | Sismicidad que puede sentirse en la capital |
 | `colombia` | lat −4,50–13,50 · lon −82,00 a −66,00 | Referencia comparativa nacional |
+| `mundo` | todo el planeta | Sismicidad **reciente** del mundo, servida del feed de resumen del USGS. Da contexto en el globo; no es un catálogo histórico y no se sincroniza contra el FDSN |
 
 ---
 
@@ -57,7 +58,8 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `[sismos_estado]` | Semáforo de actividad: último sismo, conteos 24 h / 7 d / 30 d / 1 año, municipio más cercano | `ambito`, `dias`, `min_mag`, `compacto`, `vivo` |
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
 | `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
-| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
+| `[sismos_historico]` | **El registro completo en dos lecturas**: barras de sismos por año y línea mensual con media móvil de 12 meses. Recorre todo el catálogo y llega hasta el mes en curso | `ambito`, `min_mag`, `alto`, `theme`, `toolbar`, `analisis`, `titulo` |
+| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
 | `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
@@ -83,6 +85,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 [sismos_estado ambito="narino"]
 [sismos_ultimos limite="8"]
 [sismos_mapa ambito="regional" anios="5" min_mag="4.5" amenaza="si" periodo="475"]
+[sismos_historico titulo="Registro histórico"]
 [sismos_globo limite="50" alto="70vh"]
 [sismos_timeline limite="50"]
 
@@ -121,7 +124,7 @@ La capa 3 es agnóstica al dominio: solo entiende de dimensiones y medidas. Si D
 
 ### Vistas disponibles (`view`)
 
-**Actividad en el tiempo** — `sismos_mensuales`, `sismos_anuales`, `magnitud_mensual`, `energia_mensual`, `acumulado`
+**Actividad en el tiempo** — `sismos_mensuales`, `sismos_anuales`, `historico_mensual` (serie completa + media móvil de 12 meses), `magnitud_mensual`, `energia_mensual`, `acumulado`
 **Distribuciones estadísticas** — `frecuencia_magnitud` (Gutenberg-Richter), `distribucion_magnitud`, `clases_magnitud`, `profundidad`, `magnitud_profundidad`
 **Lectura territorial** — `municipios_cercanos`, `subregiones`, `mayores_sismos`
 **Recurrencia** — `recurrencia_historica`
@@ -220,6 +223,8 @@ tests/                         Pruebas CLI sin WordPress
 ```
 
 ### Resiliencia
+
+Las series temporales llegan siempre **hasta el mes y el año en curso**, no hasta el último sismo registrado: un mes sin actividad se dibuja en cero, porque «no tembló» es información y un hueco en la gráfica se lee como «no hay datos».
 
 El catálogo se lee en cascada: **caché viva → caché durable expirada → semilla JSON incluida en `data/`**. Si el USGS no responde o el cron aún no ha corrido, la página sigue publicando datos y lo dice (`origen` en la respuesta). Una sincronización que devuelve menos eventos de los ya cacheados no reemplaza al catálogo anterior.
 

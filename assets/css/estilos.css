@@ -338,6 +338,18 @@
 .sis-globo .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
 .sis-globo .sis-fuentes { padding: 8px 12px; margin: 0; color: #7f93a9; background: #00080f; }
 
+/* --- [sismos_historico] --- */
+.sis-historico { margin: 10px 0; }
+.sis-historico__titulo { margin: 0 0 10px; font-size: 1.15em; }
+/* Dos gráficas del mismo alto, lado a lado en escritorio y apiladas en móvil.
+   El minmax(0,1fr) evita que una serie larga estire la columna. */
+.sis-historico__par {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+}
+.sis-historico__par > * { min-width: 0; }
+
 /* --- [sismos_timeline] --- */
 .sis-tl { margin: 10px 0; }
 .sis-tl__cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }

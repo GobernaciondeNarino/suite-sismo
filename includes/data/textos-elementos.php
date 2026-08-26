@@ -37,9 +37,17 @@ return array(
 	),
 
 	array(
+		'shortcode' => '[sismos_historico]',
+		'titulo'    => 'El registro completo en dos lecturas',
+		'que_hace'  => 'Publica juntas las dos gráficas que responden a «¿cómo ha sido esto a lo largo del tiempo?»: barras de sismos por año, que dan la perspectiva larga, y una línea mensual con su media móvil de doce meses, que separa la tendencia de fondo del ruido de las secuencias de réplicas. Ambas recorren todo el catálogo disponible, no una ventana reciente, y llegan hasta el mes en curso aunque no haya habido sismos.',
+		'atributos' => 'ambito · min_mag · alto · theme (claro|oscuro) · toolbar (si|no) · analisis · titulo',
+		'ejemplo'   => '[sismos_historico ambito="regional" titulo="Registro histórico de Nariño"]',
+	),
+
+	array(
 		'shortcode' => '[sismos_globo]',
 		'titulo'    => 'Globo 3D de sismos recientes',
-		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye vistas de cámara (global, zona sísmica, Nariño), capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
+		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
 		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (si|no) · municipios (si|no) · timeline (si|no)',
 		'ejemplo'   => '[sismos_globo ambito="regional" limite="50" alto="70vh" autorotar="si"]',
 	),

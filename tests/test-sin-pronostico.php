@@ -69,7 +69,14 @@ $frases = array(
 	'/\d+(?:[.,]\d+)?\s*%[^.]{0,80}de que ocurra/iu',
 	'/\d+(?:[.,]\d+)?\s*%(?![^.]{0,40}excedencia)[^.]{0,60}(?:próximos|siguiente[ns]?)\s+(?:días|semanas|meses|años)/iu',
 	'/en los próximos (?:seis|6) meses (?:se|hay|ocurrir)/i',
-	'/pronóstico a \d+ meses/i',
+	// Con cifra o con la palabra escrita: «pronóstico a 6 meses» y «pronóstico
+	// a seis meses» dicen lo mismo, y el segundo se coló en dos textos.
+	'/pron[oó]stico a (?:\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce) (?:d[ií]as|semanas|meses|años)/iu',
+	// Un pronóstico presentado como propio del plugin. Nombrar el pronóstico
+	// para explicar qué es, o para decir que es competencia del SGC, es
+	// contenido legítimo y no debe disparar la salvaguarda.
+	'/(?:nuestro|de este|del)\s+(?:modelo de\s+)?pron[oó]stico/iu',
+	'/pron[oó]stico (?:de|del) (?:este )?plugin/iu',
 );
 
 /**

@@ -208,7 +208,7 @@ final class SIS_Activator {
 			}
 		}
 
-		// La opción del modelo de pronóstico ya no existe: se retira al migrar.
+		// La opción que guardaba el modelo retirado ya no existe: se borra al migrar.
 		delete_option( 'sis_modelo' );
 
 		self::agendar_cron();

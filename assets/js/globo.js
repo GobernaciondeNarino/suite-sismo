@@ -27,6 +27,11 @@ var CFG = window.SISGLOBO || {
   calidad: 'auto', textura: '', geojson: '', geojsonDepto: ''
 };
 
+/* Cuántos sismos se piden para la vista global. El feed de resumen del USGS
+   trae unos cuantos cientos por semana: con este tope se ve el Cinturón de
+   Fuego completo sin castigar a un equipo modesto. */
+var LIMITE_MUNDO = 400;
+
 /* Escala de color del mapa de calor, compartida con las líneas y la leyenda.
    Dominio fijo (magnitud 3 a 7) para que un color signifique lo mismo hoy y
    dentro de un mes, aunque cambie el conjunto de sismos cargado. */
@@ -330,22 +335,71 @@ class GloboSismico {
   _cargar() {
     var self = this;
 
-    fetch(CFG.rest + '/eventos?ambito=' + encodeURIComponent(CFG.ambito) + '&limite=' + encodeURIComponent(CFG.limite))
-      .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
-      .then(function (j) {
-        // La REST entrega del más reciente al más antiguo.
-        self.eventos = (j.eventos || []).slice(0, CFG.limite);
-        self._encuadrarDatos();
-        self._pintarSismos();
-        self._pintarCalor();
+    this.conjuntos = { local: null, mundo: null };
+    this.conjunto = 'local';
+
+    this._pedirEventos(CFG.ambito, CFG.limite)
+      .then(function (eventos) {
+        self.conjuntos.local = eventos;
+        self._aplicarConjunto('local', true);
         self._quitarSkeleton();
-        self._cintilloEvento(0);
-        self._emitirCargados();
       })
       .catch(function () { self._error('No se pudieron cargar los sismos del globo.'); });
 
     if (CFG.geojsonDepto) { this._pintarContorno(CFG.geojsonDepto, 0xFFD500, 0.9, 1.004); }
     if (CFG.geojson) { this._pintarContorno(CFG.geojson, 0x8fb3d9, 0.42, 1.002); }
+  }
+
+  /* Una petición al catálogo del plugin. Devuelve del más reciente al más
+     antiguo, que es el orden en que lo entrega la REST. */
+  _pedirEventos(ambito, limite) {
+    return fetch(CFG.rest + '/eventos?ambito=' + encodeURIComponent(ambito) + '&limite=' + encodeURIComponent(limite))
+      .then(function (r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      })
+      .then(function (j) { return (j.eventos || []).slice(0, limite); });
+  }
+
+  /* Cambia el conjunto pintado: 'local' es el ámbito publicado en el
+     shortcode; 'mundo' es la sismicidad reciente del planeta, que solo se
+     pide cuando alguien pulsa «Global» —así una página que nunca usa esa
+     vista no paga la descarga. */
+  _aplicarConjunto(nombre, encuadrar) {
+    var eventos = this.conjuntos[nombre];
+    if (!eventos) { return; }
+
+    this.conjunto = nombre;
+    this.eventos = eventos;
+    this.seleccionado = -1;
+
+    if (encuadrar) { this._encuadrarDatos(); }
+    this._pintarSismos();
+    this._pintarCalor();
+    this._cintilloEvento(0);
+    this._emitirCargados();
+  }
+
+  /* Carga perezosa del conjunto mundial, con aviso mientras llega. */
+  _cargarMundo() {
+    var self = this;
+    if (this.conjuntos.mundo) { return Promise.resolve(this.conjuntos.mundo); }
+    if (this._pidiendoMundo) { return this._pidiendoMundo; }
+
+    this._cintilloTexto('Cargando la sismicidad reciente del mundo…');
+    this._pidiendoMundo = this._pedirEventos('mundo', LIMITE_MUNDO)
+      .then(function (eventos) {
+        self.conjuntos.mundo = eventos;
+        self._pidiendoMundo = null;
+        return eventos;
+      })
+      .catch(function (e) {
+        self._pidiendoMundo = null;
+        self._cintilloTexto('No se pudo cargar la sismicidad mundial.');
+        throw e;
+      });
+
+    return this._pidiendoMundo;
   }
 
   /* Encuadre inicial: el globo debe abrirse mirando donde están los sismos,
@@ -653,9 +707,26 @@ class GloboSismico {
 
     this.cont.querySelectorAll('[data-camara]').forEach(function (b) {
       b.addEventListener('click', function () {
-        var destino = { global: self.camDefault, sismos: self.camDatos, narino: self.camNarino }[b.getAttribute('data-camara')];
-        if (destino) { self._pararRotacion(); self._volarA(destino); }
+        var vista = b.getAttribute('data-camara');
         self.cont.querySelectorAll('[data-camara]').forEach(function (x) { x.classList.toggle('is-activo', x === b); });
+        self._pararRotacion();
+
+        // «Global» no es solo alejar la cámara: cambia lo que se dibuja. El
+        // ámbito publicado en el shortcode cubre Nariño y su zona de
+        // subducción, así que un planeta con esos 50 puntos y el resto vacío
+        // haría creer que en el mundo no tiembla. Con esta vista se pide la
+        // sismicidad reciente del planeta y se ve el Cinturón de Fuego.
+        if ('global' === vista) {
+          self._volarA(self.camDefault);
+          self._cargarMundo()
+            .then(function () { self._aplicarConjunto('mundo', false); })
+            .catch(function () {});
+          return;
+        }
+
+        if ('local' !== self.conjunto) { self._aplicarConjunto('local', false); }
+        var destino = 'narino' === vista ? self.camNarino : self.camDatos;
+        if (destino) { self._volarA(destino); }
       });
     });
 
@@ -721,6 +792,13 @@ class GloboSismico {
       '<span>' + esc((e.fecha || '').slice(0, 16)) + ' UTC</span>';
   }
 
+  /* Mensaje suelto en el cintillo (cargando, error de una capa). */
+  _cintilloTexto(texto) {
+    var caja = this.cont.querySelector('.sis-globo__cintillo');
+    if (!caja) { return; }
+    caja.textContent = texto;
+  }
+
   _quitarSkeleton() {
     var s = this.cont.querySelector('.sis-skeleton');
     if (s && s.parentNode) { s.parentNode.removeChild(s); }
@@ -738,7 +816,12 @@ class GloboSismico {
   /* Publica el conjunto cargado para que la línea de tiempo lo use sin
      volver a pedirlo, y escucha sus cambios de selección. */
   _emitirCargados() {
-    window.dispatchEvent(new CustomEvent('sis:sismos-cargados', { detail: { eventos: this.eventos } }));
+    window.dispatchEvent(new CustomEvent('sis:sismos-cargados', {
+      detail: {
+        eventos: this.eventos,
+        conjunto: this.conjunto,
+      },
+    }));
   }
 
   _sincronizacion() {

@@ -41,6 +41,16 @@ final class SIS_Sync_Usgs {
 			? $cfg['ambitos']
 			: array( 'regional', 'narino' );
 
+		// Los ámbitos que se sirven del feed —el planeta entero— no se piden al
+		// catálogo histórico: serían millones de eventos y el servicio corta la
+		// respuesta.
+		$ambitos = array_values( array_filter( $ambitos, static function ( $a ) {
+			return ! SIS_Regiones::solo_feed( $a );
+		} ) );
+		if ( ! $ambitos ) {
+			$ambitos = array( SIS_Regiones::por_defecto() );
+		}
+
 		$total    = 0;
 		$mensajes = array();
 		$fallos   = 0;
@@ -148,7 +158,12 @@ final class SIS_Sync_Usgs {
 				'starttime'    => gmdate( 'Y-m-d', time() - (int) round( $anios * 365.25 * 86400 ) ),
 				'endtime'      => gmdate( 'Y-m-d', time() + 86400 ),
 				'minmagnitude' => number_format( (float) $min_mag, 1, '.', '' ),
-				'orderby'      => 'time-asc',
+				// Del más reciente hacia atrás. Si la consulta llegara al tope
+				// del servicio, lo que se pierde es la cola antigua y no los
+				// sismos de esta semana, que es lo que la gente viene a mirar.
+				// El catálogo se reordena al normalizar, así que el orden de
+				// llegada no afecta a nada más.
+				'orderby'      => 'time',
 				'limit'        => self::LIMITE,
 				'eventtype'    => 'earthquake',
 			),

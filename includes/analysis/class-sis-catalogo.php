@@ -23,6 +23,9 @@ final class SIS_Catalogo {
 	const CLAVE = 'catalogo';
 
 	/** Semilla de respaldo incluida en el plugin. */
+	/** Feed de resumen que alimenta la vista global del globo. */
+	const FEED_MUNDO = '2.5_week';
+
 	const SEMILLA = 'catalogo_regional_semilla.json';
 
 	/* ================================================================= */
@@ -197,7 +200,12 @@ final class SIS_Catalogo {
 	 */
 	public static function obtener( $ambito = '' ) {
 		$ambito = SIS_Security::sanitizar_ambito( $ambito );
-		$clave  = self::clave( $ambito );
+
+		if ( SIS_Regiones::solo_feed( $ambito ) ) {
+			return self::obtener_mundo( $ambito );
+		}
+
+		$clave = self::clave( $ambito );
 
 		$payload = SIS_Cache::get( $clave );
 		$origen  = 'cache';
@@ -231,6 +239,42 @@ final class SIS_Catalogo {
 			'origen'      => $origen,
 			'actualizado' => isset( $payload['actualizado'] ) ? $payload['actualizado'] : '',
 			'fuente'      => isset( $payload['fuente'] ) ? $payload['fuente'] : 'USGS Earthquake Hazards Program',
+		);
+	}
+
+	/**
+	 * Catálogo de un ámbito que se sirve del feed de resumen (el planeta).
+	 *
+	 * No hay catálogo histórico ni semilla que valgan para todo el mundo: la
+	 * fuente es el feed del USGS, que trae la sismicidad reciente y se
+	 * regenera cada minuto. Si el cron todavía no lo ha traído, se pide una
+	 * vez y se cachea; así la vista global funciona desde la primera visita
+	 * sin convertir la ruta pública en un amplificador de peticiones.
+	 *
+	 * @param string $ambito Ámbito solicitado.
+	 * @return array
+	 */
+	private static function obtener_mundo( $ambito ) {
+		$payload = SIS_Cache::get( 'feed_mundo' );
+		$origen  = 'feed';
+
+		if ( ! is_array( $payload ) || empty( $payload['eventos'] ) ) {
+			$r = SIS_Sync_Feed::sincronizar( array( 'dataset_id' => self::FEED_MUNDO ) );
+			if ( ! empty( $r['ok'] ) ) {
+				$payload = SIS_Cache::get( 'feed_mundo' );
+				$origen  = 'feed_en_vivo';
+			}
+		}
+
+		$eventos = is_array( $payload ) && ! empty( $payload['eventos'] ) ? $payload['eventos'] : array();
+
+		return array(
+			'ambito'      => $ambito,
+			'eventos'     => $eventos,
+			'total'       => count( $eventos ),
+			'origen'      => $eventos ? $origen : 'vacio',
+			'actualizado' => isset( $payload['actualizado'] ) ? $payload['actualizado'] : '',
+			'fuente'      => isset( $payload['fuente'] ) ? $payload['fuente'] : 'USGS — feed GeoJSON de resumen',
 		);
 	}
 
@@ -421,6 +465,16 @@ final class SIS_Catalogo {
 			}
 		}
 
+		// La serie llega hasta el mes en curso, no hasta el último mes con
+		// actividad: si el catálogo lleva semanas sin sismos, una gráfica que
+		// termina en el último evento parece decir que los datos se detuvieron
+		// ahí. Un mes en cero es información —«no hubo sismos»—; un mes que
+		// falta es ambiguo.
+		$hoy = gmdate( 'Y-m' );
+		if ( $max < $hoy ) {
+			$max = $hoy;
+		}
+
 		// Rellena los meses intermedios sin actividad (un cero es información).
 		$serie = array();
 		$mes   = $min;
@@ -445,15 +499,28 @@ final class SIS_Catalogo {
 	 * @return array<int,int> año → conteo.
 	 */
 	public static function conteo_anual( array $eventos ) {
-		$out = array();
+		$conteo = array();
 		foreach ( $eventos as $e ) {
 			$a = (int) $e['anio'];
-			if ( ! isset( $out[ $a ] ) ) {
-				$out[ $a ] = 0;
+			if ( ! isset( $conteo[ $a ] ) ) {
+				$conteo[ $a ] = 0;
 			}
-			$out[ $a ]++;
+			$conteo[ $a ]++;
 		}
-		ksort( $out );
+		if ( ! $conteo ) {
+			return array();
+		}
+
+		// Igual que la serie mensual: se completa hasta el año en curso, aunque
+		// todavía no haya registrado sismos. El año en curso siempre aparece,
+		// aunque sea con una barra en cero.
+		$min = min( array_keys( $conteo ) );
+		$max = max( max( array_keys( $conteo ) ), (int) gmdate( 'Y' ) );
+
+		$out = array();
+		for ( $a = $min; $a <= $max; $a++ ) {
+			$out[ $a ] = isset( $conteo[ $a ] ) ? $conteo[ $a ] : 0;
+		}
 		return $out;
 	}
 
@@ -499,20 +566,26 @@ final class SIS_Catalogo {
 	 * @return array<string,array{julios:float,tnt:float,n:int}>
 	 */
 	public static function energia_mensual( array $eventos ) {
-		$out = array();
+		$acum = array();
 		foreach ( $eventos as $e ) {
 			$m = $e['mes'];
-			if ( ! isset( $out[ $m ] ) ) {
-				$out[ $m ] = array( 'julios' => 0.0, 'tnt' => 0.0, 'n' => 0 );
+			if ( ! isset( $acum[ $m ] ) ) {
+				$acum[ $m ] = array( 'julios' => 0.0, 'tnt' => 0.0, 'n' => 0 );
 			}
-			$j                    = isset( $e['energia_j'] ) ? (float) $e['energia_j'] : self::energia_joules( $e['mag'] );
-			$out[ $m ]['julios'] += $j;
-			$out[ $m ]['n']++;
+			$j                     = isset( $e['energia_j'] ) ? (float) $e['energia_j'] : self::energia_joules( $e['mag'] );
+			$acum[ $m ]['julios'] += $j;
+			$acum[ $m ]['n']++;
 		}
-		foreach ( $out as $m => $v ) {
-			$out[ $m ]['tnt'] = self::toneladas_tnt( $v['julios'] );
+
+		// Se monta sobre el mismo raíl de meses que el conteo —que llega hasta
+		// el mes en curso—: un mes sin sismos liberó cero energía, y eso se
+		// dibuja, no se omite.
+		$out = array();
+		foreach ( self::conteo_mensual( $eventos ) as $m => $n ) {
+			$v            = isset( $acum[ $m ] ) ? $acum[ $m ] : array( 'julios' => 0.0, 'tnt' => 0.0, 'n' => 0 );
+			$v['tnt']     = self::toneladas_tnt( $v['julios'] );
+			$out[ $m ]    = $v;
 		}
-		ksort( $out );
 		return $out;
 	}
 

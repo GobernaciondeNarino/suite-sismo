@@ -15,7 +15,7 @@ Escriba a **hosting@narino.gov.co** con el asunto «Vulnerabilidad — sismos-su
 | Puerta | Qué expone | Defensas |
 |---|---|---|
 | `GET /wp-json/sismos/v1/*` — 10 rutas de solo lectura | Catálogo sísmico, estadística, marco de amenaza, payload de gráficos, datos abiertos en JSON y CSV | Límite de 120 peticiones por minuto y por IP; parámetros acotados (ámbito de una lista blanca, magnitud 0–10, días ≤ 20.000, límite ≤ 5.000); respuestas pesadas cacheadas con clave derivada de la firma del catálogo; grupo de caché podado a 200 entradas |
-| 22 shortcodes | HTML publicado en páginas del sitio | Los atributos se filtran con `sanitize_key`, expresiones regulares o listas blancas; toda salida pasa por `esc_html`, `esc_attr` o `esc_url`; los valores de apariencia se sanean contra inyección en CSS |
+| 23 shortcodes | HTML publicado en páginas del sitio | Los atributos se filtran con `sanitize_key`, expresiones regulares o listas blancas; toda salida pasa por `esc_html`, `esc_attr` o `esc_url`; los valores de apariencia se sanean contra inyección en CSS |
 | Archivos del plugin accesibles por URL | Cualquier `.php` bajo `wp-content/plugins/` | Todos declaran `defined( 'ABSPATH' ) || exit;`; las pruebas exigen además SAPI de línea de comandos y responden 403 a una petición web; cada directorio tiene su `index.php` silenciador |
 
 Las rutas REST **no** exigen nonce, y es deliberado: son públicas y de solo lectura, y un nonce caducado servido desde la caché de página devolvería 403 a los visitantes anónimos. La protección es el límite por IP y el coste acotado de cada respuesta.

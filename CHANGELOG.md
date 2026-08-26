@@ -1,5 +1,32 @@
 # Registro de cambios
 
+## 2.3.0 — 2026-08-26
+
+### Las series ya no se detienen en el último sismo
+
+Una gráfica que termina en el último mes con actividad hace creer que los datos se detuvieron ahí. Con el catálogo regional en calma desde mediados de agosto, la serie mensual acababa en julio y la anual podía acabar en un año anterior, aunque el USGS sí tuviera datos posteriores.
+
+- El conteo mensual, la serie anual y la energía mensual se extienden **hasta el mes y el año en curso**. Un mes en cero es información —«no tembló»—; un mes que falta es ambiguo.
+- La consulta al FDSN pasa a pedir los eventos **del más reciente hacia atrás**. Si alguna vez llegara al tope del servicio, lo que se pierde es la cola antigua y no los sismos de esta semana. El catálogo se reordena al normalizar, así que nada más cambia.
+- Semilla local regenerada contra el servicio: 664 eventos de magnitud 4,0+ desde 2005 hasta la fecha de publicación. Es el respaldo que se usa mientras el cron no ha corrido.
+
+### Histórico en dos lecturas
+
+- Nuevo `[sismos_historico]`: publica juntas las dos gráficas que responden a «¿cómo ha sido esto a lo largo del tiempo?» —barras de sismos por año y línea mensual con tendencia—, lado a lado en escritorio y apiladas en móvil.
+- Nueva vista `historico_mensual`: la serie mensual completa con su **media móvil centrada de doce meses**. La serie cruda de un catálogo sísmico es muy ruidosa —un sismo principal arrastra decenas de réplicas y dispara un mes entero—; la media móvil deja ver el nivel de fondo, que es lo que cambia despacio. En los extremos se promedia solo la parte disponible, sin extrapolar meses que el catálogo no cubre.
+
+### El globo ya muestra el mundo
+
+Pulsar «Global» solo alejaba la cámara: el planeta quedaba con los sismos del ámbito publicado y el resto vacío, como si en el mundo no temblara.
+
+- Nuevo ámbito `mundo`, servido del **feed de resumen del USGS** (magnitud 2,5+ de la última semana). No se sincroniza contra el catálogo histórico —serían millones de eventos— y por eso queda fuera de la lista de ámbitos sincronizables.
+- El globo carga ese conjunto **solo al pulsar «Global»**, y lo guarda: una página que nunca usa esa vista no paga la descarga, y volver a «Zona sísmica» no vuelve a pedir nada.
+- La línea de tiempo sigue al globo cuando cambia de conjunto y lo dice en su título: recorrer sismos de Nariño mientras el globo dibuja los del planeta sería mentir sobre lo que se está viendo.
+
+### Correcciones
+
+- Tres textos y tres comentarios seguían nombrando el módulo de pronóstico retirado en 2.0.0. La salvaguarda `tests/test-sin-pronostico.php` no los veía porque solo buscaba la cifra («a 6 meses») y no la palabra escrita («a seis meses»); ahora cubre ambas y detecta cualquier pronóstico presentado como propio del plugin.
+
 ## 2.2.0 — 2026-08-24
 
 ### Globo 3D de sismos recientes

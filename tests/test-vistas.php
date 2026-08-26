@@ -179,6 +179,7 @@ use GobernacionNarino\Sismos\SIS_Cache;
 use GobernacionNarino\Sismos\SIS_Catalogo;
 use GobernacionNarino\Sismos\SIS_Amenaza;
 use GobernacionNarino\Sismos\SIS_Views;
+use GobernacionNarino\Sismos\SIS_Regiones;
 
 $fallos = 0;
 function chk( $cond, $msg ) {
@@ -319,6 +320,59 @@ chk( false !== mb_strpos( $ficha['marco_legal'], 'Ley 1523' ), 'La ficha cita el
 update_option( 'sis_amenaza', array( 'aa_pasto' => '0.30' ) );
 chk( '0.30' === SIS_Amenaza::normativa()['aa_pasto'], 'La normativa editada en el panel prevalece' );
 chk( '' !== SIS_Amenaza::normativa()['norma'], 'Las claves no editadas conservan su valor por defecto' );
+
+/* ------------------------------------------------------------------ */
+/* Las series llegan hasta hoy, no hasta el último sismo registrado    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Una gráfica que termina en el último mes con actividad hace creer que los
+ * datos se detuvieron ahí. Si el catálogo lleva semanas en calma, el mes en
+ * curso debe aparecer igualmente, en cero.
+ */
+$mensual = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$ultimo  = end( $mensual['data'] );
+chk( gmdate( 'Y-m' ) === $ultimo['mes'], 'La serie mensual llega al mes en curso (' . gmdate( 'Y-m' ) . ')' );
+
+$anual     = SIS_Views::obtener( 'sismos_anuales', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$ult_anio  = end( $anual['data'] );
+chk( gmdate( 'Y' ) === $ult_anio['anio'], 'La serie anual llega al año en curso (' . gmdate( 'Y' ) . ')' );
+
+$energia   = SIS_Views::obtener( 'energia_mensual', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$ult_ener  = end( $energia['data'] );
+chk( gmdate( 'Y-m' ) === $ult_ener['mes'], 'La serie de energía llega al mes en curso' );
+
+// Y no se inventan meses futuros.
+$meses = wp_list_pluck( $mensual['data'], 'mes' );
+chk( max( $meses ) <= gmdate( 'Y-m' ), 'Ninguna serie publica meses que aún no han ocurrido' );
+
+/* ------------------------------------------------------------------ */
+/* Histórico mensual con tendencia                                     */
+/* ------------------------------------------------------------------ */
+
+$hist = SIS_Views::obtener( 'historico_mensual', array( 'ambito' => 'regional', 'anios' => 0 ) );
+chk( in_array( 'media_movil_12m', $hist['measures'], true ), 'El histórico mensual publica la media móvil de 12 meses' );
+chk( count( $hist['data'] ) === count( $mensual['data'] ), 'El histórico mensual cubre los mismos meses que la serie cruda' );
+
+$fila = $hist['data'][ intdiv( count( $hist['data'] ), 2 ) ];
+chk( isset( $fila['sismos'], $fila['media_movil_12m'] ), 'Cada fila trae el conteo y su media móvil' );
+
+// La media móvil suaviza: su recorrido tiene que ser menor que el de la serie.
+$crudos = wp_list_pluck( $hist['data'], 'sismos' );
+$suaves = wp_list_pluck( $hist['data'], 'media_movil_12m' );
+chk( ( max( $suaves ) - min( $suaves ) ) < ( max( $crudos ) - min( $crudos ) ), 'La media móvil tiene menos recorrido que la serie cruda' );
+chk( max( $suaves ) <= max( $crudos ), 'La media móvil nunca supera el máximo de la serie' );
+
+/* ------------------------------------------------------------------ */
+/* Ámbito mundial: existe, pero no se sincroniza contra el histórico   */
+/* ------------------------------------------------------------------ */
+
+chk( SIS_Regiones::existe( 'mundo' ), 'Existe el ámbito «mundo» para la vista global del globo' );
+chk( SIS_Regiones::solo_feed( 'mundo' ), 'El ámbito «mundo» se sirve del feed, no del catálogo histórico' );
+chk( ! in_array( 'mundo', SIS_Regiones::sincronizables(), true ), 'El ámbito «mundo» queda fuera de la sincronización histórica' );
+chk( in_array( 'regional', SIS_Regiones::sincronizables(), true ), 'Los ámbitos acotados sí se sincronizan' );
+chk( SIS_Regiones::contiene( 'mundo', 35.5, 140.2 ) && SIS_Regiones::contiene( 'mundo', -33.4, -70.6 ), 'El ámbito «mundo» acepta epicentros de cualquier país' );
+chk( ! SIS_Regiones::solo_feed( 'regional' ), 'El ámbito regional conserva su catálogo histórico' );
 
 /* ------------------------------------------------------------------ */
 echo "\n";

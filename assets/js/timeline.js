@@ -18,13 +18,17 @@
   function init(box) {
     var q = C.consulta(box);
     var limite = parseInt(box.getAttribute('data-limite') || '50', 10);
-    var st = { eventos: [], indice: 0, reproduciendo: false, temporizador: null, velocidad: 1400 };
+    var st = { eventos: [], indice: 0, reproduciendo: false, temporizador: null, velocidad: 1400, conjunto: 'local' };
 
-    // Si el globo ya cargó el conjunto, se reaprovecha en vez de volver a pedirlo.
+    // Si el globo ya cargó el conjunto, se reaprovecha en vez de volver a
+    // pedirlo. Y si el globo cambia de conjunto —al pasar a la vista global—
+    // la línea de tiempo lo sigue: recorrer 50 sismos de Nariño mientras el
+    // globo dibuja los del planeta sería mentir sobre lo que se está viendo.
     var recibido = false;
     window.addEventListener('sis:sismos-cargados', function (ev) {
-      if (recibido || !ev.detail || !ev.detail.eventos) { return; }
+      if (!ev.detail || !ev.detail.eventos) { return; }
       recibido = true;
+      st.conjunto = ev.detail.conjunto || 'local';
       arrancar(ev.detail.eventos);
     });
 
@@ -39,6 +43,7 @@
       });
 
     function arrancar(eventos) {
+      detener(st.play);
       // El globo entrega del más reciente al más antiguo; la línea de tiempo se
       // lee al revés, del pasado al presente.
       st.eventos = eventos.slice(0, limite);
@@ -91,7 +96,10 @@
         cab.appendChild(img);
       }
 
-      cab.appendChild(C.el('span', 'sis-tl__titulo', 'Últimos ' + st.eventos.length + ' sismos'));
+      // El título dice cuántos sismos se recorren y de dónde: al pasar el globo
+      // a la vista global, la línea de tiempo recorre los del planeta.
+      var ambitoTxt = 'mundo' === st.conjunto ? ' del mundo' : '';
+      cab.appendChild(C.el('span', 'sis-tl__titulo', 'Últimos ' + st.eventos.length + ' sismos' + ambitoTxt));
       var ficha = C.el('span', 'sis-tl__ficha');
       cab.appendChild(ficha);
       box.appendChild(cab);

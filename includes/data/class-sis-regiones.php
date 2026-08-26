@@ -7,7 +7,7 @@
  * que la zona de subducción Nazca–Sudamérica (frente al Pacífico nariñense y el
  * norte de Ecuador) es la que gobierna la amenaza sísmica de Nariño. Por eso el
  * plugin declara varios ámbitos: el departamental para la lectura territorial y
- * el regional —por defecto— para la estadística y el pronóstico.
+ * el regional —por defecto— para la estadística.
  *
  * @package SismosNarino
  */
@@ -57,6 +57,22 @@ final class SIS_Regiones {
 				'lon'         => -77.28111,
 				'radio_km'    => 300,
 			),
+			// El planeta entero. No se sincroniza contra el catálogo histórico
+			// del FDSN —serían millones de eventos—: se sirve del feed de
+			// resumen del USGS, que es justamente «lo que acaba de pasar en el
+			// mundo». Existe para que el globo pueda mostrar el contexto
+			// global sin dejar de pasar por la caché del plugin.
+			'mundo'    => array(
+				'nombre'      => 'Todo el planeta',
+				'descripcion' => 'Sismicidad reciente del mundo, tomada del feed de resumen del USGS. Sirve de contexto: permite ver la sismicidad de Nariño dentro del Cinturón de Fuego del Pacífico. No es un catálogo histórico.',
+				'tipo'        => 'bbox',
+				'lat_min'     => -90.0,
+				'lat_max'     => 90.0,
+				'lon_min'     => -180.0,
+				'lon_max'     => 180.0,
+				'solo_feed'   => true,
+			),
+
 			'colombia' => array(
 				'nombre'      => 'Colombia y área de influencia',
 				'descripcion' => 'Territorio nacional y márgenes vecinos. Sirve de referencia comparativa para situar a Nariño dentro de la sismicidad del país.',
@@ -87,6 +103,37 @@ final class SIS_Regiones {
 	public static function existe( $slug ) {
 		$t = self::todos();
 		return isset( $t[ (string) $slug ] );
+	}
+
+	/**
+	 * ¿El ámbito se sirve solo del feed de resumen?
+	 *
+	 * El catálogo histórico del FDSN se descarga por recuadro y se guarda
+	 * entero: para el planeta completo eso no es viable. Esos ámbitos existen
+	 * para dar contexto reciente y se alimentan del feed.
+	 *
+	 * @param string $slug Slug del ámbito.
+	 * @return bool
+	 */
+	public static function solo_feed( $slug ) {
+		$t    = self::todos();
+		$slug = (string) $slug;
+		return isset( $t[ $slug ]['solo_feed'] ) && $t[ $slug ]['solo_feed'];
+	}
+
+	/**
+	 * Ámbitos que sí admiten sincronización histórica contra el FDSN.
+	 *
+	 * @return string[]
+	 */
+	public static function sincronizables() {
+		$out = array();
+		foreach ( self::todos() as $slug => $a ) {
+			if ( empty( $a['solo_feed'] ) ) {
+				$out[] = $slug;
+			}
+		}
+		return $out;
 	}
 
 	/**

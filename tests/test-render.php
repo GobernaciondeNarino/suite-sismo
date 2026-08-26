@@ -209,6 +209,41 @@ if ( false !== strpos( $par, 'data-sis-globo' ) && false !== strpos( $par, 'data
 	$fallos++;
 }
 
+/* ------------------------------------------------------------------ */
+/* Histórico: barras por año + línea mensual con tendencia             */
+/* ------------------------------------------------------------------ */
+
+$hist = $sc->sc_historico( array() );
+
+$chequeos_hist = array(
+	'publica dos gráficos'          => 2 === substr_count( $hist, 'data-sis-grafico' ),
+	'barras de sismos por año'      => false !== strpos( $hist, 'data-view="sismos_anuales"' ) && false !== strpos( $hist, 'data-type="bar"' ),
+	'línea del histórico mensual'   => false !== strpos( $hist, 'data-view="historico_mensual"' ) && false !== strpos( $hist, 'data-type="line"' ),
+	'recorre todo el catálogo'      => 0 === substr_count( $hist, 'data-anios="5"' ),
+	'sin datos incrustados'         => false === strpos( $hist, '"features"' ) && false === strpos( $hist, '<?php' ),
+);
+foreach ( $chequeos_hist as $que => $bien ) {
+	printf( "%s  [sismos_historico] %s\n", $bien ? '  ok ' : 'FAIL', $que );
+	if ( ! $bien ) { $fallos++; }
+}
+
+// Cada gráfico conserva su propio id, o el segundo pisaría al primero.
+if ( preg_match_all( '/<figure id="([^"]+)"/', $hist, $m ) && 2 === count( $m[1] ) && $m[1][0] !== $m[1][1] ) {
+	echo "  ok   [sismos_historico] cada gráfico lleva su propio id\n";
+} else {
+	echo "FAIL  [sismos_historico] los dos gráficos comparten id\n";
+	$fallos++;
+}
+
+// El título opcional se publica escapado.
+$hist_tit = $sc->sc_historico( array( 'titulo' => 'Registro <b>histórico</b>' ) );
+if ( false !== strpos( $hist_tit, 'Registro &lt;b&gt;histórico&lt;/b&gt;' ) || false !== strpos( $hist_tit, 'Registro histórico' ) ) {
+	echo "  ok   [sismos_historico] el título no inyecta HTML\n";
+} else {
+	echo "FAIL  [sismos_historico] el título se publica sin sanear\n";
+	$fallos++;
+}
+
 echo "\n";
 if ( $fallos ) {
 	echo "RESULTADO: {$fallos} componente(s) con problemas.\n";

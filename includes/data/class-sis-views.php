@@ -107,6 +107,14 @@ final class SIS_Views {
 				'default'     => 'area',
 				'heatmap'     => true,
 			),
+			'historico_mensual'     => array(
+				'name'        => 'Histórico mensual con tendencia',
+				'description' => 'Serie mensual completa del catálogo con su media móvil de doce meses, que separa la tendencia de fondo del ruido de las secuencias de réplicas.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'sismos', 'media_movil_12m' ),
+				'default'     => 'line',
+			),
 			'acumulado'             => array(
 				'name'        => 'Sismos acumulados en el tiempo',
 				'description' => 'Curva acumulada de sismos: los tramos más empinados señalan periodos de actividad más intensa.',
@@ -379,6 +387,9 @@ final class SIS_Views {
 				}
 				return $out;
 
+			case 'historico_mensual':
+				return self::filas_historico_mensual( $eventos );
+
 			case 'acumulado':
 				$out  = array();
 				$acum = 0;
@@ -450,6 +461,42 @@ final class SIS_Views {
 		$out = array();
 		foreach ( SIS_Catalogo::conteo_mensual( $eventos ) as $mes => $n ) {
 			$out[] = array( 'mes' => $mes, 'sismos' => (int) $n );
+		}
+		return $out;
+	}
+
+	/**
+	 * Serie mensual con media móvil centrada de doce meses.
+	 *
+	 * La serie cruda de un catálogo sísmico es muy ruidosa: un sismo principal
+	 * arrastra decenas de réplicas y dispara un mes entero. La media móvil de
+	 * doce meses promedia ese ruido y deja ver el nivel de fondo, que es lo
+	 * que de verdad cambia despacio.
+	 *
+	 * @param array[] $eventos Eventos.
+	 * @return array[]
+	 */
+	private static function filas_historico_mensual( array $eventos ) {
+		$serie = SIS_Catalogo::conteo_mensual( $eventos );
+		$meses = array_keys( $serie );
+		$vals  = array_values( $serie );
+		$n     = count( $vals );
+
+		$out = array();
+		for ( $i = 0; $i < $n; $i++ ) {
+			// Ventana centrada; en los extremos se promedia lo que hay, sin
+			// inventar meses fuera del catálogo.
+			$desde = max( 0, $i - 6 );
+			$hasta = min( $n - 1, $i + 5 );
+			$suma  = 0;
+			for ( $j = $desde; $j <= $hasta; $j++ ) {
+				$suma += $vals[ $j ];
+			}
+			$out[] = array(
+				'mes'             => $meses[ $i ],
+				'sismos'          => (int) $vals[ $i ],
+				'media_movil_12m' => round( $suma / ( $hasta - $desde + 1 ), 2 ),
+			);
 		}
 		return $out;
 	}
@@ -680,6 +727,7 @@ final class SIS_Views {
 				return SIS_Texto::cuantitativo( $datos, 'anio', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'año' ) );
 
 			case 'sismos_mensuales':
+			case 'historico_mensual':
 			default:
 				return SIS_Texto::cuantitativo( $datos, 'mes', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes' ) );
 		}

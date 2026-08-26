@@ -137,7 +137,7 @@ final class SIS_Cache {
 	}
 
 	/**
-	 * Borra todas las claves de un grupo (p. ej. al recalcular el pronóstico).
+	 * Borra todas las claves de un grupo (p. ej. al llegar una sincronización).
 	 *
 	 * @param string $grupo Grupo lógico.
 	 * @return int Filas borradas.
