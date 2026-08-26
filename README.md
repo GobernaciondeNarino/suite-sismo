@@ -17,9 +17,9 @@ Plugin de WordPress que publica el **análisis estadístico de la sismicidad** d
 4. Vaya a **Sismos Nariño → Resumen** y pulse **Sincronizar catálogo ahora**.
 5. Revise **Sismos Nariño → Amenaza y normativa** y verifique los coeficientes de la NSR-10 contra el texto oficial antes de publicarlos.
 
-Sin proceso de build: D3plus, Leaflet y three.js se cargan por CDN. Requiere WordPress 5.8+ y PHP 7.4+.
+Sin proceso de build: D3plus v4, Leaflet y three.js se cargan por CDN. Requiere WordPress 5.8+ y PHP 7.4+.
 
-> **¿Dónde copio los shortcodes?** En **Sismos Nariño → Elementos** está el catálogo completo con su descripción, atributos y botón **Copiar**, más la lista de vistas para `[sismos_grafico]`.
+> **¿Dónde copio los shortcodes?** En **Sismos Nariño → Elementos**, repartido en cuatro pestañas —**Gráficas**, **Visualizaciones históricas**, **Globo y mapa** e **Información**—. Cada gráfica tiene su propia tarjeta con los cinco shortcodes listos para copiar: la gráfica, sus tres textos por separado (descripción, interpretación y cifras) y la versión con todo junto.
 
 ---
 
@@ -92,6 +92,8 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 [sismos_grafico view="sismos_mensuales" type="bar"]
 [sismos_grafico view="frecuencia_magnitud" type="line" alto="460px"]
 [sismos_grafico view="recurrencia_historica" type="bar"]
+[sismos_grafico view="calendario_sismico" type="matrix" alto="640px"]
+[sismos_grafico view="dispersion_mag_prof" type="plot" alto="520px"]
 
 [sismos_amenaza]
 [sismos_glosario]
@@ -124,10 +126,18 @@ La capa 3 es agnóstica al dominio: solo entiende de dimensiones y medidas. Si D
 
 ### Vistas disponibles (`view`)
 
-**Actividad en el tiempo** — `sismos_mensuales`, `sismos_anuales`, `historico_mensual` (serie completa + media móvil de 12 meses), `magnitud_mensual`, `energia_mensual`, `acumulado`
-**Distribuciones estadísticas** — `frecuencia_magnitud` (Gutenberg-Richter), `distribucion_magnitud`, `clases_magnitud`, `profundidad`, `magnitud_profundidad`
+**Actividad en el tiempo** — `sismos_mensuales`, `sismos_anuales`, `historico_mensual` (serie completa + media móvil de 12 meses), `magnitud_mensual`, `energia_mensual`, `acumulado`, `energia_acumulada` (curva de Benioff), `sismos_sentidos`
+
+**Patrones y ritmo** — `calendario_sismico` (matriz año × mes), `hora_del_dia`, `intervalos`
+**Distribuciones estadísticas** — `frecuencia_magnitud` (Gutenberg-Richter), `distribucion_magnitud`, `clases_magnitud`, `profundidad`, `magnitud_profundidad`, `dispersion_mag_prof` (nube de puntos)
 **Lectura territorial** — `municipios_cercanos`, `subregiones`, `mayores_sismos`
 **Recurrencia** — `recurrencia_historica`
+
+### Tipos de gráfico (`type`)
+
+`bar` · `stacked_bar` · `line` · `area` · `stacked_area` · `pie` · `donut` · `treemap` · `box_whisker` · `plot` (dispersión) · `matrix` (matriz de calor)
+
+Cada vista declara su tipo por defecto y los tipos compatibles con su categoría; la barra de herramientas de la tarjeta permite cambiar entre ellos en vivo. La pantalla **Sismos Nariño → Elementos** lista, para cada gráfica, sus tipos alternativos.
 
 **Tipos** (`type`): `bar`, `stacked_bar`, `line`, `area`, `stacked_area`, `pie`, `donut`, `treemap`, `box_whisker` — restringidos automáticamente a los compatibles con la categoría de cada vista.
 
@@ -211,7 +221,8 @@ includes/
     class-sis-sync-feed.php    Conector de feeds GeoJSON
   shortcodes/                  Registro y render de los shortcodes
   admin/                       Panel: Resumen, Fuentes, Amenaza, Apariencia, Elementos
-assets/css                     estilos.css (minimalista) · grafico.css (tarjeta de gráfico)
+assets/css                     estilos.css (minimalista) · grafico.css (tarjeta de
+                               gráfico) · admin.css (pestañas y tarjetas del panel)
 assets/js                      sis-core · renderer · grafico · grupo · composable ·
                                estado · ultimos · mapa · globo (ES module, three.js) ·
                                timeline · estadistica · datos · estado-api · admin
@@ -234,7 +245,7 @@ El catálogo se lee en cascada: **caché viva → caché durable expirada → se
 - Las URL configurables se validan contra una **lista blanca de servidores** (USGS y SGC) y se exige HTTPS: no hay forma de apuntar el plugin a un host arbitrario (anti-SSRF).
 - Los parámetros geográficos de la consulta salen del catálogo de ámbitos, nunca de la entrada del usuario.
 - El panel exige `manage_options` y nonce en cada escritura; toda salida se escapa y los valores CSS se sanean contra inyección.
-- D3plus, Leaflet y three.js se cargan con **SRI** (`integrity` + `crossorigin`; los módulos ES a través de `modulepreload`); las celdas de CSV se neutralizan contra inyección de fórmulas; los archivos de prueba solo se ejecutan por línea de comandos.
+- D3plus v4, Leaflet y three.js se cargan con **SRI** (`integrity` + `crossorigin`; los módulos ES a través de `modulepreload`); las celdas de CSV se neutralizan contra inyección de fórmulas; los archivos de prueba solo se ejecutan por línea de comandos.
 
 El detalle completo, con la lista de puertas y la guía para quien opera el sitio, está en [`SECURITY.md`](SECURITY.md).
 

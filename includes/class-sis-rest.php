@@ -451,6 +451,11 @@ final class SIS_Rest {
 				'como_funciona'     => $view['como_funciona'],
 				'aviso'             => $view['aviso'],
 				'heatmap'           => $view['heatmap'],
+				// La dispersión necesita saber qué campo colorea la nube y la
+				// matriz, en qué orden van sus columnas: sin esto el motor
+				// tendría que adivinarlo por el id de la vista.
+				'series'            => $view['series'],
+				'orden'             => $view['orden'],
 				'contexto'          => $view['contexto'],
 			),
 			'data'       => $view['data'],

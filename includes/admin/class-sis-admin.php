@@ -81,6 +81,7 @@ final class SIS_Admin {
 		if ( false === strpos( $hook, self::SLUG ) ) {
 			return;
 		}
+		wp_enqueue_style( 'sis-admin-css', SIS_URL . 'assets/css/admin.css', array(), SIS_VERSION );
 		wp_enqueue_script( 'sis-admin', SIS_URL . 'assets/js/admin.js', array(), SIS_VERSION, true );
 		wp_localize_script( 'sis-admin', 'SISAdmin', array(
 			'ajax'  => admin_url( 'admin-ajax.php' ),
@@ -555,63 +556,177 @@ final class SIS_Admin {
 	/* ----------------------------------------------------------------- */
 
 	/**
-	 * Catálogo de shortcodes con botón de copiar.
+	 * Pestañas del catálogo de elementos.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function pestanas() {
+		return array(
+			'graficas'   => __( 'Gráficas', 'sismos-narino' ),
+			'historicas' => __( 'Visualizaciones históricas', 'sismos-narino' ),
+			'globo'      => __( 'Globo y mapa', 'sismos-narino' ),
+			'texto'      => __( 'Información', 'sismos-narino' ),
+		);
+	}
+
+	/**
+	 * Pestaña a la que pertenece cada vista del motor de gráficos.
+	 *
+	 * Es información de presentación, no del dominio: por eso vive aquí y no
+	 * en el catálogo de vistas. Lo que no esté listado cae en «Gráficas».
+	 *
+	 * @return array<string,string>
+	 */
+	private static function pestana_vistas() {
+		return array(
+			'sismos_anuales'        => 'historicas',
+			'historico_mensual'     => 'historicas',
+			'acumulado'             => 'historicas',
+			'energia_acumulada'     => 'historicas',
+			'calendario_sismico'    => 'historicas',
+			'recurrencia_historica' => 'historicas',
+			'mayores_sismos'        => 'historicas',
+			'intervalos'            => 'historicas',
+		);
+	}
+
+	/**
+	 * Catálogo de shortcodes, en pestañas y con una tarjeta por gráfica.
 	 */
 	public function pantalla_elementos() {
 		if ( ! current_user_can( self::CAP ) ) {
 			return;
 		}
 
+		$pestanas = self::pestanas();
+		$actual   = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'graficas'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $pestanas[ $actual ] ) ) {
+			$actual = 'graficas';
+		}
+
 		$ruta      = SIS_DIR . 'includes/data/textos-elementos.php';
 		$elementos = is_readable( $ruta ) ? include $ruta : array();
+		$elementos = array_values( array_filter( $elementos, static function ( $el ) use ( $actual ) {
+			return isset( $el['grupo'] ) && $actual === $el['grupo'];
+		} ) );
 
 		$this->cabecera( __( 'Elementos publicables', 'sismos-narino' ) );
 		?>
-		<p class="description"><?php esc_html_e( 'Copie cualquiera de estos shortcodes y péguelo en una página, entrada o widget.', 'sismos-narino' ); ?></p>
+		<p class="description sis-intro"><?php esc_html_e( 'Copie cualquier shortcode y péguelo en una página, entrada o widget. Cada gráfica trae además sus tres textos —descripción, interpretación y cifras— como shortcodes independientes, para maquetarlos donde convenga.', 'sismos-narino' ); ?></p>
 
-		<table class="widefat striped">
-			<thead><tr>
-				<th style="width:22%"><?php esc_html_e( 'Componente', 'sismos-narino' ); ?></th>
-				<th><?php esc_html_e( 'Qué publica', 'sismos-narino' ); ?></th>
-				<th style="width:28%"><?php esc_html_e( 'Ejemplo', 'sismos-narino' ); ?></th>
-			</tr></thead>
-			<tbody>
-			<?php foreach ( $elementos as $el ) : ?>
-				<tr>
-					<td>
-						<strong><?php echo esc_html( $el['titulo'] ); ?></strong><br>
-						<code><?php echo esc_html( $el['shortcode'] ); ?></code>
-					</td>
-					<td>
-						<?php echo esc_html( $el['que_hace'] ); ?>
-						<p class="description"><strong><?php esc_html_e( 'Atributos:', 'sismos-narino' ); ?></strong> <?php echo esc_html( $el['atributos'] ); ?></p>
-					</td>
-					<td>
-						<code class="sis-admin-ejemplo"><?php echo esc_html( $el['ejemplo'] ); ?></code><br>
-						<button type="button" class="button button-small" data-sis-copiar="<?php echo esc_attr( $el['ejemplo'] ); ?>"><?php esc_html_e( 'Copiar', 'sismos-narino' ); ?></button>
-					</td>
-				</tr>
+		<nav class="nav-tab-wrapper sis-tabs" aria-label="<?php esc_attr_e( 'Tipos de elemento', 'sismos-narino' ); ?>">
+			<?php foreach ( $pestanas as $slug => $etiqueta ) : ?>
+				<a class="nav-tab<?php echo $slug === $actual ? ' nav-tab-active' : ''; ?>"
+					href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG . '-elementos&tab=' . $slug ) ); ?>"
+					<?php echo $slug === $actual ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $etiqueta ); ?></a>
 			<?php endforeach; ?>
-			</tbody>
-		</table>
+		</nav>
 
-		<h2><?php esc_html_e( 'Vistas disponibles para [sismos_grafico]', 'sismos-narino' ); ?></h2>
-		<table class="widefat striped">
-			<thead><tr>
-				<th><?php esc_html_e( 'view', 'sismos-narino' ); ?></th>
-				<th><?php esc_html_e( 'Nombre', 'sismos-narino' ); ?></th>
-				<th><?php esc_html_e( 'Tipos compatibles', 'sismos-narino' ); ?></th>
-			</tr></thead>
-			<tbody>
-			<?php foreach ( SIS_Views::lista() as $v ) : ?>
-				<tr>
-					<td><code><?php echo esc_html( $v['id'] ); ?></code></td>
-					<td><?php echo esc_html( $v['name'] ); ?><p class="description"><?php echo esc_html( $v['description'] ); ?></p></td>
-					<td><?php echo esc_html( implode( ', ', $v['compatibles'] ) ); ?></td>
-				</tr>
+		<?php if ( $elementos ) : ?>
+			<h2><?php esc_html_e( 'Componentes', 'sismos-narino' ); ?></h2>
+			<div class="sis-tabla-scroll" tabindex="0" role="region" aria-label="<?php esc_attr_e( 'Componentes publicables', 'sismos-narino' ); ?>">
+			<table class="widefat striped">
+				<thead><tr>
+					<th style="width:22%"><?php esc_html_e( 'Componente', 'sismos-narino' ); ?></th>
+					<th><?php esc_html_e( 'Qué publica', 'sismos-narino' ); ?></th>
+					<th style="width:28%"><?php esc_html_e( 'Ejemplo', 'sismos-narino' ); ?></th>
+				</tr></thead>
+				<tbody>
+				<?php foreach ( $elementos as $el ) : ?>
+					<tr>
+						<td>
+							<strong><?php echo esc_html( $el['titulo'] ); ?></strong><br>
+							<code><?php echo esc_html( $el['shortcode'] ); ?></code>
+						</td>
+						<td>
+							<?php echo esc_html( $el['que_hace'] ); ?>
+							<p class="description"><strong><?php esc_html_e( 'Atributos:', 'sismos-narino' ); ?></strong> <?php echo esc_html( $el['atributos'] ); ?></p>
+						</td>
+						<td>
+							<code class="sis-admin-ejemplo"><?php echo esc_html( $el['ejemplo'] ); ?></code><br>
+							<button type="button" class="button button-small" data-sis-copiar="<?php echo esc_attr( $el['ejemplo'] ); ?>"><?php esc_html_e( 'Copiar', 'sismos-narino' ); ?></button>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+			</div>
+		<?php endif; ?>
+
+		<?php
+		// Las tarjetas de vistas solo tienen sentido donde hay gráficas.
+		if ( in_array( $actual, array( 'graficas', 'historicas' ), true ) ) {
+			$mapa   = self::pestana_vistas();
+			$vistas = array_values( array_filter( SIS_Views::lista(), static function ( $v ) use ( $mapa, $actual ) {
+				$destino = isset( $mapa[ $v['id'] ] ) ? $mapa[ $v['id'] ] : 'graficas';
+				return $destino === $actual;
+			} ) );
+			$this->tarjetas_vistas( $vistas );
+		}
+		?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Rejilla de tarjetas: una por vista, con sus cuatro shortcodes.
+	 *
+	 * Cada gráfica se publica con tres textos que la acompañan —qué es, cómo
+	 * se lee y qué dicen las cifras—. Tenerlos como shortcodes aparte permite
+	 * maquetarlos donde convenga; la tarjeta los deja listos para copiar para
+	 * que nadie tenga que recordar la sintaxis.
+	 *
+	 * @param array[] $vistas Vistas del motor.
+	 */
+	private function tarjetas_vistas( array $vistas ) {
+		if ( ! $vistas ) {
+			return;
+		}
+		$tipos = SIS_Views::tipos();
+		?>
+		<h2><?php esc_html_e( 'Gráficas disponibles', 'sismos-narino' ); ?></h2>
+		<p class="description sis-intro"><?php esc_html_e( 'Una tarjeta por gráfica. El primer shortcode publica la gráfica; los tres siguientes publican sus textos por separado. Si prefiere gráfica y textos juntos, use el último.', 'sismos-narino' ); ?></p>
+
+		<div class="sis-cards">
+			<?php foreach ( $vistas as $v ) : ?>
+				<?php
+				$id       = $v['id'];
+				$tipo     = $v['default'];
+				$etiqueta = isset( $tipos[ $tipo ]['label'] ) ? $tipos[ $tipo ]['label'] : $tipo;
+
+				$lineas = array(
+					__( 'Gráfica', 'sismos-narino' )     => sprintf( '[sismos_grafico view="%s" type="%s"]', $id, $tipo ),
+					__( 'Descripción', 'sismos-narino' ) => sprintf( '[sismos_descripcion view="%s"]', $id ),
+					__( 'Cualitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cualitativo view="%s"]', $id ),
+					__( 'Cuantitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cuantitativo view="%s"]', $id ),
+					__( 'Todo junto', 'sismos-narino' )  => sprintf( '[sismos_grafico view="%s" analisis="ambos"]', $id ),
+				);
+				?>
+				<article class="sis-card">
+					<div class="sis-card__cab">
+						<h3 class="sis-card__titulo"><?php echo esc_html( $v['name'] ); ?></h3>
+						<span class="sis-card__etq sis-card__etq--tipo"><?php echo esc_html( $etiqueta ); ?></span>
+					</div>
+					<p class="sis-card__id"><code>view="<?php echo esc_html( $id ); ?>"</code></p>
+					<p class="sis-card__desc"><?php echo esc_html( $v['description'] ); ?></p>
+
+					<?php foreach ( $lineas as $etq => $sc ) : ?>
+						<div class="sis-sc">
+							<span class="sis-sc__etq"><?php echo esc_html( $etq ); ?></span>
+							<code class="sis-sc__code"><?php echo esc_html( $sc ); ?></code>
+							<button type="button" class="button button-small" data-sis-copiar="<?php echo esc_attr( $sc ); ?>"
+								aria-label="<?php echo esc_attr( sprintf( __( 'Copiar el shortcode de %1$s para %2$s', 'sismos-narino' ), $etq, $v['name'] ) ); ?>"><?php esc_html_e( 'Copiar', 'sismos-narino' ); ?></button>
+						</div>
+					<?php endforeach; ?>
+
+					<p class="sis-card__pie">
+						<strong><?php esc_html_e( 'Otros tipos:', 'sismos-narino' ); ?></strong>
+						<?php echo esc_html( implode( ', ', array_map( static function ( $t ) use ( $tipos ) {
+							return isset( $tipos[ $t ]['label'] ) ? $tipos[ $t ]['label'] : $t;
+						}, $v['compatibles'] ) ) ); ?>
+					</p>
+				</article>
 			<?php endforeach; ?>
-			</tbody>
-		</table>
 		</div>
 		<?php
 	}

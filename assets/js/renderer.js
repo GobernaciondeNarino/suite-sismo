@@ -155,6 +155,28 @@
       }
     }
 
+    /* Los dos tipos que no agregan necesitan una clave por fila: la dispersión
+       una por punto y la matriz una por celda. Se calculan aquí para que la
+       vista solo tenga que declarar sus dimensiones. */
+    var serie = view.series || dims[0];
+    if (key === 'plot') {
+      xField = dims[0];
+      yField = measures[0];
+      plotData = data.map(function (r, i) {
+        var o = copiar(r);
+        o._id = r.id !== undefined ? String(r.id) : ('p' + i);
+        if (!o[serie]) { o[serie] = view.name || 'Sismos'; }
+        return o;
+      });
+    } else if (key === 'matrix') {
+      yField = measures[0];
+      plotData = data.map(function (r) {
+        var o = copiar(r);
+        o._celda = String(r[dims[0]]) + '|' + String(r[dims[1]]);
+        return o;
+      });
+    }
+
     var viz = new Cls().select(node).data(plotData);
     call(viz, 'detectResize', true);
     call(viz, 'legend', opts.legend !== false);
@@ -198,10 +220,45 @@
         viz.groupBy([dims[0]]).sum(measures[0]);
         break;
       case 'box_whisker':
-        viz.groupBy(dims[0]).value(measures[0]);
+        // En D3plus v4 BoxWhisker hereda de Plot: se configura con x/y como
+        // cualquier gráfico cartesiano. El .value() de la v2 ya no existe y
+        // lanzaba, con lo que la tarjeta caía al SVG de reserva.
+        viz.groupBy(dims[0]).x(dims[0]).y(measures[0]);
+        call(viz, 'discrete', 'x');
+        break;
+      case 'plot':
+        // Nube de puntos: cada fila es un sismo, no una categoría. D3plus
+        // agrega por groupBy, así que sin una clave única por fila los 600
+        // puntos se colapsarían en uno por serie. El primer nivel del grupo
+        // es la serie que colorea y alimenta la leyenda; el segundo, el id.
+        viz.groupBy([serie, '_id']).x(xField).y(yField);
+        // El color va por la serie, no por el grupo compuesto: si no, cada
+        // punto estrenaría color propio y la leyenda quedaría ilegible.
+        call(viz, 'color', serie);
+        call(viz, 'shapeConfig', { Line: { strokeWidth: 0 }, label: false });
+        break;
+      case 'matrix':
+        // La celda necesita clave propia: agrupar solo por fila o por columna
+        // sumaría la franja entera en un solo cuadro.
+        viz.groupBy('_celda');
+        call(viz, 'row', dims[0]);
+        call(viz, 'column', dims[1]);
+        if (view.orden && view.orden.length) { call(viz, 'columnConfig', { domain: view.orden }); }
+        call(viz, 'color', colorPorValor(plotData, yField));
+        call(viz, 'shapeConfig', { label: false });
+        call(viz, 'legend', false);
         break;
       default:
         viz.groupBy(grupo).x(xField).y(yField);
+    }
+
+    /* En los gráficos cartesianos, D3plus v4 estampa el nombre de la serie
+       dentro de cada forma. Con una sola serie eso repite el mismo texto en
+       todas las barras y tapa el dato; la leyenda ya dice de qué serie se
+       trata. En pastel, dona y treemap la etiqueta sí es la información
+       principal, así que allí se conserva. */
+    if (['bar', 'stacked_bar', 'line', 'area', 'stacked_area', 'box_whisker'].indexOf(key) >= 0) {
+      call(viz, 'shapeConfig', { label: false });
     }
 
     /* Ejes y tooltip: siempre con título y cuerpo, nunca vacíos. */
@@ -237,6 +294,14 @@
 
     viz.render();
     return viz;
+  }
+
+  /* Copia superficial de una fila: los tipos que añaden campos calculados no
+     deben mutar el payload que la tarjeta guarda para el modal de datos. */
+  function copiar(r) {
+    var o = {};
+    for (var k in r) { if (Object.prototype.hasOwnProperty.call(r, k)) { o[k] = r[k]; } }
+    return o;
   }
 
   function fmt(v) {

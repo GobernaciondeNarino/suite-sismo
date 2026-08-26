@@ -37,6 +37,8 @@ final class SIS_Views {
 			'donut'        => array( 'class' => 'Donut', 'label' => 'Dona' ),
 			'treemap'      => array( 'class' => 'Treemap', 'label' => 'Treemap' ),
 			'box_whisker'  => array( 'class' => 'BoxWhisker', 'label' => 'Caja y bigotes' ),
+			'plot'         => array( 'class' => 'Plot', 'label' => 'Dispersión' ),
+			'matrix'       => array( 'class' => 'Matrix', 'label' => 'Matriz de calor' ),
 		);
 	}
 
@@ -54,6 +56,12 @@ final class SIS_Views {
 				return array( 'bar', 'line', 'area', 'box_whisker' );
 			case 'distribucion':
 				return array( 'box_whisker', 'bar' );
+			case 'dispersion':
+				// Una nube de puntos no se convierte en barras sin perder el
+				// dato: cada punto es un sismo, no una categoría agregada.
+				return array( 'plot' );
+			case 'matriz':
+				return array( 'matrix' );
 			case 'categorical':
 			default:
 				return array( 'bar', 'pie', 'donut', 'treemap', 'stacked_bar' );
@@ -124,6 +132,51 @@ final class SIS_Views {
 				'default'     => 'line',
 			),
 
+			'energia_acumulada'     => array(
+				'name'        => 'Energía acumulada (curva de Benioff)',
+				'description' => 'Suma acumulada de la energía liberada mes a mes. Los escalones marcan los sismos grandes; los tramos planos, los periodos de acumulación de esfuerzo.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'energia_acumulada_tnt' ),
+				'default'     => 'area',
+			),
+			'calendario_sismico'    => array(
+				'name'        => 'Calendario sísmico (año × mes)',
+				'description' => 'Matriz de calor con un año por fila y un mes por columna: las rachas y los enjambres aparecen como manchas, no como picos aislados de una serie.',
+				'category'    => 'matriz',
+				'dimensions'  => array( 'anio', 'mes_num' ),
+				'measures'    => array( 'sismos' ),
+				// Sin un orden explícito las columnas salen alfabéticas —Abr,
+				// Ago, Dic…— y el calendario deja de ser un calendario.
+				'orden'       => array( 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic' ),
+				'default'     => 'matrix',
+				'heatmap'     => true,
+			),
+			'hora_del_dia'          => array(
+				'name'        => 'Sismos por hora del día',
+				'description' => 'Reparto de los sismos entre las 24 horas del día (hora local de Colombia). Responde con datos a la creencia de que los sismos ocurren de madrugada.',
+				'category'    => 'statistical',
+				'dimensions'  => array( 'hora' ),
+				'measures'    => array( 'sismos' ),
+				'default'     => 'bar',
+			),
+			'intervalos'            => array(
+				'name'        => 'Días entre un sismo y el siguiente',
+				'description' => 'Histograma del tiempo transcurrido entre sismos consecutivos. Muestra que la sismicidad no llega a intervalos regulares.',
+				'category'    => 'statistical',
+				'dimensions'  => array( 'intervalo' ),
+				'measures'    => array( 'sismos' ),
+				'default'     => 'bar',
+			),
+			'sismos_sentidos'       => array(
+				'name'        => 'Sismos con reportes de la población',
+				'description' => 'Cuántos sismos de cada año dejaron reportes ciudadanos en «Did You Feel It?» del USGS, frente al total registrado por los instrumentos.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'anio' ),
+				'measures'    => array( 'registrados', 'sentidos' ),
+				'default'     => 'bar',
+			),
+
 			/* --- Distribuciones estadísticas --- */
 			'frecuencia_magnitud'   => array(
 				'name'        => 'Ley de Gutenberg-Richter (frecuencia-magnitud)',
@@ -157,6 +210,17 @@ final class SIS_Views {
 				'dimensions'  => array( 'rango_profundidad' ),
 				'measures'    => array( 'sismos' ),
 				'default'     => 'donut',
+			),
+			'dispersion_mag_prof'   => array(
+				'name'        => 'Dispersión magnitud–profundidad',
+				'description' => 'Un punto por sismo: la magnitud en el eje horizontal y la profundidad del hipocentro en el vertical, con el color del rango de profundidad. Deja ver de un vistazo a qué profundidad ocurren los sismos mayores.',
+				'category'    => 'dispersion',
+				'dimensions'  => array( 'magnitud' ),
+				'measures'    => array( 'profundidad' ),
+				// Campo que colorea la nube: sin él, los 600 puntos serían
+				// 600 series distintas y la leyenda taparía el gráfico.
+				'series'      => 'rango',
+				'default'     => 'plot',
 			),
 			'magnitud_profundidad'  => array(
 				'name'        => 'Magnitud según la profundidad',
@@ -284,6 +348,8 @@ final class SIS_Views {
 			'como_funciona'     => self::como_funciona( $id ),
 			'aviso'             => SIS_Texto::advertencia(),
 			'heatmap'           => ! empty( $m['heatmap'] ),
+			'series'            => isset( $m['series'] ) ? $m['series'] : '',
+			'orden'             => isset( $m['orden'] ) ? $m['orden'] : array(),
 			'contexto'          => array(
 				'ambito'        => $args['ambito'],
 				'ambito_nombre' => SIS_Regiones::obtener( $args['ambito'] )['nombre'],
@@ -389,6 +455,45 @@ final class SIS_Views {
 
 			case 'historico_mensual':
 				return self::filas_historico_mensual( $eventos );
+
+			case 'energia_acumulada':
+				$out  = array();
+				$acum = 0.0;
+				foreach ( SIS_Catalogo::energia_mensual( $eventos ) as $mes => $v ) {
+					$acum += (float) $v['tnt'];
+					$out[] = array(
+						'mes'                   => $mes,
+						'energia_acumulada_tnt' => round( $acum, 2 ),
+						'sismos'                => (int) $v['n'],
+					);
+				}
+				return $out;
+
+			case 'calendario_sismico':
+				return self::filas_calendario( $eventos );
+
+			case 'hora_del_dia':
+				return self::filas_hora( $eventos );
+
+			case 'intervalos':
+				return self::filas_intervalos( $eventos );
+
+			case 'sismos_sentidos':
+				return self::filas_sentidos( $eventos );
+
+			case 'dispersion_mag_prof':
+				$out = array();
+				foreach ( $eventos as $e ) {
+					$out[] = array(
+						'id'          => $e['id'],
+						'magnitud'    => (float) $e['mag'],
+						'profundidad' => (float) $e['profundidad'],
+						'rango'       => $e['rango_profundidad'],
+						'lugar'       => $e['lugar'],
+						'fecha'       => $e['dia'],
+					);
+				}
+				return $out;
 
 			case 'acumulado':
 				$out  = array();
@@ -496,6 +601,147 @@ final class SIS_Views {
 				'mes'             => $meses[ $i ],
 				'sismos'          => (int) $vals[ $i ],
 				'media_movil_12m' => round( $suma / ( $hasta - $desde + 1 ), 2 ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Rejilla año × mes para la matriz de calor.
+	 *
+	 * Cada celda necesita una clave propia: si se agrupara solo por año o solo
+	 * por mes, D3plus sumaría toda la fila en una sola celda.
+	 *
+	 * @param array[] $eventos Eventos.
+	 * @return array[]
+	 */
+	private static function filas_calendario( array $eventos ) {
+		$serie = SIS_Catalogo::conteo_mensual( $eventos );
+		if ( ! $serie ) {
+			return array();
+		}
+
+		$meses = array( '01' => 'Ene', '02' => 'Feb', '03' => 'Mar', '04' => 'Abr', '05' => 'May', '06' => 'Jun',
+			'07' => 'Jul', '08' => 'Ago', '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Dic' );
+
+		$out = array();
+		foreach ( $serie as $mes => $n ) {
+			$anio = substr( $mes, 0, 4 );
+			$num  = substr( $mes, 5, 2 );
+			$out[] = array(
+				'celda'   => $mes,
+				'anio'    => $anio,
+				'mes_num' => isset( $meses[ $num ] ) ? $meses[ $num ] : $num,
+				'sismos'  => (int) $n,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Reparto de los sismos entre las 24 horas del día, en hora de Colombia.
+	 *
+	 * El catálogo del USGS viaja en UTC; Colombia está en UTC−5 todo el año,
+	 * sin horario de verano, así que la conversión es un desplazamiento fijo.
+	 *
+	 * @param array[] $eventos Eventos.
+	 * @return array[]
+	 */
+	private static function filas_hora( array $eventos ) {
+		$conteo = array_fill( 0, 24, 0 );
+		foreach ( $eventos as $e ) {
+			$h = (int) gmdate( 'G', (int) $e['ts'] - ( 5 * 3600 ) );
+			$conteo[ $h ]++;
+		}
+
+		$out = array();
+		foreach ( $conteo as $h => $n ) {
+			// Etiqueta corta («7 h», no «07:00»): con 24 categorías, un rótulo
+			// de cinco caracteres no cabe en una tarjeta estrecha y D3plus
+			// termina ocultando el eje entero.
+			$out[] = array(
+				'hora'   => $h . ' h',
+				'sismos' => (int) $n,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Histograma del tiempo entre sismos consecutivos.
+	 *
+	 * Los tramos son desiguales a propósito: la mayoría de los intervalos son
+	 * cortos y una escala uniforme dejaría la cola larga en barras invisibles.
+	 *
+	 * @param array[] $eventos Eventos ordenados cronológicamente.
+	 * @return array[]
+	 */
+	private static function filas_intervalos( array $eventos ) {
+		$n = count( $eventos );
+		if ( $n < 3 ) {
+			return array();
+		}
+
+		$tramos = array(
+			array( 'Menos de 1 día', 0, 1 ),
+			array( '1 a 3 días', 1, 3 ),
+			array( '3 a 7 días', 3, 7 ),
+			array( '1 a 2 semanas', 7, 14 ),
+			array( '2 a 4 semanas', 14, 30 ),
+			array( '1 a 3 meses', 30, 91 ),
+			array( 'Más de 3 meses', 91, PHP_INT_MAX ),
+		);
+
+		$conteo = array_fill( 0, count( $tramos ), 0 );
+		for ( $i = 1; $i < $n; $i++ ) {
+			$dias = ( (int) $eventos[ $i ]['ts'] - (int) $eventos[ $i - 1 ]['ts'] ) / 86400;
+			if ( $dias < 0 ) {
+				continue;
+			}
+			foreach ( $tramos as $k => $t ) {
+				if ( $dias >= $t[1] && $dias < $t[2] ) {
+					$conteo[ $k ]++;
+					break;
+				}
+			}
+		}
+
+		$out = array();
+		foreach ( $tramos as $k => $t ) {
+			$out[] = array(
+				'intervalo' => $t[0],
+				'sismos'    => (int) $conteo[ $k ],
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Sismos registrados frente a sismos con reportes de la población.
+	 *
+	 * @param array[] $eventos Eventos.
+	 * @return array[]
+	 */
+	private static function filas_sentidos( array $eventos ) {
+		$acum = array();
+		foreach ( $eventos as $e ) {
+			$a = (int) $e['anio'];
+			if ( ! isset( $acum[ $a ] ) ) {
+				$acum[ $a ] = array( 'reg' => 0, 'sen' => 0 );
+			}
+			$acum[ $a ]['reg']++;
+			if ( ! empty( $e['reportes'] ) ) {
+				$acum[ $a ]['sen']++;
+			}
+		}
+
+		$out = array();
+		foreach ( SIS_Catalogo::conteo_anual( $eventos ) as $anio => $n ) {
+			$v     = isset( $acum[ $anio ] ) ? $acum[ $anio ] : array( 'reg' => 0, 'sen' => 0 );
+			$out[] = array(
+				'anio'        => (string) $anio,
+				'registrados' => (int) $v['reg'],
+				'sentidos'    => (int) $v['sen'],
 			);
 		}
 		return $out;
@@ -725,6 +971,24 @@ final class SIS_Views {
 
 			case 'sismos_anuales':
 				return SIS_Texto::cuantitativo( $datos, 'anio', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'año' ) );
+
+			case 'calendario_sismico':
+				return SIS_Texto::cuantitativo( $datos, 'mes_num', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes' ) );
+
+			case 'hora_del_dia':
+				return SIS_Texto::cuantitativo( $datos, 'hora', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'hora' ) );
+
+			case 'intervalos':
+				return SIS_Texto::cuantitativo( $datos, 'intervalo', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'intervalo' ) );
+
+			case 'sismos_sentidos':
+				return SIS_Texto::cuantitativo( $datos, 'anio', 'sentidos', array( 'unidad' => 'sismos sentidos', 'etiqueta_dim' => 'año' ) );
+
+			case 'energia_acumulada':
+				return SIS_Texto::cuantitativo( $datos, 'mes', 'energia_acumulada_tnt', array( 'unidad' => 'toneladas de TNT', 'etiqueta_dim' => 'mes' ) );
+
+			case 'dispersion_mag_prof':
+				return SIS_Texto::cuantitativo( $datos, 'rango', 'profundidad', array( 'unidad' => 'km', 'etiqueta_dim' => 'rango de profundidad' ) );
 
 			case 'sismos_mensuales':
 			case 'historico_mensual':

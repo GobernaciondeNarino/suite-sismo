@@ -106,9 +106,25 @@
       });
   }
 
+  /* Libera la instancia de D3plus anterior. destroy() existe desde la v4;
+     con una versión que no lo tenga, simplemente no hay nada que soltar. */
+  function soltar(st) {
+    if (st.viz && typeof st.viz.destroy === 'function') {
+      try { st.viz.destroy(); } catch (e) { /* una instancia ya desmontada no debe romper el redibujo */ }
+    }
+    st.viz = null;
+  }
+
   function dibujar(fig, chartEl, st) {
     try {
       if (!window.SISRenderer) { throw new Error('renderer'); }
+
+      // Cada cambio de tipo o de filtro redibuja la tarjeta. Sin soltar la
+      // instancia anterior, su ResizeObserver y sus escuchadores globales
+      // sobreviven al nodo que ya no existe: en una página con varios
+      // gráficos y filtros, eso se acumula visita tras visita.
+      soltar(st);
+
       st.viz = window.SISRenderer.render(chartEl, st.payload, {
         legend: st.legend, legendStyle: st.legendStyle, legendPos: st.legendPos
       });

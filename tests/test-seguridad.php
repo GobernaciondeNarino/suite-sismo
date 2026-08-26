@@ -239,10 +239,13 @@ foreach ( SIS_Shortcodes::SRI_CSS as $handle => $hash ) {
 	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "La hoja «{$handle}» declara huella SRI válida" );
 }
 
-$tag  = '<script src="https://cdn.jsdelivr.net/npm/d3plus@2.0.0/build/d3plus.full.min.js" id="d3plus-js"></script>';
+$tag  = '<script src="https://cdn.jsdelivr.net/npm/@d3plus/core@' . SIS_Shortcodes::D3PLUS_VERSION . '/umd/d3plus-core.full.min.js" id="d3plus-js"></script>';
 $sale = $sc->integridad_script( $tag, 'd3plus' );
 chk( false !== strpos( $sale, 'integrity="sha384-' ) && false !== strpos( $sale, 'crossorigin="anonymous"' ), 'El filtro inyecta integrity y crossorigin' );
 chk( $sc->integridad_script( $tag, 'otro-handle' ) === $tag, 'Los scripts propios no se tocan' );
+
+chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', SIS_Shortcodes::SRI['d3plus'] ), 'D3plus declara huella SRI válida' );
+chk( (bool) preg_match( '/^\d+\.\d+\.\d+$/', SIS_Shortcodes::D3PLUS_VERSION ), 'La versión de D3plus está fijada, no es un rango' );
 
 foreach ( SIS_Shortcodes::THREE_SRI as $ruta => $hash ) {
 	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "El módulo «{$ruta}» declara huella SRI válida" );

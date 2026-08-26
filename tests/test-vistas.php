@@ -375,6 +375,77 @@ chk( SIS_Regiones::contiene( 'mundo', 35.5, 140.2 ) && SIS_Regiones::contiene( '
 chk( ! SIS_Regiones::solo_feed( 'regional' ), 'El ámbito regional conserva su catálogo histórico' );
 
 /* ------------------------------------------------------------------ */
+/* Vistas nuevas: datos, tipos y textos                                */
+/* ------------------------------------------------------------------ */
+
+$nuevas = array( 'energia_acumulada', 'calendario_sismico', 'hora_del_dia', 'intervalos', 'sismos_sentidos', 'dispersion_mag_prof' );
+foreach ( $nuevas as $id ) {
+	$v = SIS_Views::obtener( $id, array( 'ambito' => 'regional', 'anios' => 0 ) );
+	chk( ! empty( $v['data'] ), "La vista «{$id}» devuelve datos" );
+	chk( ! empty( $v['description'] ) && ! empty( $v['analisis'] ) && ! empty( $v['como_funciona'] ), "La vista «{$id}» trae sus tres textos" );
+	chk( in_array( $v['default'] ?? SIS_Views::default_tipo( $id ), SIS_Views::compatibles( $v['category'] ), true ), "El tipo por defecto de «{$id}» es compatible con su categoría" );
+}
+
+// Toda vista publicada debe poder acompañarse de sus textos: es la promesa de
+// las tarjetas del panel.
+foreach ( SIS_Views::lista() as $v ) {
+	$full = SIS_Views::obtener( $v['id'], array( 'ambito' => 'regional' ) );
+	chk( '' !== trim( (string) $full['descripcion_larga'] ) && '' !== trim( (string) $full['analisis'] ) && '' !== trim( (string) $full['como_funciona'] ),
+		"«{$v['id']}» puede publicarse con descripción y análisis" );
+}
+
+// La hora se calcula en hora de Colombia (UTC−5) y cubre las 24 franjas.
+$h = SIS_Views::obtener( 'hora_del_dia', array( 'ambito' => 'regional', 'anios' => 0 ) );
+chk( 24 === count( $h['data'] ), 'La vista de horas cubre las 24 franjas del día' );
+$total_h = array_sum( wp_list_pluck( $h['data'], 'sismos' ) );
+$cat     = SIS_Catalogo::obtener( 'regional' );
+chk( $total_h === $cat['total'], 'El reparto por hora suma todos los sismos del catálogo' );
+
+// La media móvil del calendario cubre los mismos meses que la serie mensual.
+$cal = SIS_Views::obtener( 'calendario_sismico', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$men = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'regional', 'anios' => 0 ) );
+chk( count( $cal['data'] ) === count( $men['data'] ), 'El calendario cubre los mismos meses que la serie mensual' );
+chk( 12 === count( $cal['orden'] ), 'El calendario declara el orden de sus doce columnas' );
+chk( 'Ene' === $cal['orden'][0] && 'Dic' === $cal['orden'][11], 'Las columnas del calendario van de enero a diciembre' );
+
+// La dispersión publica un punto por sismo, con su id, y declara qué colorea.
+$disp = SIS_Views::obtener( 'dispersion_mag_prof', array( 'ambito' => 'regional', 'anios' => 0 ) );
+chk( count( $disp['data'] ) === $cat['total'], 'La dispersión dibuja un punto por sismo, sin agregar' );
+chk( 'rango' === $disp['series'], 'La dispersión declara el campo que colorea la nube' );
+$ids = wp_list_pluck( $disp['data'], 'id' );
+chk( count( array_unique( $ids ) ) === count( $ids ), 'Cada punto de la dispersión lleva un id único' );
+
+// Los sismos sentidos nunca pueden superar a los registrados.
+$sen = SIS_Views::obtener( 'sismos_sentidos', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$coherente = true;
+foreach ( $sen['data'] as $f ) {
+	if ( $f['sentidos'] > $f['registrados'] ) { $coherente = false; }
+}
+chk( $coherente, 'Los sismos sentidos nunca superan a los registrados' );
+
+// La energía acumulada solo puede crecer.
+$ea      = SIS_Views::obtener( 'energia_acumulada', array( 'ambito' => 'regional', 'anios' => 0 ) );
+$crece   = true;
+$anterior = -1.0;
+foreach ( $ea['data'] as $f ) {
+	if ( $f['energia_acumulada_tnt'] < $anterior ) { $crece = false; }
+	$anterior = $f['energia_acumulada_tnt'];
+}
+chk( $crece, 'La curva de energía acumulada nunca decrece' );
+
+/* ------------------------------------------------------------------ */
+/* Tipos de gráfico del motor                                          */
+/* ------------------------------------------------------------------ */
+
+$tipos = SIS_Views::tipos();
+chk( isset( $tipos['plot']['class'] ) && 'Plot' === $tipos['plot']['class'], 'El motor conoce el tipo dispersión (Plot)' );
+chk( isset( $tipos['matrix']['class'] ) && 'Matrix' === $tipos['matrix']['class'], 'El motor conoce el tipo matriz de calor (Matrix)' );
+chk( array( 'plot' ) === SIS_Views::compatibles( 'dispersion' ), 'Una nube de puntos no se ofrece como barras' );
+foreach ( $tipos as $k => $t ) {
+	chk( ! empty( $t['class'] ) && ! empty( $t['label'] ), "El tipo «{$k}» declara clase y etiqueta" );
+}
+
+/* ------------------------------------------------------------------ */
 echo "\n";
 if ( $fallos ) {
 	echo "RESULTADO: $fallos prueba(s) fallida(s).\n";

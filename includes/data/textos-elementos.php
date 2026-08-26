@@ -14,6 +14,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_estado]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Estado de la actividad sísmica',
 		'que_hace'  => 'Semáforo con el último sismo registrado (magnitud, profundidad, lugar y municipio más cercano) y los conteos de las últimas 24 horas, semana, mes y año. Con «vivo» activado se refresca desde el feed del USGS cada dos minutos.',
 		'atributos' => 'ambito · dias · min_mag · compacto (si|no) · vivo (si|no)',
@@ -22,6 +23,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_ultimos]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Últimos sismos',
 		'que_hace'  => 'Lista de los sismos más recientes con magnitud, antigüedad, profundidad y enlace a la ficha del USGS. Los eventos nuevos se destacan al llegar.',
 		'atributos' => 'ambito · dias · min_mag · limite · vivo (si|no)',
@@ -30,6 +32,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_mapa]',
+		'grupo'     => 'globo',
 		'titulo'    => 'Mapa de epicentros',
 		'que_hace'  => 'Mapa Leaflet con un círculo por sismo: el tamaño codifica la magnitud y el color la profundidad. Superpone la capa oficial de amenaza sísmica del SGC (Modelo Nacional de Amenaza Sísmica) y, si se desea, los centroides de los 64 municipios. La amenaza no se calcula: se muestra la capa oficial con su atribución.',
 		'atributos' => 'ambito · dias · anios · min_mag · alto · municipios (si|no) · amenaza (si|no) · periodo (75|225|475|975|2475) · zoom',
@@ -38,6 +41,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_historico]',
+		'grupo'     => 'historicas',
 		'titulo'    => 'El registro completo en dos lecturas',
 		'que_hace'  => 'Publica juntas las dos gráficas que responden a «¿cómo ha sido esto a lo largo del tiempo?»: barras de sismos por año, que dan la perspectiva larga, y una línea mensual con su media móvil de doce meses, que separa la tendencia de fondo del ruido de las secuencias de réplicas. Ambas recorren todo el catálogo disponible, no una ventana reciente, y llegan hasta el mes en curso aunque no haya habido sismos.',
 		'atributos' => 'ambito · min_mag · alto · theme (claro|oscuro) · toolbar (si|no) · analisis · titulo',
@@ -46,6 +50,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_globo]',
+		'grupo'     => 'globo',
 		'titulo'    => 'Globo 3D de sismos recientes',
 		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
 		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (si|no) · municipios (si|no) · timeline (si|no)',
@@ -54,6 +59,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_timeline]',
+		'grupo'     => 'globo',
 		'titulo'    => 'Línea de tiempo de sismos',
 		'que_hace'  => 'Barra que recorre los sismos del periodo en orden cronológico: botones de sismo anterior y siguiente, reproducción a tres velocidades, deslizador y una tira con una marca por sismo coloreada por magnitud. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
 		'atributos' => 'ambito · limite · logo (si|no)',
@@ -62,6 +68,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_grafico]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Gráfico estadístico (motor D3plus)',
 		'que_hace'  => 'Tarjeta de gráfico con barra de herramientas: Cómo funciona, Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y cambio de tipo en vivo. Elija el conjunto de datos con «view» y el tipo con «type».',
 		'atributos' => 'view · type · ambito · anios · min_mag · theme (claro|oscuro) · actions · legend · legend_style · legend_pos · toolbar · alto · grupo · analisis · titulo',
@@ -70,6 +77,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_amenaza]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Amenaza sísmica en Nariño',
 		'que_hace'  => 'Explica de dónde viene la amenaza del departamento —subducción, fallas activas, vulcanismo y tsunami—, resume la referencia normativa vigente y enlaza al sistema oficial de consulta de amenaza del SGC. No contiene estimaciones propias de sismos futuros.',
 		'atributos' => 'titulo · normativa (si|no) · fuentes (si|no)',
@@ -78,6 +86,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_glosario]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Entienda los términos',
 		'que_hace'  => 'Separa cuatro conceptos que suelen confundirse: alerta temprana, pronóstico, probabilidad de largo plazo y predicción. Marca con claridad cuál de ellos no es posible.',
 		'atributos' => 'titulo',
@@ -86,6 +95,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_preparacion]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Cómo prepararse',
 		'que_hace'  => 'Guía ciudadana: qué hacer antes, durante y después de un sismo, qué llevar en el kit de emergencia y cómo organizarse en el colegio, el trabajo y el barrio.',
 		'atributos' => 'seccion (todas|antes|durante|despues|kit|comunidad) · titulo',
@@ -94,6 +104,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_replicas]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Después de un sismo fuerte',
 		'que_hace'  => 'Información educativa fija sobre réplicas —qué son, cuánto duran, qué hacer y qué no— con enlace al boletín oficial del SGC. Nunca publica cifras ni probabilidades propias de réplicas.',
 		'atributos' => 'titulo',
@@ -102,6 +113,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_desinformacion]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Cómo reconocer una predicción falsa',
 		'que_hace'  => 'Panel anti-desinformación con las señales que delatan una cadena falsa: fechas exactas, sellos copiados, «alineaciones planetarias», anuncios de réplicas. Replica los desmentidos del SGC y del IDEAM.',
 		'atributos' => 'titulo',
@@ -110,6 +122,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_fuentes_oficiales]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Dónde consultar información oficial',
 		'que_hace'  => 'Directorio de los recursos del SGC, el OVSP, la UNGRD y el USGS, con el descargo institucional que identifica a la autoridad técnica.',
 		'atributos' => 'titulo',
@@ -118,6 +131,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_estadistica]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Ficha estadística del catálogo',
 		'que_hace'  => 'Indicadores clave: número de sismos, años de registro, magnitud de completitud, valor b con su error, tasa anual, mayor magnitud registrada, energía liberada y recurrencia observada por magnitud.',
 		'atributos' => 'ambito · anios · dias · min_mag',
@@ -126,6 +140,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_datos]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Datos abiertos',
 		'que_hace'  => 'Botones de descarga en JSON y CSV y enlace directo a la API pública del plugin, con la atribución al USGS incorporada.',
 		'atributos' => 'recurso (eventos|estadistica|recurrencia) · ambito · anios · dias · min_mag · texto',
@@ -134,6 +149,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_estado_api]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Estado de las fuentes',
 		'que_hace'  => 'Panel público de transparencia: qué fuentes están activas, cuándo se sincronizaron por última vez y con qué resultado.',
 		'atributos' => '—',
@@ -142,6 +158,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_descripcion]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Descripción de una vista',
 		'que_hace'  => 'Publica solo el texto que explica qué muestra el gráfico, para maquetarlo aparte de la gráfica.',
 		'atributos' => 'view · ambito · anios · titulo · grupo',
@@ -150,6 +167,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_explicacion]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Cómo funciona una vista',
 		'que_hace'  => 'Publica solo la explicación metodológica: qué se calcula, con qué fuente y bajo qué supuestos.',
 		'atributos' => 'view · ambito · anios · titulo · grupo',
@@ -158,6 +176,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_analisis_cualitativo]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Interpretación de una vista',
 		'que_hace'  => 'Publica solo el párrafo de interpretación: cómo leer el gráfico y qué errores evitar.',
 		'atributos' => 'view · ambito · anios · titulo · grupo',
@@ -166,6 +185,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_analisis_cuantitativo]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Cifras clave de una vista',
 		'que_hace'  => 'Publica solo las cifras calculadas con los datos vigentes (máximos, promedios, participación y tendencia). Cambia cuando cambian los datos.',
 		'atributos' => 'view · ambito · anios · titulo · grupo',
@@ -174,6 +194,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_analisis]',
+		'grupo'     => 'texto',
 		'titulo'    => 'Análisis completo de una vista',
 		'que_hace'  => 'Interpretación y cifras clave juntas, sin la gráfica.',
 		'atributos' => 'view · modo (ambos|descriptivo|cuantitativo|descripcion|como_funciona) · ambito · anios · titulo · grupo',
@@ -182,6 +203,7 @@ return array(
 
 	array(
 		'shortcode' => '[sismos_filtro] + [sismos_panel]',
+		'grupo'     => 'graficas',
 		'titulo'    => 'Componentes composables',
 		'que_hace'  => 'Separe el gráfico, sus filtros y el panel de detalles en shortcodes distintos y enlácelos con el mismo atributo «grupo»: al cambiar un filtro, el gráfico del grupo se vuelve a dibujar.',
 		'atributos' => 'grupo · control (vista|tipo|ambito|anios) · etiqueta',

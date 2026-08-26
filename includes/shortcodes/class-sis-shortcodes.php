@@ -31,6 +31,8 @@ final class SIS_Shortcodes {
 	 * de esa misma respuesta ya verificada. Así el globo mantiene la misma
 	 * garantía de integridad que el resto de librerías por CDN.
 	 */
+	const D3PLUS_VERSION = '4.3.0';
+
 	const THREE_VERSION = '0.160.0';
 	const THREE_SRI = array(
 		'build/three.module.js'                  => 'sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ',
@@ -49,7 +51,7 @@ final class SIS_Shortcodes {
 	 * exacta que se declara en registrar_assets(). Mapa handle → integrity.
 	 */
 	const SRI = array(
-		'd3plus'  => 'sha384-4DR0HEBjq97japjfe8qc24TUqrsRRTP8vrp3BVJDSinq0vY9j9G/OQTkndy3Czhb',
+		'd3plus'  => 'sha384-juQNg5kQNCI3eYFHGgQGUElAJ4B7Rd1tqeRyze38QSxRiQQsMEn2p1xzBqTQzZNI',
 		'leaflet' => 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH',
 	);
 
@@ -146,10 +148,12 @@ final class SIS_Shortcodes {
 	 * Registra (sin encolar) librerías CDN y scripts del plugin.
 	 */
 	public function registrar_assets() {
-		// D3plus por CDN, sin proceso de build. Se usa el bundle UMD completo
-		// de la v2: los bundles «bare» de @d3plus/core dejan window.d3plus vacío
-		// en el navegador y ningún gráfico llega a pintarse.
-		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/d3plus@2.0.0/build/d3plus.full.min.js', array(), '2.0.0', true );
+		// D3plus por CDN, sin proceso de build. La v4 publica un bundle UMD que
+		// sí puebla window.d3plus —la v3 lo dejaba vacío y ningún gráfico
+		// llegaba a pintarse, que es lo que obligó a quedarse en la v2— y
+		// además expone destroy(), que el hidratador necesita para soltar el
+		// ResizeObserver del gráfico anterior al redibujar.
+		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/@d3plus/core@' . self::D3PLUS_VERSION . '/umd/d3plus-core.full.min.js', array(), self::D3PLUS_VERSION, true );
 
 		wp_register_style( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', array(), '1.9.4' );
 		wp_register_script( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', array(), '1.9.4', true );

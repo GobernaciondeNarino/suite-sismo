@@ -1,0 +1,88 @@
+/* Panel de administración del plugin.
+   Solo se carga en las pantallas de «Sismos Nariño»; hereda la tipografía y
+   los colores del propio WordPress y añade lo justo para el catálogo de
+   elementos: pestañas, tarjetas por gráfica y bloques de shortcode. */
+
+/* Las pestañas de WordPress flotan y, en un móvil, empujan el ancho de la
+   página en lugar de plegarse. Aquí se convierten en una fila que se desplaza
+   dentro de su propia caja. */
+.sis-tabs {
+  margin: 12px 0 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+.sis-tabs .nav-tab { float: none; display: inline-block; }
+
+.sis-intro { max-width: 62em; margin: 0 0 14px; }
+
+/* --- Rejilla de tarjetas: una por gráfica --- */
+.sis-cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  margin: 12px 0 26px;
+}
+
+.sis-card {
+  display: flex;
+  flex-direction: column;
+  /* Un elemento de rejilla mide por defecto lo que mida su contenido más
+     ancho. Sin esto, un shortcode largo sin espacios estira la columna y con
+     ella la página entera en un móvil. */
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  padding: 14px 15px 12px;
+}
+.sis-card__cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.sis-card__titulo { font-size: 14px; font-weight: 600; margin: 0; }
+.sis-card__id { font-family: Consolas, Monaco, monospace; font-size: 11.5px; color: #50575e; }
+.sis-card__desc { font-size: 12.8px; line-height: 1.5; color: #3c434a; margin: 0 0 10px; flex: 1 0 auto; }
+
+.sis-card__etq {
+  display: inline-block;
+  font-size: 10.5px; line-height: 1.6;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f0f0f1;
+  color: #50575e;
+  white-space: nowrap;
+}
+.sis-card__etq--tipo { background: #e7f0f7; color: #0a4b78; }
+
+/* --- Shortcodes copiables --- */
+.sis-sc { display: flex; align-items: center; gap: 6px; margin: 0 0 5px; min-width: 0; }
+.sis-sc__code {
+  flex: 1 1 auto; min-width: 0;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11.5px;
+  padding: 4px 7px;
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  border-radius: 3px;
+  /* El shortcode se lee entero: parte por los espacios en vez de recortarse.
+     En una pantalla de referencia importa más verlo completo que ahorrar alto. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sis-sc__etq { flex: 0 0 auto; font-size: 11px; color: #646970; width: 5.6em; }
+.sis-sc .button { flex: 0 0 auto; }
+
+.sis-card__pie { margin-top: 8px; font-size: 11px; color: #646970; }
+
+/* --- Tabla de componentes --- */
+/* La tabla tiene tres columnas de texto largo: en una pantalla estrecha
+   ensanchaba la página entera. Se desplaza dentro de su propia caja, como las
+   tablas de datos del front. */
+.sis-tabla-scroll { overflow-x: auto; }
+.sis-tabla-scroll > table { min-width: 640px; }
+/* El ejemplo es una línea de texto, no un identificador: puede partirse. */
+.sis-admin-ejemplo { display: inline-block; max-width: 100%; white-space: pre-wrap; word-break: break-word; }
+
+@media (max-width: 782px) {
+  .sis-sc__etq { display: none; }
+  .sis-cards { grid-template-columns: 1fr; }
+}

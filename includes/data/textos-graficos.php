@@ -47,6 +47,42 @@ return array(
 		'como_funciona' => 'Conteo mensual de eventos dentro del ámbito, con los meses sin actividad en cero y la serie extendida hasta el mes en curso. La media móvil promedia una ventana centrada de doce meses; en los extremos de la serie se promedia solo la parte disponible, sin extrapolar meses que el catálogo no cubre. Fuente: USGS Earthquake Hazards Program (FDSN Event Web Service).',
 	),
 
+	'energia_acumulada'     => array(
+		'descripcion'   => 'Suma acumulada de la energía sísmica liberada, mes a mes, en toneladas equivalentes de TNT. Es la versión energética de la curva acumulada de conteo, y se conoce en sismología como curva de Benioff. Cada punto responde a «cuánta energía había liberado la región hasta esta fecha».',
+		'analisis'      => 'La curva sube a escalones, no en rampa. Cada peldaño es un sismo grande: como cada unidad de magnitud multiplica la energía por unas treinta y dos veces, un solo evento de magnitud 6 levanta la curva más que todos los pequeños de la década. Los tramos planos entre escalones son los periodos en que la falla acumula esfuerzo sin liberarlo. Conviene resistir la tentación de leer el siguiente escalón: la curva describe lo ocurrido, y su forma pasada no dice cuándo llegará el próximo salto.',
+		'como_funciona' => 'A cada sismo se le aplica la relación energía-magnitud log10(E) = 1,5·M + 4,8, con E en julios; se suman los julios del mes, se convierten a toneladas de TNT (1 t = 4,184·10⁹ J) y se acumulan desde el primer mes del catálogo. La suma se hace sobre la energía, nunca sobre la magnitud: promediar magnitudes mezclaría escalas logarítmicas y falsearía el resultado.',
+	),
+
+	'calendario_sismico'    => array(
+		'descripcion'   => 'El catálogo entero dispuesto como un calendario: un año por fila, un mes por columna y el color de cada celda según cuántos sismos hubo ese mes. Es la misma información de la serie mensual, ordenada de forma que el ojo compare meses equivalentes de años distintos.',
+		'analisis'      => 'Busque manchas, no celdas sueltas. Una fila con varias celdas oscuras seguidas es un año de actividad sostenida; una sola celda muy oscura suele ser un sismo principal con su secuencia de réplicas concentrada en semanas. Lo que no va a encontrar es un patrón por columnas: si la sismicidad tuviera «meses malos», las columnas se verían sistemáticamente más oscuras, y no ocurre. Esa ausencia de patrón estacional es, en sí misma, el resultado más útil de esta vista.',
+		'como_funciona' => 'Conteo de eventos por mes calendario UTC, dispuesto en una rejilla año × mes. Los meses sin actividad se dibujan igualmente, en el extremo claro de la escala, y la rejilla llega hasta el mes en curso. El color es una escala secuencial: a más oscuro, más sismos.',
+	),
+
+	'hora_del_dia'          => array(
+		'descripcion'   => 'Reparto de todos los sismos del catálogo entre las 24 horas del día, en hora de Colombia. Cada barra cuenta los eventos cuya hora de origen cayó en esa franja, sumando todos los años disponibles.',
+		'analisis'      => 'Las barras deberían quedar aproximadamente parejas, y eso es exactamente lo que se busca comprobar. Es común oír que los sismos ocurren de madrugada; lo que ocurre de madrugada es que la gente está en silencio y quieta, y por eso los nota más. Las diferencias que se ven entre horas son las que cabe esperar del azar cuando se reparten unos cientos de eventos en 24 casillas. Si una franja destacara de verdad, la explicación estaría en el catálogo —una secuencia de réplicas concentrada en pocas horas— y no en el reloj.',
+		'como_funciona' => 'Se toma la hora de origen de cada evento, que el USGS publica en UTC, y se convierte a hora de Colombia restando cinco horas: el país usa UTC−5 todo el año, sin horario de verano, así que el desplazamiento es fijo y no introduce error. Después se cuentan los eventos de cada franja horaria.',
+	),
+
+	'intervalos'            => array(
+		'descripcion'   => 'Histograma del tiempo transcurrido entre cada sismo y el anterior. Los tramos son desiguales a propósito —de horas a meses—, porque la mayoría de los intervalos son cortos y una escala uniforme dejaría la cola larga en barras invisibles.',
+		'analisis'      => 'La forma típica es una barra alta en los intervalos cortos que va cayendo hacia los largos. Esa acumulación en la izquierda es la firma de las réplicas: después de un sismo fuerte llegan muchos en pocas horas o días. Fuera de esas rachas, los intervalos se reparten sin regularidad. La lectura importante es negativa: no existe un intervalo «típico» al que la región vuelva, de modo que contar días desde el último sismo no acerca ni aleja al siguiente. La sismicidad no tiene memoria de calendario.',
+		'como_funciona' => 'Se ordenan los eventos por hora de origen y se mide la diferencia con el evento inmediatamente anterior dentro del mismo ámbito y umbral de magnitud. Cambiar el ámbito o la magnitud mínima cambia la serie completa: con un umbral más alto hay menos sismos y los intervalos se alargan.',
+	),
+
+	'sismos_sentidos'       => array(
+		'descripcion'   => 'Dos series por año: cuántos sismos registraron los instrumentos y cuántos de ellos dejaron al menos un reporte ciudadano en «Did You Feel It?», el sistema de reportes voluntarios del USGS. La diferencia entre ambas barras es la parte de la sismicidad que ocurre sin que nadie la note.',
+		'analisis'      => 'La mayoría de los sismos del catálogo no los siente nadie: son pequeños, profundos o mar adentro. Los que sí se sienten son los que importan para la preparación ciudadana. Ahora bien, esta serie mide percepción y conectividad tanto como sismología: un sismo sentido en una zona sin cobertura de internet no genera reportes, y el número de reportes ha crecido con el uso de teléfonos móviles. Léala como un indicador de exposición de la población, no como una medida física del sismo.',
+		'como_funciona' => 'Se cuentan los eventos del año y, aparte, los que traen al menos un reporte en el campo «felt» del USGS. No se usa el número de reportes, solo si hubo alguno: el conteo depende de cuánta gente conoce el formulario y tiene con qué llenarlo, así que compararlo entre municipios o años sería engañoso.',
+	),
+
+	'dispersion_mag_prof'   => array(
+		'descripcion'   => 'Un punto por sismo, con la magnitud en el eje horizontal y la profundidad del hipocentro en el vertical. El color indica el rango de profundidad. A diferencia del diagrama de caja, aquí no hay agregación: se ve cada evento del catálogo tal cual quedó registrado.',
+		'analisis'      => 'Lo primero que salta es que los sismos no se reparten de forma uniforme en profundidad: se agrupan en bandas, que corresponden a la geometría de la placa de Nazca hundiéndose bajo Sudamérica. La banda somera, por encima de unos 70 km, es la que más importa para el territorio: a igualdad de magnitud, un sismo somero sacude mucho más fuerte en superficie que uno profundo. Fíjese también en que los eventos mayores no aparecen sistemáticamente a una profundidad concreta; magnitud y profundidad son parámetros independientes del mismo proceso.',
+		'como_funciona' => 'Se dibuja cada evento del ámbito y la ventana seleccionados, sin agrupar ni promediar. La profundidad procede de la tercera coordenada del GeoJSON del USGS, en kilómetros. Conviene recordar que la profundidad es el parámetro peor determinado de una solución sísmica: cuando la estación más cercana está más lejos que la profundidad calculada, la incertidumbre crece bastante.',
+	),
+
 	'acumulado'             => array(
 		'descripcion'   => 'Curva acumulada del número de sismos a lo largo del tiempo: cada punto suma todo lo ocurrido hasta ese mes. Es una de las herramientas clásicas de la sismología estadística, porque convierte los cambios de ritmo en cambios de pendiente, mucho más fáciles de ver a simple vista que en una serie de barras.',
 		'analisis'      => 'Una recta significa que la sismicidad ocurre a tasa constante, que es el comportamiento esperado de un proceso de Poisson. Los escalones bruscos delatan secuencias de réplicas concentradas en pocos días. Un cambio duradero de pendiente —la curva se empina o se aplana durante meses— sí sugiere un cambio real en la tasa de actividad; leerlo hacia atrás es legítimo, proyectarlo hacia adelante no lo es. Los tramos planos largos son periodos de calma sísmica por encima del umbral de detección.',

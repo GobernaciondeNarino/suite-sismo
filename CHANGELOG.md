@@ -1,5 +1,39 @@
 # Registro de cambios
 
+## 2.4.0 — 2026-08-26
+
+### Motor de gráficos: migración a D3plus v4
+
+La v3 dejaba `window.d3plus` vacío en el navegador y ningún gráfico llegaba a pintarse; por eso el plugin seguía en la v2. La v4 publica un bundle UMD que sí puebla el global, verificado en Chromium con los nueve tipos que usa el motor.
+
+- D3plus pasa de la 2.0.0 a la **4.3.0**, con la versión fijada y huella SRI nueva.
+- El hidratador llama a `destroy()` sobre la instancia anterior antes de redibujar. Cada cambio de tipo o de filtro dejaba vivos el `ResizeObserver` y los escuchadores del gráfico que ya no existía; en una página con varios gráficos y filtros eso se acumulaba visita tras visita.
+- **`BoxWhisker` dejó de caer al SVG de reserva.** En la v4 hereda de `Plot` y se configura con `x`/`y`; el `value()` de la v2 ya no existe y lanzaba en cada render.
+- La v4 estampa el nombre de la serie dentro de cada forma: con una sola serie eso repetía el mismo texto en todas las barras y tapaba el dato. Se suprime en los gráficos cartesianos y se conserva en pastel, dona y treemap, donde la etiqueta es la información principal.
+
+### Cinco gráficas nuevas y dos tipos nuevos
+
+- **Dispersión magnitud–profundidad** (`dispersion_mag_prof`, tipo `plot`): un punto por sismo, sin agregar, coloreado por rango de profundidad. Deja ver las bandas de la placa de Nazca hundiéndose bajo Sudamérica.
+- **Calendario sísmico** (`calendario_sismico`, tipo `matrix`): un año por fila, un mes por columna. Las rachas aparecen como manchas y la ausencia de patrón por columnas responde, con datos, a la idea de que hay «meses malos».
+- **Energía acumulada** (`energia_acumulada`): la curva de Benioff. Sube a escalones porque cada unidad de magnitud multiplica la energía por unas treinta y dos veces.
+- **Sismos por hora del día** (`hora_del_dia`): reparto entre las 24 franjas en hora de Colombia. Responde a la creencia de que los sismos ocurren de madrugada.
+- **Días entre un sismo y el siguiente** (`intervalos`): histograma de tramos desiguales que muestra que la sismicidad no llega a intervalos regulares.
+- **Sismos con reportes de la población** (`sismos_sentidos`): registrados frente a sentidos, año a año.
+
+El motor sube de 9 a 11 tipos de gráfico y de 15 a 21 vistas. Cada vista nueva trae sus tres textos —descripción, interpretación y cómo se calcula—, igual que las anteriores.
+
+### Panel «Elementos»: pestañas y una tarjeta por gráfica
+
+- El catálogo se reparte en cuatro pestañas: **Gráficas**, **Visualizaciones históricas**, **Globo y mapa** e **Información**. Cada componente declara a cuál pertenece y aparece en una sola.
+- Cada gráfica tiene su tarjeta con los **cinco shortcodes listos para copiar**: la gráfica, su descripción, su análisis cualitativo, sus cifras y la versión con todo junto. Antes había que recordar la sintaxis y el identificador de la vista.
+- La tarjeta muestra también el tipo por defecto y los tipos alternativos de esa gráfica.
+- Nueva hoja `assets/css/admin.css`, que solo se carga en las pantallas del plugin. Las pestañas de WordPress flotan y en un móvil empujaban el ancho de la página: ahora se desplazan dentro de su caja, y lo mismo hace la tabla de componentes.
+- Nuevo `tests/test-panel.php` (54 comprobaciones): las cuatro pestañas se pintan, cada componente cae en una sola, hay una tarjeta por vista —ni más ni menos— y toda vista publica sus cinco shortcodes.
+
+### Correcciones
+
+- Tres textos de gráficos seguían remitiendo al módulo de pronóstico retirado en 2.0.0. Reescritos.
+
 ## 2.3.0 — 2026-08-26
 
 ### Las series ya no se detienen en el último sismo
