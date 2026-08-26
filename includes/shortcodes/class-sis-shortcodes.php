@@ -24,89 +24,42 @@ final class SIS_Shortcodes {
 	private static $importmap_impreso = false;
 
 	/**
-	 * Versión de Three.js y huellas SRI de sus dos archivos.
+	 * Versiones de las librerías que el plugin sirve desde su propia carpeta.
 	 *
-	 * Un importmap no admite `integrity`, pero `<link rel="modulepreload">` sí:
-	 * al precargar con huella, el módulo que después resuelve el importmap sale
-	 * de esa misma respuesta ya verificada. Así el globo mantiene la misma
-	 * garantía de integridad que el resto de librerías por CDN.
+	 * Se guardan aquí para que el número que ve el navegador en el parámetro
+	 * «ver» —y por tanto la caché— cambie al actualizar el archivo.
 	 */
 	const D3PLUS_VERSION = '4.3.0';
+	const THREE_VERSION  = '0.160.0';
+	const LEAFLET_VERSION = '1.9.4';
 
-	const THREE_VERSION = '0.160.0';
-	const THREE_SRI = array(
-		'build/three.module.js'                  => 'sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ',
-		'examples/jsm/controls/OrbitControls.js' => 'sha384-qlO/ZugKPxAQUAvTlQoo0QECzxJIJySZmCF/DHdb2Xn/hHndFwX/vfUAC9Hbk6LP',
+	/**
+	 * Archivos de Three.js que el importmap resuelve, relativos a assets/vendor/.
+	 *
+	 * Se precargan con `modulepreload` para que el navegador los pida en cuanto
+	 * ve la página, sin esperar a que el módulo del globo los importe.
+	 */
+	const THREE_MODULOS = array(
+		'three'         => 'three.module.min.js',
+		'three/addons/' => 'three-addons/',
 	);
+
+	/**
+	 * Textura fotográfica opcional del planeta (1,4 MB).
+	 *
+	 * Es lo único que el globo puede pedir fuera del sitio, y solo si alguien
+	 * lo activa a propósito con textura="si". Por defecto no se carga.
+	 */
+	const TEXTURA_PLANETA = 'https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg';
 
 	/** Atribución por defecto al pie de cada componente. */
 	const FUENTE = 'U.S. Geological Survey — Earthquake Hazards Program (dominio público) · Gráficos: D3plus';
-
-	/**
-	 * Huellas SRI de las librerías servidas por CDN.
-	 *
-	 * Si el archivo servido cambia un solo byte, el navegador lo rechaza. Es la
-	 * defensa contra un CDN comprometido o un intermediario que altere el
-	 * script. Al recalcularlas hay que descargar el archivo de la versión
-	 * exacta que se declara en registrar_assets(). Mapa handle → integrity.
-	 */
-	const SRI = array(
-		'd3plus'  => 'sha384-juQNg5kQNCI3eYFHGgQGUElAJ4B7Rd1tqeRyze38QSxRiQQsMEn2p1xzBqTQzZNI',
-		'leaflet' => 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH',
-	);
-
-	/** Huella SRI de las hojas de estilo por CDN. */
-	const SRI_CSS = array(
-		'leaflet' => 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H',
-	);
 
 	public function __construct() {
 		add_action( 'init', array( $this, 'registrar_shortcodes' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'registrar_assets' ), 10 );
 		add_filter( 'script_loader_tag', array( $this, 'marcar_modulo' ), 9, 3 );
-		add_filter( 'script_loader_tag', array( $this, 'integridad_script' ), 10, 2 );
-		add_filter( 'style_loader_tag', array( $this, 'integridad_estilo' ), 10, 2 );
 	}
-
-	/**
-	 * Añade integrity y crossorigin a los scripts servidos por CDN.
-	 *
-	 * @param string $tag    Etiqueta <script> completa.
-	 * @param string $handle Handle registrado.
-	 * @return string
-	 */
-	public function integridad_script( $tag, $handle ) {
-		if ( ! isset( self::SRI[ $handle ] ) || false !== strpos( $tag, 'integrity=' ) ) {
-			return $tag;
-		}
-		return str_replace(
-			' src=',
-			' integrity="' . esc_attr( self::SRI[ $handle ] ) . '" crossorigin="anonymous" referrerpolicy="no-referrer" src=',
-			$tag
-		);
-	}
-
-	/**
-	 * Añade integrity y crossorigin a las hojas de estilo servidas por CDN.
-	 *
-	 * @param string $tag    Etiqueta <link> completa.
-	 * @param string $handle Handle registrado.
-	 * @return string
-	 */
-	public function integridad_estilo( $tag, $handle ) {
-		if ( ! isset( self::SRI_CSS[ $handle ] ) || false !== strpos( $tag, 'integrity=' ) ) {
-			return $tag;
-		}
-		return str_replace(
-			' href=',
-			' integrity="' . esc_attr( self::SRI_CSS[ $handle ] ) . '" crossorigin="anonymous" referrerpolicy="no-referrer" href=',
-			$tag
-		);
-	}
-
-	/* ----------------------------------------------------------------- */
-	/* Registro                                                          */
-	/* ----------------------------------------------------------------- */
 
 	/**
 	 * Da de alta todos los shortcodes.
@@ -148,15 +101,20 @@ final class SIS_Shortcodes {
 	 * Registra (sin encolar) librerías CDN y scripts del plugin.
 	 */
 	public function registrar_assets() {
-		// D3plus por CDN, sin proceso de build. La v4 publica un bundle UMD que
-		// sí puebla window.d3plus —la v3 lo dejaba vacío y ningún gráfico
-		// llegaba a pintarse, que es lo que obligó a quedarse en la v2— y
-		// además expone destroy(), que el hidratador necesita para soltar el
-		// ResizeObserver del gráfico anterior al redibujar.
-		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/@d3plus/core@' . self::D3PLUS_VERSION . '/umd/d3plus-core.full.min.js', array(), self::D3PLUS_VERSION, true );
+		/*
+		 * Las librerías se sirven desde el propio plugin, no desde una CDN.
+		 *
+		 * Con CDN, cualquier bloqueador de anuncios, extensión de privacidad o
+		 * proxy corporativo que se interponga deja la página sin gráficos: la
+		 * huella SRI —que es lo correcto frente a un CDN comprometido— convierte
+		 * esa interferencia en un bloqueo total. En un portal público eso no es
+		 * aceptable. Servirlas desde aquí además evita que el navegador de quien
+		 * consulta el sitio haga peticiones a terceros.
+		 */
+		wp_register_script( 'd3plus', SIS_URL . 'assets/vendor/d3plus.min.js', array(), self::D3PLUS_VERSION, true );
 
-		wp_register_style( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', array(), '1.9.4' );
-		wp_register_script( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', array(), '1.9.4', true );
+		wp_register_style( 'leaflet', SIS_URL . 'assets/vendor/leaflet.css', array(), self::LEAFLET_VERSION );
+		wp_register_script( 'leaflet', SIS_URL . 'assets/vendor/leaflet.js', array(), self::LEAFLET_VERSION, true );
 
 		// Núcleo JS del plugin.
 		wp_register_script( 'sis-core', SIS_URL . 'assets/js/sis-core.js', array(), SIS_VERSION, true );
@@ -215,18 +173,18 @@ final class SIS_Shortcodes {
 		}
 		self::$importmap_impreso = true;
 
-		$base = 'https://cdn.jsdelivr.net/npm/three@' . self::THREE_VERSION . '/';
+		$base = SIS_URL . 'assets/vendor/';
+		$ver  = '?ver=' . rawurlencode( self::THREE_VERSION );
 
-		$html = '';
-		foreach ( self::THREE_SRI as $ruta => $huella ) {
-			$html .= '<link rel="modulepreload" href="' . esc_url( $base . $ruta ) . '"'
-				. ' integrity="' . esc_attr( $huella ) . '" crossorigin="anonymous">' . "\n";
-		}
+		// Se precarga solo el módulo principal: «three/addons/» es un prefijo
+		// de resolución, no un archivo, y OrbitControls llega detrás de él.
+		$html = '<link rel="modulepreload" href="'
+			. esc_url( $base . self::THREE_MODULOS['three'] . $ver ) . '">' . "\n";
 
 		$mapa = array(
 			'imports' => array(
-				'three'          => $base . 'build/three.module.js',
-				'three/addons/'  => $base . 'examples/jsm/',
+				'three'         => $base . self::THREE_MODULOS['three'] . $ver,
+				'three/addons/' => $base . self::THREE_MODULOS['three/addons/'],
 			),
 		);
 
@@ -843,7 +801,11 @@ final class SIS_Shortcodes {
 				// planeta en rotación lo pide con autorotar="si".
 				'autorotar'  => 'no',
 				'alto'       => '70vh',
-				'textura'    => 'si',
+				// La textura fotográfica del planeta pesa 1,4 MB y es
+				// decorativa: el globo dibuja su propio planeta con retícula y
+				// los sismos se leen igual —o mejor— sobre él. Quien la quiera
+				// la pide con textura="si" y asume la descarga.
+				'textura'    => 'no',
 				'municipios' => 'si',
 				'timeline'   => 'no',
 			)
@@ -865,9 +827,12 @@ final class SIS_Shortcodes {
 			'autorotar'    => 'no' !== $atts['autorotar'],
 			// Textura del planeta servida por CDN; si no carga, el globo dibuja
 			// un planeta propio con retícula y sigue funcionando.
-			'textura'      => 'no' === $atts['textura'] ? '' : 'https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg',
-			'geojson'      => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_municipios.geojson' ) : '',
-			'geojsonDepto' => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_departamento.geojson' ) : '',
+			'textura'      => 'si' === $atts['textura'] ? self::TEXTURA_PLANETA : '',
+			// Versión simplificada para el globo: a esta escala el detalle de la
+			// cartografía completa no llega ni a un píxel, y son 300 KB menos
+			// que descargar. El mapa Leaflet sigue usando la original.
+			'geojson'      => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_municipios_globo.geojson' ) : '',
+			'geojsonDepto' => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_departamento_globo.geojson' ) : '',
 		) );
 
 		$id = $this->id();

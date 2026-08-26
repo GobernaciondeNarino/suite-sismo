@@ -17,7 +17,7 @@ Plugin de WordPress que publica el **análisis estadístico de la sismicidad** d
 4. Vaya a **Sismos Nariño → Resumen** y pulse **Sincronizar catálogo ahora**.
 5. Revise **Sismos Nariño → Amenaza y normativa** y verifique los coeficientes de la NSR-10 contra el texto oficial antes de publicarlos.
 
-Sin proceso de build: D3plus v4, Leaflet y three.js se cargan por CDN. Requiere WordPress 5.8+ y PHP 7.4+.
+Sin proceso de build y **sin CDN**: D3plus v4, Leaflet y three.js viajan con el plugin en `assets/vendor/`. Requiere WordPress 5.8+ y PHP 7.4+.
 
 > **¿Dónde copio los shortcodes?** En **Sismos Nariño → Elementos**, repartido en cuatro pestañas —**Gráficas**, **Visualizaciones históricas**, **Globo y mapa** e **Información**—. Cada gráfica tiene su propia tarjeta con los cinco shortcodes listos para copiar: la gráfica, sus tres textos por separado (descripción, interpretación y cifras) y la versión con todo junto.
 
@@ -59,7 +59,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
 | `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
 | `[sismos_historico]` | **El registro completo en dos lecturas**: barras de sismos por año y línea mensual con media móvil de 12 meses. Recorre todo el catálogo y llega hasta el mes en curso | `ambito`, `min_mag`, `alto`, `theme`, `toolbar`, `analisis`, `titulo` |
-| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
+| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. `textura="si"` añade la foto del planeta (1,4 MB, la única descarga externa del plugin) | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
 | `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
@@ -223,12 +223,14 @@ includes/
   admin/                       Panel: Resumen, Fuentes, Amenaza, Apariencia, Elementos
 assets/css                     estilos.css (minimalista) · grafico.css (tarjeta de
                                gráfico) · admin.css (pestañas y tarjetas del panel)
+assets/vendor                  D3plus · three.js · Leaflet, servidos por el plugin
 assets/js                      sis-core · renderer · grafico · grupo · composable ·
                                estado · ultimos · mapa · globo (ES module, three.js) ·
                                timeline · estadistica · datos · estado-api · admin
 assets/img                     Marca institucional de la Secretaría TIC
 data/                          Semilla local del catálogo (resiliencia) y cartografía
-                               de Nariño en GeoJSON (departamento y municipios)
+                               de Nariño en GeoJSON: completa para el mapa y
+                               simplificada (*_globo) para el globo 3D
 docs/                          Marco de comunicación del riesgo y metodología estadística
 tests/                         Pruebas CLI sin WordPress
 ```
@@ -245,7 +247,7 @@ El catálogo se lee en cascada: **caché viva → caché durable expirada → se
 - Las URL configurables se validan contra una **lista blanca de servidores** (USGS y SGC) y se exige HTTPS: no hay forma de apuntar el plugin a un host arbitrario (anti-SSRF).
 - Los parámetros geográficos de la consulta salen del catálogo de ámbitos, nunca de la entrada del usuario.
 - El panel exige `manage_options` y nonce en cada escritura; toda salida se escapa y los valores CSS se sanean contra inyección.
-- D3plus v4, Leaflet y three.js se cargan con **SRI** (`integrity` + `crossorigin`; los módulos ES a través de `modulepreload`); las celdas de CSV se neutralizan contra inyección de fórmulas; los archivos de prueba solo se ejecutan por línea de comandos.
+- **Ninguna librería se pide a un tercero.** D3plus, Leaflet y three.js se sirven desde `assets/vendor/`, así que el navegador de quien consulta el sitio no hace peticiones a servidores ajenos y ningún bloqueador puede dejar la página sin gráficos. Las celdas de CSV se neutralizan contra inyección de fórmulas; los archivos de prueba solo se ejecutan por línea de comandos.
 
 El detalle completo, con la lista de puertas y la guía para quien opera el sitio, está en [`SECURITY.md`](SECURITY.md).
 

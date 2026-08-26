@@ -140,7 +140,10 @@ $globo = $sc->sc_globo( array( 'limite' => '50' ) );
 
 $comprobaciones = array(
 	'importmap de three.js'          => false !== strpos( $globo, '<script type="importmap">' ),
-	'modulepreload con integrity'    => 2 === substr_count( $globo, 'rel="modulepreload"' ) && 2 === substr_count( $globo, 'integrity="sha384-' ),
+	// Las librerías salen del propio plugin: no hay huella de terceros que
+	// verificar, pero sí interesa que el módulo se precargue.
+	'precarga del módulo local'      => 1 === substr_count( $globo, 'rel="modulepreload"' ) && false !== strpos( $globo, 'assets/vendor/three.module.min.js' ),
+	'sin librerías de terceros'      => false === strpos( $globo, 'cdn.jsdelivr.net' ) && false === strpos( $globo, 'unpkg.com' ),
 	'gancho data-sis-globo'          => false !== strpos( $globo, 'data-sis-globo' ),
 	'lienzo con rol de imagen'       => false !== strpos( $globo, 'sis-globo__lienzo' ) && false !== strpos( $globo, 'role="img"' ),
 	'barra de vistas y capas'        => false !== strpos( $globo, 'data-camara="global"' ) && false !== strpos( $globo, 'data-capa="calor"' ),

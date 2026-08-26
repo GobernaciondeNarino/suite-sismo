@@ -32,15 +32,29 @@
       arrancar(ev.detail.eventos);
     });
 
-    C.rest('/eventos', { ambito: q.ambito, limite: limite })
-      .then(function (r) {
-        if (recibido) { return; }
-        recibido = true;
-        arrancar(r.eventos || []);
-      })
-      .catch(function () {
-        if (!recibido) { C.error(box, 'No se pudo cargar la línea de tiempo.', function () { init(box); }); }
-      });
+    /* Si hay un globo en la página, va a pedir el mismo conjunto: se espera a
+       que lo entregue en vez de duplicar la petición. Si no llega —porque el
+       globo falló o el navegador no soporta WebGL— se pide igualmente, para
+       que la línea de tiempo funcione sola. */
+    var hayGlobo = !!document.querySelector('[data-sis-globo]');
+    if (hayGlobo) {
+      setTimeout(pedir, 4000);
+    } else {
+      pedir();
+    }
+
+    function pedir() {
+      if (recibido) { return; }
+      C.rest('/eventos', { ambito: q.ambito, limite: limite })
+        .then(function (r) {
+          if (recibido) { return; }
+          recibido = true;
+          arrancar(r.eventos || []);
+        })
+        .catch(function () {
+          if (!recibido) { C.error(box, 'No se pudo cargar la línea de tiempo.', function () { init(box); }); }
+        });
+    }
 
     function arrancar(eventos) {
       detener(st.play);

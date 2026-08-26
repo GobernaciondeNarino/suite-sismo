@@ -53,7 +53,7 @@ return array(
 		'grupo'     => 'globo',
 		'titulo'    => 'Globo 3D de sismos recientes',
 		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
-		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (si|no) · municipios (si|no) · timeline (si|no)',
+		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (si|no, por defecto no: añade 1,4 MB) · municipios (si|no) · timeline (si|no)',
 		'ejemplo'   => '[sismos_globo ambito="regional" limite="50" alto="70vh" autorotar="si"]',
 	),
 

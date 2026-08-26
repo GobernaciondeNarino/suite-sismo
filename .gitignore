@@ -1,6 +1,8 @@
 # Dependencias y artefactos
 node_modules/
-vendor/
+# Solo el vendor de Composer, en la raíz. Las librerías del front viven en
+# assets/vendor/ y sí van al repositorio: el plugin las sirve él mismo.
+/vendor/
 *.log
 *.zip
 *.tar.gz

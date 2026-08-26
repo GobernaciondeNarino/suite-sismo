@@ -52,7 +52,11 @@ function wp_rand() { return 1; }
 function shortcode_atts( $p, $a, $sc = '' ) { $a = (array) $a; $o = array(); foreach ( $p as $n => $d ) { $o[ $n ] = array_key_exists( $n, $a ) ? $a[ $n ] : $d; } return $o; }
 function add_action() {} function add_filter() {} function add_shortcode() {}
 function wp_enqueue_style() {} function wp_enqueue_script() {}
-function wp_register_style() {} function wp_register_script() {} function wp_localize_script() {}
+function wp_register_style() {} function wp_register_script() {}
+function esc_html_e( $s, $d = null ) { echo esc_html( $s ); }
+function esc_attr_e( $s, $d = null ) { echo esc_attr( $s ); }
+$GLOBALS['sis_localizado'] = array();
+function wp_localize_script( $handle, $objeto, $datos ) { $GLOBALS['sis_localizado'][ $objeto ] = $datos; }
 function rest_url( $p = '' ) { return '/wp-json/' . $p; }
 function add_query_arg( $args, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args ); }
 
@@ -230,41 +234,80 @@ chk( $ok, 'Las celdas que empiezan por =, +, -, @, tabulador o retorno se neutra
 chk( '46 km NW of Manta' === $m->invoke( $inst, '46 km NW of Manta' ), 'Un valor normal no se altera' );
 
 /* ------------------------------------------------------------------ */
-seccion( 'Integridad de las librerías por CDN' );
+seccion( 'Origen de las librerías' );
 
-foreach ( SIS_Shortcodes::SRI as $handle => $hash ) {
-	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "El script «{$handle}» declara huella SRI válida" );
+/*
+ * Las librerías se sirven desde el propio plugin. Es una propiedad más fuerte
+ * que la huella SRI que había antes: no hay tercero al que verificar, ni
+ * petición del navegador de quien consulta el sitio a un servidor ajeno, ni
+ * bloqueador que pueda dejar la página sin gráficos.
+ */
+$vendor = SIS_DIR . 'assets/vendor/';
+$esperados = array(
+	'd3plus.min.js',
+	'three.module.min.js',
+	'three-addons/controls/OrbitControls.js',
+	'leaflet.js',
+	'leaflet.css',
+);
+foreach ( $esperados as $archivo ) {
+	chk( is_readable( $vendor . $archivo ) && filesize( $vendor . $archivo ) > 4096, "La librería «{$archivo}» viaja con el plugin" );
 }
-foreach ( SIS_Shortcodes::SRI_CSS as $handle => $hash ) {
-	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "La hoja «{$handle}» declara huella SRI válida" );
+
+foreach ( array( 'D3PLUS_VERSION', 'THREE_VERSION', 'LEAFLET_VERSION' ) as $k ) {
+	$v = constant( 'GobernacionNarino\\Sismos\\SIS_Shortcodes::' . $k );
+	chk( (bool) preg_match( '/^\d+\.\d+\.\d+$/', $v ), "La versión de {$k} está fijada, no es un rango" );
 }
 
-$tag  = '<script src="https://cdn.jsdelivr.net/npm/@d3plus/core@' . SIS_Shortcodes::D3PLUS_VERSION . '/umd/d3plus-core.full.min.js" id="d3plus-js"></script>';
-$sale = $sc->integridad_script( $tag, 'd3plus' );
-chk( false !== strpos( $sale, 'integrity="sha384-' ) && false !== strpos( $sale, 'crossorigin="anonymous"' ), 'El filtro inyecta integrity y crossorigin' );
-chk( $sc->integridad_script( $tag, 'otro-handle' ) === $tag, 'Los scripts propios no se tocan' );
-
-chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', SIS_Shortcodes::SRI['d3plus'] ), 'D3plus declara huella SRI válida' );
-chk( (bool) preg_match( '/^\d+\.\d+\.\d+$/', SIS_Shortcodes::D3PLUS_VERSION ), 'La versión de D3plus está fijada, no es un rango' );
-
-foreach ( SIS_Shortcodes::THREE_SRI as $ruta => $hash ) {
-	chk( (bool) preg_match( '/^sha(256|384|512)-[A-Za-z0-9+\/=]{20,}$/', $hash ), "El módulo «{$ruta}» declara huella SRI válida" );
-}
-
-// Un módulo ES no acepta el atributo integrity en su etiqueta <script>: la
-// huella viaja en el <link rel="modulepreload"> que el importmap imprime antes.
+// El importmap resuelve contra el propio sitio, nunca contra un CDN.
 $mimp = ( new ReflectionClass( 'GobernacionNarino\Sismos\SIS_Shortcodes' ) )->getMethod( 'importmap_three' );
 $mimp->setAccessible( true );
 $importmap = $mimp->invoke( $sc );
-chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'rel="modulepreload"' ), 'Cada módulo de three.js se precarga con su huella' );
-chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'integrity="sha384-' ), 'Todas las precargas llevan integrity' );
-chk( count( SIS_Shortcodes::THREE_SRI ) === substr_count( $importmap, 'crossorigin="anonymous"' ), 'Todas las precargas llevan crossorigin' );
 chk( false !== strpos( $importmap, '<script type="importmap">' ), 'El importmap se publica antes del módulo' );
-chk( 2 === substr_count( $importmap, 'https://cdn.jsdelivr.net/npm/three@' . SIS_Shortcodes::THREE_VERSION . '/' ), 'Los módulos se piden a la versión fijada de three.js' );
+chk( false !== strpos( $importmap, 'rel="modulepreload"' ), 'El módulo principal de three.js se precarga' );
+chk( false === strpos( $importmap, 'cdn.jsdelivr.net' ) && false === strpos( $importmap, 'unpkg.com' ), 'El importmap no apunta a ningún CDN' );
+chk( false !== strpos( $importmap, SIS_URL . 'assets/vendor/' ), 'El importmap resuelve contra la carpeta del plugin' );
+
+/*
+ * Un import map solo acepta como valor una URL absoluta o una ruta que empiece
+ * por «/», «./» o «../». Cualquier otra cosa la descarta en silencio y el globo
+ * se queda sin three.js con un error críptico. SIS_URL siempre es absoluta,
+ * pero conviene que la prueba lo sostenga.
+ */
+preg_match( '/<script type="importmap">(.*?)<\/script>/s', $importmap, $mm );
+$mapa = json_decode( isset( $mm[1] ) ? $mm[1] : '{}', true );
+chk( ! empty( $mapa['imports'] ), 'El importmap es JSON válido con imports' );
+foreach ( (array) $mapa['imports'] as $clave => $valor ) {
+	$ok = (bool) preg_match( '#^(https?://|/|\./|\.\./)#', $valor );
+	chk( $ok, "La ruta de «{$clave}» es resoluble por el navegador" );
+}
+chk( isset( $mapa['imports']['three/addons/'] ) && '/' === substr( $mapa['imports']['three/addons/'], -1 ), 'El prefijo «three/addons/» termina en barra, como exige la especificación' );
+
+// Solo un recurso externo puede quedar, y solo si alguien lo activa a mano.
+$externos = array();
+foreach ( array( 'sc_grafico', 'sc_mapa', 'sc_globo', 'sc_timeline', 'sc_historico' ) as $metodo ) {
+	$html = $sc->$metodo( array() );
+	if ( preg_match_all( '#https?://(?!example\.test)([a-z0-9.\-]+)#i', $html, $m ) ) {
+		$externos = array_merge( $externos, $m[1] );
+	}
+}
+$externos = array_values( array_unique( array_filter( $externos, static function ( $h ) {
+	// Los enlaces de atribución a las fuentes oficiales son contenido, no código.
+	return ! in_array( $h, array( 'earthquake.usgs.gov', 'www.sgc.gov.co', 'sgc.gov.co', 'srvags.sgc.gov.co' ), true );
+} ) ) );
+chk( ! $externos, 'Ningún componente carga recursos de terceros' . ( $externos ? ': ' . implode( ', ', $externos ) : '' ) );
+
+// La textura del planeta es la única excepción, y viene desactivada.
+$conf = isset( $GLOBALS['sis_localizado']['SISGLOBO'] ) ? $GLOBALS['sis_localizado']['SISGLOBO'] : array();
+chk( isset( $conf['textura'] ) && '' === $conf['textura'], 'El globo no descarga la textura del planeta por defecto' );
+$sc->sc_globo( array( 'textura' => 'si' ) );
+$conf2 = $GLOBALS['sis_localizado']['SISGLOBO'];
+chk( ! empty( $conf2['textura'] ), 'Con textura="si" sí se pide, porque alguien lo decidió' );
 
 $modulo = $sc->marcar_modulo( '<script src="https://example.test/globo.js" id="sis-globo-js"></script>', 'sis-globo', 'https://example.test/globo.js' );
 chk( false !== strpos( $modulo, 'type="module"' ), 'El globo se carga como módulo ES' );
-chk( $sc->marcar_modulo( $tag, 'otro-handle', 'x' ) === $tag, 'Los demás scripts no se convierten en módulo' );
+$otro = '<script src="https://example.test/mapa.js" id="sis-mapa-js"></script>';
+chk( $sc->marcar_modulo( $otro, 'sis-mapa', 'https://example.test/mapa.js' ) === $otro, 'Los demás scripts no se convierten en módulo' );
 
 /* ------------------------------------------------------------------ */
 seccion( 'Información que se publica de la instalación' );

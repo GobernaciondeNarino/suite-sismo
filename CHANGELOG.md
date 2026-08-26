@@ -1,5 +1,30 @@
 # Registro de cambios
 
+## 2.5.0 — 2026-08-26
+
+### Las librerías dejan de venir de una CDN
+
+Un reporte desde el sitio en producción mostró la consola bloqueando D3plus: `Failed to find a valid digest in the 'integrity' attribute … The resource has been blocked`, junto a un `net::ERR_BLOCKED_BY_CLIENT`. Las huellas SRI declaradas eran correctas —se verificaron contra jsDelivr byte a byte—, así que lo que llegó al navegador no era lo que el CDN sirve: un bloqueador, una extensión de privacidad o un proxy se interpuso.
+
+Ese es el problema de fondo de una huella SRI sobre un tercero: hace exactamente lo que debe —rechazar lo que no coincide— y el resultado es una página sin gráficos. En un portal público no es aceptable.
+
+- **D3plus, Leaflet y three.js se sirven ahora desde `assets/vendor/`**, dentro del plugin. No hay CDN, no hay huella que pueda fallar y el navegador de quien consulta el sitio no hace peticiones a servidores ajenos.
+- Se retiran las constantes `SRI`, `SRI_CSS` y `THREE_SRI` y los filtros que inyectaban `integrity`. La prueba de seguridad comprueba ahora algo más fuerte: que **ningún componente carga recursos de terceros**.
+- `assets/vendor/LEEME.md` documenta origen, versión, licencia y procedimiento de actualización de cada librería.
+
+### El globo pasa de 2,7 MB a 0,7 MB
+
+- **three.js se cargaba sin minificar**: 1.243 KB. La build `three.module.min.js` son 655 KB y es idéntica en funcionamiento. Casi la mitad del peso del globo era eso.
+- **La textura fotográfica del planeta (1,4 MB) deja de cargarse por defecto.** Es decorativa: el globo dibuja su propio planeta con retícula y los sismos se leen igual sobre él. Quien la quiera la pide con `textura="si"` y asume la descarga. Es el único recurso externo que el plugin puede llegar a pedir.
+- **Cartografía simplificada para el globo**: a la escala del globo el detalle de la cartografía municipal completa no llega ni a un píxel. Las versiones `*_globo.geojson` pesan 46 KB y 30 KB frente a 346 KB y 73 KB, sin diferencia visible. El mapa Leaflet sigue usando la original, donde el detalle sí importa.
+- **Una petición REST menos**: el globo y la línea de tiempo pedían el mismo conjunto a la vez. Ahora, si hay un globo en la página, la línea de tiempo espera a que lo entregue; si no llega —globo caído o sin WebGL— lo pide igualmente.
+
+Medido en Chromium con el globo y la línea de tiempo en la misma página: **917 KB en 11 peticiones, ninguna a terceros, con el lienzo dibujado en 1,1 s**.
+
+### Correcciones
+
+- Nueva comprobación de que el importmap emite rutas resolubles. Un import map descarta en silencio cualquier valor que no sea una URL absoluta o empiece por `/`, `./` o `../`, y el globo se queda sin three.js con un error críptico («blocked by a null value»).
+
 ## 2.4.0 — 2026-08-26
 
 ### Motor de gráficos: migración a D3plus v4
