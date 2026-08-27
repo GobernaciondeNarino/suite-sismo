@@ -1,5 +1,48 @@
 # Registro de cambios
 
+## 2.8.0 — 2026-08-26
+
+### Filtros de territorio y periodo en todos los componentes
+
+Los atributos de consulta eran dispares: unos componentes aceptaban `dias`, otros `anios`, y cada capa —shortcode, REST, vistas— los interpretaba por su cuenta. Ahora hay un vocabulario único de cinco atributos que entiende cualquier componente que consulte el catálogo:
+
+- `ambito` — territorio (`narino`, `regional`, `radio`, `colombia`).
+- `dias` — ventana móvil de N días desde hoy.
+- `anios` — ventana móvil de N años desde hoy.
+- `anio` — **nuevo**: año de calendario completo.
+- `mes` — **nuevo**: mes de calendario (1–12); sin `anio`, el del año en curso.
+
+La precedencia es deliberada y está probada: una fecha de calendario manda sobre una ventana móvil, porque quien escribe `anio="2026"` pide ese año y no «los últimos N»; entre días y años gana `dias`. Los atributos descartados no se aplican **ni viajan en el HTML**, para que el `data-*` de la página no prometa un recorte que el servidor no hace.
+
+Todo esto vive en una clase nueva, `SIS_Periodo`, que normaliza una sola vez y devuelve las tres formas que hacían falta: los filtros para recortar el catálogo, la etiqueta en lenguaje corriente y la clave de caché.
+
+### Los textos ahora dicen qué se está mirando
+
+Las descripciones y los análisis son textos fijos: el mismo párrafo servía para «Nariño en 15 días» y para «Colombia en treinta años». Al informar a la ciudadanía eso no puede pasar.
+
+- Cada gráfica y cada bloque de texto encabeza con una línea calculada: **«Se registraron 32 sismos dentro del departamento de Nariño en los últimos 8 años.»**
+- El análisis cuantitativo enmarca sus cifras en el periodo consultado y, si no hay con qué calcular, lo dice nombrando el filtro en vez de un «no hay datos» a secas.
+- Con `ambito="narino"` el encabezado dice «dentro del departamento de Nariño» y nunca nombra ámbitos más amplios. Hay pruebas que recorren todos los eventos publicados y comprueban que ni uno cae fuera del recuadro del departamento, en cuatro periodos distintos.
+
+### Un periodo sin sismos ya se explica
+
+Dentro del recuadro estricto del departamento la red global registra unos pocos sismos al año, así que una ventana de quince días sale vacía la mayor parte del tiempo. Antes eso era un gráfico en blanco con un mensaje que mandaba a tocar la configuración.
+
+Ahora la tarjeta publica qué significa el cero: que en esos días no hubo ningún sismo por encima del umbral de detección, que eso no significa ausencia de amenaza, y que la sismicidad que gobierna la amenaza del departamento se ve ampliando el ámbito a «regional».
+
+### Valores por defecto del panel
+
+- Pestaña **Gráficas**: `ambito="narino" dias="15"`.
+- Pestaña **Visualizaciones históricas**: `ambito="narino" anios="8"`.
+
+Los cinco shortcodes de cada tarjeta salen ya con ese filtro, y la pantalla avisa de que una ventana corta dentro del departamento puede quedarse sin datos. Se añade además una ayuda plegable con los cinco atributos, su significado y cómo se combinan.
+
+### Correcciones
+
+- **La caché de `/render` no distinguía periodos.** Su clave llevaba ámbito, años y magnitud, pero no los días, el año ni el mes: dos filtros distintos compartían respuesta y se servían datos de uno bajo el rótulo del otro.
+- **Un filtro de calendario rellenaba la serie hasta hoy.** Pedir abril de 2016 devolvía 125 filas —ese mes y diez años de ceros— porque el relleno de meses vacíos, correcto para una ventana móvil, no sabía que el periodo estaba cerrado. Ahora la serie empieza y termina donde lo hace el filtro, y un año concreto cubre sus doce meses aunque enero esté vacío.
+- Los nombres de ámbito salían en minúscula en los encabezados («en nariño y zona de subducción vecina»).
+
 ## 2.7.0 — 2026-08-26
 
 ### El planeta vuelve a la fotografía por satélite

@@ -22,8 +22,8 @@
 
     var base = C.cfg.rest + '/abierto/' + recurso;
     var qs = ['ambito=' + encodeURIComponent(q.ambito)];
-    if (q.anios) { qs.push('anios=' + encodeURIComponent(q.anios)); }
-    if (q.dias) { qs.push('dias=' + encodeURIComponent(q.dias)); }
+    var per = C.periodo(q);
+    Object.keys(per).forEach(function (k) { qs.push(k + '=' + encodeURIComponent(per[k])); });
     if (q.min_mag) { qs.push('min_mag=' + encodeURIComponent(q.min_mag)); }
     var sufijo = qs.join('&');
 

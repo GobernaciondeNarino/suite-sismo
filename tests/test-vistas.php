@@ -173,6 +173,7 @@ require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
 require SIS_DIR . 'includes/analysis/class-sis-texto.php';
 require SIS_DIR . 'includes/data/class-sis-amenaza.php';
+require SIS_DIR . 'includes/data/class-sis-periodo.php';
 require SIS_DIR . 'includes/data/class-sis-views.php';
 
 use GobernacionNarino\Sismos\SIS_Cache;
@@ -180,6 +181,7 @@ use GobernacionNarino\Sismos\SIS_Catalogo;
 use GobernacionNarino\Sismos\SIS_Amenaza;
 use GobernacionNarino\Sismos\SIS_Views;
 use GobernacionNarino\Sismos\SIS_Regiones;
+use GobernacionNarino\Sismos\SIS_Periodo;
 
 $fallos = 0;
 function chk( $cond, $msg ) {
@@ -443,6 +445,143 @@ chk( isset( $tipos['matrix']['class'] ) && 'Matrix' === $tipos['matrix']['class'
 chk( array( 'plot' ) === SIS_Views::compatibles( 'dispersion' ), 'Una nube de puntos no se ofrece como barras' );
 foreach ( $tipos as $k => $t ) {
 	chk( ! empty( $t['class'] ) && ! empty( $t['label'] ), "El tipo «{$k}» declara clase y etiqueta" );
+}
+
+/* ------------------------------------------------------------------ */
+/* Periodo: normalización, precedencia y lenguaje                      */
+/* ------------------------------------------------------------------ */
+
+$anio_actual = (int) gmdate( 'Y' );
+
+// Precedencia: una fecha de calendario gana a una ventana móvil.
+$p = SIS_Periodo::normalizar( array( 'anio' => 2020, 'dias' => 15, 'anios' => 30 ) );
+chk( 2020 === $p['anio'] && 0 === $p['dias'] && 0 === $p['anios'], 'Un año concreto descarta las ventanas móviles' );
+
+$p = SIS_Periodo::normalizar( array( 'dias' => 30, 'anios' => 5 ) );
+chk( 30 === $p['dias'] && 0 === $p['anios'], 'Entre días y años gana la ventana más específica' );
+
+// Un mes suelto se entiende como el mes del año en curso.
+$p = SIS_Periodo::normalizar( array( 'mes' => 8 ) );
+chk( 8 === $p['mes'] && $anio_actual === $p['anio'], 'Un mes sin año se refiere al año en curso' );
+
+// Valores imposibles no deben colarse.
+foreach ( array( 0, 13, -1, 99 ) as $malo ) {
+	$p = SIS_Periodo::normalizar( array( 'mes' => $malo, 'anio' => 2024 ) );
+	chk( 0 === $p['mes'], "Un mes «{$malo}» se descarta" );
+}
+foreach ( array( 1500, 1899, $anio_actual + 5, -2026 ) as $malo ) {
+	$p = SIS_Periodo::normalizar( array( 'anio' => $malo ) );
+	chk( 0 === $p['anio'], "Un año «{$malo}» se descarta" );
+}
+$p = SIS_Periodo::normalizar( array( 'dias' => 999999 ) );
+chk( 20000 === $p['dias'], 'Los días se acotan por arriba' );
+$p = SIS_Periodo::normalizar( array( 'anios' => 999 ) );
+chk( 60 === $p['anios'], 'Los años se acotan por arriba' );
+
+// Filtros de calendario: rango exacto del mes y del año.
+$f = SIS_Periodo::filtros( SIS_Periodo::normalizar( array( 'anio' => 2024, 'mes' => 2 ) ) );
+chk( '2024-02-01' === $f['desde'] && '2024-02-29' === $f['hasta'], 'Febrero de un año bisiesto termina el día 29' );
+$f = SIS_Periodo::filtros( SIS_Periodo::normalizar( array( 'anio' => 2023, 'mes' => 2 ) ) );
+chk( '2023-02-28' === $f['hasta'], 'Febrero de un año normal termina el día 28' );
+$f = SIS_Periodo::filtros( SIS_Periodo::normalizar( array( 'anio' => 2021 ) ) );
+chk( '2021-01-01' === $f['desde'] && '2021-12-31' === $f['hasta'], 'Un año cubre del 1 de enero al 31 de diciembre' );
+
+// Etiquetas en lenguaje corriente.
+$etiquetas = array(
+	array( array( 'dias' => 15 ),                'en los últimos 15 días' ),
+	array( array( 'dias' => 1 ),                 'en las últimas 24 horas' ),
+	array( array( 'dias' => 7 ),                 'en la última semana' ),
+	array( array( 'dias' => 30 ),                'en el último mes' ),
+	array( array( 'anios' => 8 ),                'en los últimos 8 años' ),
+	array( array( 'anios' => 1 ),                'en el último año' ),
+	array( array( 'anio' => 2019 ),              'en 2019' ),
+	array( array( 'anio' => 2019, 'mes' => 8 ),  'en agosto de 2019' ),
+	array( array(),                              'en todo el registro disponible' ),
+);
+foreach ( $etiquetas as $caso ) {
+	$got = SIS_Periodo::etiqueta( SIS_Periodo::normalizar( $caso[0] ) );
+	chk( $caso[1] === $got, "«{$caso[1]}» se dice bien" . ( $caso[1] === $got ? '' : " (salió «{$got}»)" ) );
+}
+
+// Dos periodos distintos no pueden compartir clave de caché.
+$claves = array();
+foreach ( array(
+	array( 'dias' => 15 ), array( 'dias' => 30 ), array( 'anios' => 8 ),
+	array( 'anio' => 2026 ), array( 'anio' => 2026, 'mes' => 8 ), array(),
+) as $caso ) {
+	$claves[] = SIS_Periodo::clave( SIS_Periodo::normalizar( $caso ) );
+}
+chk( count( array_unique( $claves ) ) === count( $claves ), 'Cada periodo tiene su propia clave de caché' );
+
+/* ------------------------------------------------------------------ */
+/* Los filtros recortan de verdad, y las series respetan el periodo    */
+/* ------------------------------------------------------------------ */
+
+$total = count( SIS_Views::eventos( SIS_Views::normalizar_args( array( 'ambito' => 'regional' ) ) ) );
+$n5    = count( SIS_Views::eventos( SIS_Views::normalizar_args( array( 'ambito' => 'regional', 'anios' => 5 ) ) ) );
+$n30d  = count( SIS_Views::eventos( SIS_Views::normalizar_args( array( 'ambito' => 'regional', 'dias' => 30 ) ) ) );
+chk( $n5 < $total && $n30d <= $n5, 'Las ventanas móviles recortan el catálogo de forma coherente' );
+
+// Un mes de calendario devuelve exactamente ese mes.
+$abr = SIS_Views::eventos( SIS_Views::normalizar_args( array( 'ambito' => 'regional', 'anio' => 2016, 'mes' => 4 ) ) );
+$fuera = 0;
+foreach ( $abr as $e ) {
+	if ( '2016-04' !== $e['mes'] ) { $fuera++; }
+}
+chk( count( $abr ) > 0 && 0 === $fuera, 'Un filtro de mes devuelve solo ese mes (' . count( $abr ) . ' sismos, ' . $fuera . ' fuera)' );
+
+// Y la serie mensual de ese filtro tiene una sola fila, no diez años de ceros.
+$vm = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'regional', 'anio' => 2016, 'mes' => 4 ) );
+chk( 1 === count( $vm['data'] ) && '2016-04' === $vm['data'][0]['mes'], 'La serie de un mes concreto tiene una sola fila' );
+
+// Un año concreto cubre sus doce meses, aunque alguno esté vacío.
+$va = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'regional', 'anio' => 2021 ) );
+chk( 12 === count( $va['data'] ), 'La serie de un año concreto cubre sus doce meses' );
+chk( '2021-01' === $va['data'][0]['mes'] && '2021-12' === $va['data'][11]['mes'], 'Esa serie va de enero a diciembre' );
+
+/* ------------------------------------------------------------------ */
+/* Ámbito «narino»: nada de lo publicado sale del departamento         */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Es el punto delicado de cara a la ciudadanía: si el rótulo dice «Nariño»,
+ * ni un solo epicentro, ni una sola cifra, ni una sola frase pueden venir de
+ * fuera del departamento.
+ */
+foreach ( array( array(), array( 'anios' => 8 ), array( 'dias' => 3650 ), array( 'anio' => 2019 ) ) as $per ) {
+	$args = array_merge( array( 'ambito' => 'narino' ), $per );
+	$ev   = SIS_Views::eventos( SIS_Views::normalizar_args( $args ) );
+	$mal  = 0;
+	$sinm = 0;
+	foreach ( $ev as $e ) {
+		if ( ! SIS_Regiones::contiene( 'narino', $e['lat'], $e['lon'] ) ) { $mal++; }
+		if ( empty( $e['municipio'] ) || empty( $e['en_narino'] ) ) { $sinm++; }
+	}
+	$etq = SIS_Periodo::etiqueta( SIS_Periodo::normalizar( $per ) );
+	chk( 0 === $mal, "Ningún epicentro de «narino» {$etq} cae fuera del departamento" );
+	chk( 0 === $sinm, "Todo epicentro de «narino» {$etq} trae municipio y marca departamental" );
+}
+
+// El encabezado nombra el departamento y el periodo, y no habla de otra región.
+$v = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'narino', 'anios' => 8 ) );
+chk( false !== mb_strpos( $v['encabezado'], 'departamento de Nariño' ), 'El encabezado sitúa al lector en el departamento' );
+chk( false !== mb_strpos( $v['encabezado'], 'últimos 8 años' ), 'El encabezado nombra el periodo consultado' );
+chk( false === mb_strpos( $v['encabezado'], 'subducción' ) && false === mb_strpos( $v['encabezado'], 'Colombia y área' ), 'El encabezado del departamento no nombra ámbitos más amplios' );
+chk( $v['contexto']['sismos'] === count( SIS_Views::eventos( SIS_Views::normalizar_args( array( 'ambito' => 'narino', 'anios' => 8 ) ) ) ), 'El conteo del encabezado coincide con los datos dibujados' );
+
+// Un periodo vacío se explica, no se deja en blanco.
+$vac = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => 'narino', 'dias' => 1 ) );
+if ( empty( $vac['data'] ) ) {
+	chk( '' !== $vac['nota_vacia'], 'Un periodo sin sismos publica su explicación' );
+	chk( false !== mb_strpos( $vac['nota_vacia'], 'regional' ), 'Esa explicación ofrece ampliar el ámbito' );
+	chk( false !== mb_strpos( $vac['encabezado'], 'No se registró' ), 'El encabezado dice con todas las letras que no hubo sismos' );
+	chk( false !== mb_strpos( $vac['analisis']['cuantitativo'], 'No hay sismos' ), 'El análisis cuantitativo tampoco inventa cifras' );
+}
+
+// Cada ámbito habla de sí mismo.
+foreach ( array( 'regional', 'colombia', 'radio' ) as $amb ) {
+	$e = SIS_Views::obtener( 'sismos_mensuales', array( 'ambito' => $amb, 'anios' => 5 ) )['encabezado'];
+	chk( false === mb_strpos( $e, 'dentro del departamento' ), "El encabezado de «{$amb}» no se hace pasar por el departamento" );
 }
 
 /* ------------------------------------------------------------------ */

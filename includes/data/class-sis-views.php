@@ -345,16 +345,25 @@ final class SIS_Views {
 			'measures'          => $m['measures'],
 			'data'              => $datos,
 			'analisis'          => self::analisis( $id, $datos, $args ),
+			'analisis_marco'    => SIS_Periodo::encabezado( $args['ambito'], $args, count( self::eventos( $args ) ), $args['min_mag'] ),
 			'como_funciona'     => self::como_funciona( $id ),
 			'aviso'             => SIS_Texto::advertencia(),
 			'heatmap'           => ! empty( $m['heatmap'] ),
 			'series'            => isset( $m['series'] ) ? $m['series'] : '',
 			'orden'             => isset( $m['orden'] ) ? $m['orden'] : array(),
+			'encabezado'        => SIS_Periodo::encabezado( $args['ambito'], $args, count( self::eventos( $args ) ), $args['min_mag'] ),
+			'nota_vacia'        => $datos ? '' : SIS_Periodo::nota_vacia( $args['ambito'] ),
 			'contexto'          => array(
 				'ambito'        => $args['ambito'],
 				'ambito_nombre' => SIS_Regiones::obtener( $args['ambito'] )['nombre'],
+				'dias'          => $args['dias'],
+				'anio'          => $args['anio'],
+				'mes'           => $args['mes'],
 				'anios'         => $args['anios'],
 				'min_mag'       => $args['min_mag'],
+				'periodo'       => SIS_Periodo::etiqueta( $args ),
+				'rango'         => SIS_Periodo::rango( $args ),
+				'sismos'        => count( self::eventos( $args ) ),
 			),
 		);
 	}
@@ -369,16 +378,23 @@ final class SIS_Views {
 		$a = array_merge(
 			array(
 				'ambito'  => SIS_Regiones::por_defecto(),
+				'dias'    => 0,
+				'anio'    => 0,
+				'mes'     => 0,
 				'anios'   => 0,     // 0 = toda la ventana disponible.
 				'min_mag' => 0.0,
 			),
 			is_array( $args ) ? $args : array()
 		);
 
-		return array(
-			'ambito'  => SIS_Security::sanitizar_ambito( $a['ambito'] ),
-			'anios'   => max( 0, min( 60, (int) $a['anios'] ) ),
-			'min_mag' => SIS_Security::sanitizar_magnitud( $a['min_mag'], 0.0 ),
+		$periodo = SIS_Periodo::normalizar( $a );
+
+		return array_merge(
+			array(
+				'ambito'  => SIS_Security::sanitizar_ambito( $a['ambito'] ),
+				'min_mag' => SIS_Security::sanitizar_magnitud( $a['min_mag'], 0.0 ),
+			),
+			$periodo
 		);
 	}
 
@@ -393,17 +409,14 @@ final class SIS_Views {
 	 * @return array[]
 	 */
 	public static function eventos( $args ) {
-		$clave = $args['ambito'] . '|' . $args['anios'] . '|' . $args['min_mag'];
+		$clave = $args['ambito'] . '|' . SIS_Periodo::clave( $args ) . '|' . $args['min_mag'];
 		if ( isset( self::$memo[ $clave ] ) ) {
 			return self::$memo[ $clave ];
 		}
 
 		$catalogo = SIS_Catalogo::obtener( $args['ambito'] );
-		$filtros  = array();
+		$filtros  = SIS_Periodo::filtros( $args );
 
-		if ( $args['anios'] > 0 ) {
-			$filtros['dias'] = (int) round( $args['anios'] * 365.25 );
-		}
 		if ( $args['min_mag'] > 0 ) {
 			$filtros['min_mag'] = $args['min_mag'];
 		}
@@ -427,14 +440,17 @@ final class SIS_Views {
 	 */
 	public static function datos( $id, $args ) {
 		$eventos = self::eventos( $args );
+		// Hasta dónde rellenar las series con ceros: hoy si el periodo es una
+		// ventana móvil, o el final del periodo si es una fecha de calendario.
+		$tope    = SIS_Periodo::topes( $args );
 
 		switch ( $id ) {
 			case 'sismos_mensuales':
-				return self::filas_mensuales( $eventos );
+				return self::filas_mensuales( $eventos, $tope );
 
 			case 'sismos_anuales':
 				$out = array();
-				foreach ( SIS_Catalogo::conteo_anual( $eventos ) as $anio => $n ) {
+				foreach ( SIS_Catalogo::conteo_anual( $eventos, $tope['anio'] ) as $anio => $n ) {
 					$out[] = array( 'anio' => (string) $anio, 'sismos' => (int) $n );
 				}
 				return $out;
@@ -444,7 +460,7 @@ final class SIS_Views {
 
 			case 'energia_mensual':
 				$out = array();
-				foreach ( SIS_Catalogo::energia_mensual( $eventos ) as $mes => $v ) {
+				foreach ( SIS_Catalogo::energia_mensual( $eventos, $tope['mes'], $tope['piso_mes'] ) as $mes => $v ) {
 					$out[] = array(
 						'mes'         => $mes,
 						'energia_tnt' => round( $v['tnt'], 2 ),
@@ -454,12 +470,12 @@ final class SIS_Views {
 				return $out;
 
 			case 'historico_mensual':
-				return self::filas_historico_mensual( $eventos );
+				return self::filas_historico_mensual( $eventos, $tope );
 
 			case 'energia_acumulada':
 				$out  = array();
 				$acum = 0.0;
-				foreach ( SIS_Catalogo::energia_mensual( $eventos ) as $mes => $v ) {
+				foreach ( SIS_Catalogo::energia_mensual( $eventos, $tope['mes'], $tope['piso_mes'] ) as $mes => $v ) {
 					$acum += (float) $v['tnt'];
 					$out[] = array(
 						'mes'                   => $mes,
@@ -470,7 +486,7 @@ final class SIS_Views {
 				return $out;
 
 			case 'calendario_sismico':
-				return self::filas_calendario( $eventos );
+				return self::filas_calendario( $eventos, $tope );
 
 			case 'hora_del_dia':
 				return self::filas_hora( $eventos );
@@ -479,7 +495,7 @@ final class SIS_Views {
 				return self::filas_intervalos( $eventos );
 
 			case 'sismos_sentidos':
-				return self::filas_sentidos( $eventos );
+				return self::filas_sentidos( $eventos, $tope );
 
 			case 'dispersion_mag_prof':
 				$out = array();
@@ -498,7 +514,7 @@ final class SIS_Views {
 			case 'acumulado':
 				$out  = array();
 				$acum = 0;
-				foreach ( SIS_Catalogo::conteo_mensual( $eventos ) as $mes => $n ) {
+				foreach ( SIS_Catalogo::conteo_mensual( $eventos, 0, $tope['mes'], $tope['piso_mes'] ) as $mes => $n ) {
 					$acum += (int) $n;
 					$out[] = array( 'mes' => $mes, 'acumulado' => $acum, 'sismos' => (int) $n );
 				}
@@ -562,9 +578,9 @@ final class SIS_Views {
 	 * @param array[] $eventos Eventos.
 	 * @return array[]
 	 */
-	private static function filas_mensuales( array $eventos ) {
+	private static function filas_mensuales( array $eventos, array $tope ) {
 		$out = array();
-		foreach ( SIS_Catalogo::conteo_mensual( $eventos ) as $mes => $n ) {
+		foreach ( SIS_Catalogo::conteo_mensual( $eventos, 0, $tope['mes'], $tope['piso_mes'] ) as $mes => $n ) {
 			$out[] = array( 'mes' => $mes, 'sismos' => (int) $n );
 		}
 		return $out;
@@ -581,8 +597,8 @@ final class SIS_Views {
 	 * @param array[] $eventos Eventos.
 	 * @return array[]
 	 */
-	private static function filas_historico_mensual( array $eventos ) {
-		$serie = SIS_Catalogo::conteo_mensual( $eventos );
+	private static function filas_historico_mensual( array $eventos, array $tope ) {
+		$serie = SIS_Catalogo::conteo_mensual( $eventos, 0, $tope['mes'], $tope['piso_mes'] );
 		$meses = array_keys( $serie );
 		$vals  = array_values( $serie );
 		$n     = count( $vals );
@@ -615,8 +631,8 @@ final class SIS_Views {
 	 * @param array[] $eventos Eventos.
 	 * @return array[]
 	 */
-	private static function filas_calendario( array $eventos ) {
-		$serie = SIS_Catalogo::conteo_mensual( $eventos );
+	private static function filas_calendario( array $eventos, array $tope ) {
+		$serie = SIS_Catalogo::conteo_mensual( $eventos, 0, $tope['mes'], $tope['piso_mes'] );
 		if ( ! $serie ) {
 			return array();
 		}
@@ -722,7 +738,7 @@ final class SIS_Views {
 	 * @param array[] $eventos Eventos.
 	 * @return array[]
 	 */
-	private static function filas_sentidos( array $eventos ) {
+	private static function filas_sentidos( array $eventos, array $tope ) {
 		$acum = array();
 		foreach ( $eventos as $e ) {
 			$a = (int) $e['anio'];
@@ -736,7 +752,7 @@ final class SIS_Views {
 		}
 
 		$out = array();
-		foreach ( SIS_Catalogo::conteo_anual( $eventos ) as $anio => $n ) {
+		foreach ( SIS_Catalogo::conteo_anual( $eventos, $tope['anio'] ) as $anio => $n ) {
 			$v     = isset( $acum[ $anio ] ) ? $acum[ $anio ] : array( 'reg' => 0, 'sen' => 0 );
 			$out[] = array(
 				'anio'        => (string) $anio,
@@ -926,7 +942,9 @@ final class SIS_Views {
 	 */
 	private static function cuantitativo( $id, $datos, $args ) {
 		if ( empty( $datos ) ) {
-			return 'Todavía no hay datos para esta vista en el ámbito y la ventana seleccionados.';
+			// Se nombra el filtro que dejó la vista vacía: «no hay datos» a secas
+			// hace pensar en un fallo del sitio.
+			return 'No hay sismos ' . SIS_Periodo::etiqueta( $args ) . ' con los que calcular cifras para esta vista.';
 		}
 
 		switch ( $id ) {
@@ -941,10 +959,10 @@ final class SIS_Views {
 				return self::cuantitativo_profundidad( $datos );
 
 			case 'energia_mensual':
-				return SIS_Texto::cuantitativo( $datos, 'mes', 'energia_tnt', array( 'unidad' => 't de TNT', 'decimales' => 0, 'etiqueta_dim' => 'mes' ) );
+				return SIS_Texto::cuantitativo( $datos, 'mes', 'energia_tnt', array( 'unidad' => 't de TNT', 'decimales' => 0, 'etiqueta_dim' => 'mes', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'magnitud_mensual':
-				return SIS_Texto::cuantitativo( $datos, 'mes', 'magnitud_maxima', array( 'decimales' => 1, 'etiqueta_dim' => 'mes' ) );
+				return SIS_Texto::cuantitativo( $datos, 'mes', 'magnitud_maxima', array( 'decimales' => 1, 'etiqueta_dim' => 'mes', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'acumulado':
 				$ultimo = end( $datos );
@@ -957,43 +975,43 @@ final class SIS_Views {
 				);
 
 			case 'mayores_sismos':
-				return SIS_Texto::cuantitativo( $datos, 'evento', 'magnitud', array( 'decimales' => 1, 'etiqueta_dim' => 'sismo' ) );
+				return SIS_Texto::cuantitativo( $datos, 'evento', 'magnitud', array( 'decimales' => 1, 'etiqueta_dim' => 'sismo', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'municipios_cercanos':
 			case 'subregiones':
 			case 'clases_magnitud':
 			case 'profundidad':
 				$dim = array_keys( $datos[0] );
-				return SIS_Texto::cuantitativo( $datos, $dim[0], 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'categoría' ) );
+				return SIS_Texto::cuantitativo( $datos, $dim[0], 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'categoría', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'distribucion_magnitud':
-				return SIS_Texto::cuantitativo( $datos, 'magnitud', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'magnitud' ) );
+				return SIS_Texto::cuantitativo( $datos, 'magnitud', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'magnitud', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'sismos_anuales':
-				return SIS_Texto::cuantitativo( $datos, 'anio', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'año' ) );
+				return SIS_Texto::cuantitativo( $datos, 'anio', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'año', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'calendario_sismico':
-				return SIS_Texto::cuantitativo( $datos, 'mes_num', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes' ) );
+				return SIS_Texto::cuantitativo( $datos, 'mes_num', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'hora_del_dia':
-				return SIS_Texto::cuantitativo( $datos, 'hora', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'hora' ) );
+				return SIS_Texto::cuantitativo( $datos, 'hora', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'hora', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'intervalos':
-				return SIS_Texto::cuantitativo( $datos, 'intervalo', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'intervalo' ) );
+				return SIS_Texto::cuantitativo( $datos, 'intervalo', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'intervalo', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'sismos_sentidos':
-				return SIS_Texto::cuantitativo( $datos, 'anio', 'sentidos', array( 'unidad' => 'sismos sentidos', 'etiqueta_dim' => 'año' ) );
+				return SIS_Texto::cuantitativo( $datos, 'anio', 'sentidos', array( 'unidad' => 'sismos sentidos', 'etiqueta_dim' => 'año', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'energia_acumulada':
-				return SIS_Texto::cuantitativo( $datos, 'mes', 'energia_acumulada_tnt', array( 'unidad' => 'toneladas de TNT', 'etiqueta_dim' => 'mes' ) );
+				return SIS_Texto::cuantitativo( $datos, 'mes', 'energia_acumulada_tnt', array( 'unidad' => 'toneladas de TNT', 'etiqueta_dim' => 'mes', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'dispersion_mag_prof':
-				return SIS_Texto::cuantitativo( $datos, 'rango', 'profundidad', array( 'unidad' => 'km', 'etiqueta_dim' => 'rango de profundidad' ) );
+				return SIS_Texto::cuantitativo( $datos, 'rango', 'profundidad', array( 'unidad' => 'km', 'etiqueta_dim' => 'rango de profundidad', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 
 			case 'sismos_mensuales':
 			case 'historico_mensual':
 			default:
-				return SIS_Texto::cuantitativo( $datos, 'mes', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes' ) );
+				return SIS_Texto::cuantitativo( $datos, 'mes', 'sismos', array( 'unidad' => 'sismos', 'etiqueta_dim' => 'mes', 'periodo' => SIS_Periodo::etiqueta( $args ) ) );
 		}
 	}
 

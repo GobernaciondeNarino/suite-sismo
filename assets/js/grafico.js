@@ -41,6 +41,9 @@
       type: fig.getAttribute('data-type') || '',
       ambito: q.ambito,
       anios: q.anios,
+      dias: q.dias,
+      anio: q.anio,
+      mes: q.mes,
       min_mag: q.min_mag,
       legend: fig.getAttribute('data-legend') !== '0',
       legendStyle: fig.getAttribute('data-legend-style') || 'text',
@@ -54,17 +57,18 @@
     };
 
     if (st.grupo && window.SISGrupo) {
-      var e0 = window.SISGrupo.init(st.grupo, {
-        view: st.view, type: st.type, ambito: st.ambito, anios: st.anios, min_mag: st.min_mag
-      });
-      st.view = e0.view || st.view;
-      st.type = e0.type || st.type;
-      st.ambito = e0.ambito || st.ambito;
-      st.anios = e0.anios !== undefined ? e0.anios : st.anios;
+      // El grupo sincroniza también el periodo: si un filtro cambia los días
+      // o el año, el gráfico y su análisis tienen que hablar de lo mismo.
+      var CAMPOS = ['view', 'type', 'ambito', 'anios', 'dias', 'anio', 'mes', 'min_mag'];
+      var inicial = {};
+      CAMPOS.forEach(function (k) { inicial[k] = st[k]; });
+
+      var e0 = window.SISGrupo.init(st.grupo, inicial);
+      CAMPOS.forEach(function (k) { if (e0[k] !== undefined && e0[k] !== '') { st[k] = e0[k]; } });
 
       window.SISGrupo.subscribe(st.grupo, function (e) {
-        var cambio = e.view !== st.view || e.type !== st.type || e.ambito !== st.ambito || e.anios !== st.anios || e.min_mag !== st.min_mag;
-        st.view = e.view; st.type = e.type; st.ambito = e.ambito; st.anios = e.anios; st.min_mag = e.min_mag;
+        var cambio = CAMPOS.some(function (k) { return e[k] !== undefined && e[k] !== st[k]; });
+        CAMPOS.forEach(function (k) { if (e[k] !== undefined) { st[k] = e[k]; } });
         if (cambio) { cargar(fig, chartEl, titleEl, st); }
       });
     }
@@ -80,7 +84,11 @@
   }
 
   function params(st) {
-    return { view: st.view, type: st.type, ambito: st.ambito, anios: st.anios, min_mag: st.min_mag };
+    return {
+      view: st.view, type: st.type, ambito: st.ambito,
+      anios: st.anios, dias: st.dias, anio: st.anio, mes: st.mes,
+      min_mag: st.min_mag
+    };
   }
 
   function cargar(fig, chartEl, titleEl, st) {
@@ -159,7 +167,8 @@
       modo: box.getAttribute('data-modo') || 'ambos',
       titulo: box.getAttribute('data-titulo') || '',
       grupo: box.getAttribute('data-grupo') || '',
-      ambito: q.ambito, anios: q.anios, min_mag: q.min_mag
+      ambito: q.ambito, anios: q.anios, dias: q.dias, anio: q.anio, mes: q.mes,
+      min_mag: q.min_mag
     };
 
     var pintado = false;
@@ -169,7 +178,11 @@
       pintarBloque(box, p, st.modo, st.titulo);
     }
     function propio() {
-      C.rest('/render', { view: st.view, ambito: st.ambito, anios: st.anios, min_mag: st.min_mag })
+      C.rest('/render', {
+        view: st.view, ambito: st.ambito,
+        anios: st.anios, dias: st.dias, anio: st.anio, mes: st.mes,
+        min_mag: st.min_mag
+      })
         .then(render)
         .catch(function () {
           if (!pintado) { C.error(box, 'No se pudo cargar el análisis.', function () { pintado = false; initAnalisis(box); }); }
@@ -177,9 +190,13 @@
     }
 
     if (st.grupo && window.SISGrupo) {
-      var e0 = window.SISGrupo.init(st.grupo, { view: st.view, ambito: st.ambito, anios: st.anios });
-      st.view = e0.view || st.view;
-      st.ambito = e0.ambito || st.ambito;
+      var e0 = window.SISGrupo.init(st.grupo, {
+        view: st.view, ambito: st.ambito,
+        anios: st.anios, dias: st.dias, anio: st.anio, mes: st.mes
+      });
+      ['view', 'ambito', 'anios', 'dias', 'anio', 'mes'].forEach(function (k) {
+        if (e0[k] !== undefined && e0[k] !== '') { st[k] = e0[k]; }
+      });
       window.SISGrupo.onPayload(st.grupo, function (p) { render(p); });
       setTimeout(function () { if (!pintado) { propio(); } }, 1200);
       return;
@@ -196,6 +213,12 @@
 
     if (titulo) { box.appendChild(C.el('p', 'sis-g__analisis-titulo', C.esc(titulo))); }
     else if (v.name) { box.appendChild(C.el('p', 'sis-g__analisis-titulo', C.esc(v.name))); }
+
+    /* Antes de cualquier texto, dónde y cuándo. Los párrafos explicativos son
+       fijos: sin esta línea, el mismo texto valdría para «Nariño en 15 días» y
+       para «Colombia en treinta años», que es justo lo que no puede pasar
+       cuando se informa a la ciudadanía. */
+    marco(box, v);
 
     var algo = false;
     if (modo === 'descripcion' && (v.descripcion_larga || v.description)) {
@@ -217,15 +240,33 @@
     if (!algo) { box.appendChild(C.el('p', 'sis-g__analisis-desc', 'Sin contenido disponible para esta vista.')); }
   }
 
+  /* Encabezado de ámbito y periodo, más la nota que explica un resultado
+     vacío. Los dos los calcula el servidor, que es quien filtró. */
+  function marco(destino, v) {
+    if (v.encabezado) {
+      destino.appendChild(C.el('p', 'sis-g__marco', C.esc(v.encabezado)));
+    }
+    if (v.nota_vacia) {
+      destino.appendChild(C.el('p', 'sis-g__vacio', C.esc(v.nota_vacia)));
+    }
+  }
+
   function pintarAnalisis(fig, p, modo) {
     var prev = fig.querySelector('.sis-g__analisis');
     if (prev) { prev.parentNode.removeChild(prev); }
     if (modo === 'no') { return; }
 
-    var a = (p && p.view && p.view.analisis) || null;
-    if (!a) { return; }
+    var v = (p && p.view) || {};
+    var a = v.analisis || null;
+    if (!a && !v.nota_vacia) { return; }
+    a = a || {};
 
     var box = C.el('div', 'sis-g__analisis');
+    /* Si la vista quedó sin datos, el propio gráfico ya publicó el encabezado
+       y la explicación en su lugar: repetirlos aquí sería decir dos veces lo
+       mismo en la misma tarjeta. Con datos, el encabezado sí encabeza. */
+    var hayDatos = !!(p && p.data && p.data.length);
+    if (hayDatos) { marco(box, v); }
     if ((modo === 'ambos' || modo === 'descriptivo') && a.descriptivo) {
       box.appendChild(C.el('p', 'sis-g__analisis-desc', C.esc(a.descriptivo)));
     }

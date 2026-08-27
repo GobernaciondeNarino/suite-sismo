@@ -220,13 +220,38 @@
   }
 
   /** Lee los data-* de consulta comunes a todos los shortcodes. */
+  /* Los cinco atributos de consulta que publica cualquier componente. El
+     periodo ya viene normalizado desde PHP —solo llega lleno el campo que de
+     verdad va a filtrar—, así que aquí basta con reenviarlo tal cual. */
   function consulta(node) {
     return {
       ambito: node.getAttribute('data-ambito') || CFG.ambito,
       anios: node.getAttribute('data-anios') || '',
       dias: node.getAttribute('data-dias') || '',
+      anio: node.getAttribute('data-anio') || '',
+      mes: node.getAttribute('data-mes') || '',
       min_mag: node.getAttribute('data-min-mag') || ''
     };
+  }
+
+  /* Los campos de periodo que estén llenos, listos para una petición REST.
+     Se filtran los vacíos para que la URL —y con ella la clave de caché del
+     servidor— no cambie por un parámetro que no filtra nada. */
+  function periodo(q) {
+    var out = {};
+    ['dias', 'anio', 'mes', 'anios'].forEach(function (k) {
+      if (q[k]) { out[k] = q[k]; }
+    });
+    return out;
+  }
+
+  /** Mezcla superficial: base + periodo, sin tocar la base. */
+  function conPeriodo(base, q) {
+    var out = {};
+    for (var k in base) { if (Object.prototype.hasOwnProperty.call(base, k)) { out[k] = base[k]; } }
+    var p = periodo(q);
+    for (var j in p) { if (Object.prototype.hasOwnProperty.call(p, j)) { out[j] = p[j]; } }
+    return out;
   }
 
   /** Refresco periódico que se detiene si la pestaña no está visible. */
@@ -241,6 +266,8 @@
   window.SIScore = {
     cfg: CFG,
     rest: rest,
+    periodo: periodo,
+    conPeriodo: conPeriodo,
     externo: externo,
     feedVivo: feedVivo,
     ambito: ambito,

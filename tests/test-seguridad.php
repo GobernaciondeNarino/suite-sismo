@@ -64,7 +64,7 @@ foreach ( array(
 	'includes/class-sis-security.php', 'includes/class-sis-estilos.php', 'includes/class-sis-activator.php',
 	'includes/data/class-sis-municipios.php', 'includes/data/class-sis-regiones.php', 'includes/data/class-sis-amenaza.php',
 	'includes/analysis/class-sis-catalogo.php', 'includes/analysis/class-sis-estadistica.php', 'includes/analysis/class-sis-texto.php',
-	'includes/data/class-sis-views.php', 'includes/class-sis-rest.php',
+	'includes/data/class-sis-periodo.php', 'includes/data/class-sis-views.php', 'includes/class-sis-rest.php',
 	'includes/sync/class-sis-sync-usgs.php', 'includes/sync/class-sis-sync-feed.php', 'includes/sync/class-sis-sync.php',
 	'includes/shortcodes/class-sis-shortcodes.php',
 ) as $f ) {

@@ -123,6 +123,8 @@ final class SIS_Rest {
 		return array(
 			'ambito'  => array( 'type' => 'string' ),
 			'dias'    => array( 'type' => 'integer' ),
+			'anio'    => array( 'type' => 'integer' ),
+			'mes'     => array( 'type' => 'integer' ),
 			'anios'   => array( 'type' => 'integer' ),
 			'min_mag' => array( 'type' => 'number' ),
 			'limite'  => array( 'type' => 'integer' ),
@@ -163,12 +165,20 @@ final class SIS_Rest {
 		$limite = $req->get_param( 'limite' );
 		$limite = ( null === $limite || '' === $limite ) ? 0 : max( 0, min( 5000, (int) $limite ) );
 
-		return array(
-			'ambito'  => $ambito,
-			'dias'    => $dias,
-			'anios'   => $anios,
-			'min_mag' => SIS_Security::sanitizar_magnitud( $req->get_param( 'min_mag' ), 0.0 ),
-			'limite'  => $limite,
+		$periodo = SIS_Periodo::normalizar( array(
+			'dias'  => $dias,
+			'anios' => $anios,
+			'anio'  => $req->get_param( 'anio' ),
+			'mes'   => $req->get_param( 'mes' ),
+		) );
+
+		return array_merge(
+			array(
+				'ambito'  => $ambito,
+				'min_mag' => SIS_Security::sanitizar_magnitud( $req->get_param( 'min_mag' ), 0.0 ),
+				'limite'  => $limite,
+			),
+			$periodo
 		);
 	}
 
@@ -180,13 +190,8 @@ final class SIS_Rest {
 	 */
 	private function catalogo( $p ) {
 		$catalogo = SIS_Catalogo::obtener( $p['ambito'] );
-		$filtros  = array();
+		$filtros  = SIS_Periodo::filtros( $p );
 
-		if ( $p['dias'] > 0 ) {
-			$filtros['dias'] = $p['dias'];
-		} elseif ( $p['anios'] > 0 ) {
-			$filtros['dias'] = (int) round( $p['anios'] * 365.25 );
-		}
 		if ( $p['min_mag'] > 0 ) {
 			$filtros['min_mag'] = $p['min_mag'];
 		}
@@ -403,7 +408,16 @@ final class SIS_Rest {
 
 		$payload = $this->cacheado(
 			'render',
-			array( 'view' => $view_id, 'type' => $tipo, 'ambito' => $p['ambito'], 'anios' => $p['anios'], 'min_mag' => $p['min_mag'] ),
+			// La clave lleva el periodo completo: sin él, «últimos 15 días» y
+			// «año 2026» compartirían respuesta cacheada y se servirían datos
+			// de un filtro bajo el rótulo de otro.
+			array(
+				'view'    => $view_id,
+				'type'    => $tipo,
+				'ambito'  => $p['ambito'],
+				'periodo' => SIS_Periodo::clave( $p ),
+				'min_mag' => $p['min_mag'],
+			),
 			15 * MINUTE_IN_SECONDS,
 			function () use ( $view_id, $tipo, $p ) {
 				return $this->construir_render( $view_id, $tipo, $p );
@@ -424,6 +438,9 @@ final class SIS_Rest {
 	private function construir_render( $view_id, $tipo, $p ) {
 		$view = SIS_Views::obtener( $view_id, array(
 			'ambito'  => $p['ambito'],
+			'dias'    => $p['dias'],
+			'anio'    => $p['anio'],
+			'mes'     => $p['mes'],
 			'anios'   => $p['anios'],
 			'min_mag' => $p['min_mag'],
 		) );

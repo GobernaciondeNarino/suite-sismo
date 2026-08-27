@@ -246,3 +246,36 @@
   background: rgba(255, 213, 0, .08);
   color: var(--sis-g-ink, #0f172a);
 }
+
+/* --- Marco de ámbito y periodo --- */
+/* Encabeza descripciones y análisis: dice qué territorio y qué ventana de
+   tiempo se está mirando antes de cualquier interpretación. */
+.sis-g__marco {
+  margin: 0 0 8px;
+  font-size: .92em;
+  font-weight: 600;
+  color: var(--sis-texto, #1f2937);
+}
+.sis-g__vacio {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  font-size: .88em;
+  line-height: 1.55;
+  color: var(--sis-mute, #4b5563);
+  background: rgba(0, 48, 135, .05);
+  border-left: 3px solid var(--sis-acento, #003087);
+  border-radius: 0 6px 6px 0;
+}
+
+/* --- Gráfico sin datos en el periodo consultado --- */
+.sis-g__sindatos {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 20px clamp(14px, 5%, 40px);
+  text-align: center;
+}
+.sis-g__sindatos-tit { margin: 0; font-size: 1em; font-weight: 600; color: var(--sis-texto, #1f2937); }
+.sis-g__sindatos-nota { margin: 0; font-size: .87em; line-height: 1.6; color: var(--sis-mute, #4b5563); max-width: 56ch; margin-inline: auto; }

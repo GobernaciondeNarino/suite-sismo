@@ -83,12 +83,17 @@ final class SIS_Texto {
 				'decimales'    => 0,
 				'etiqueta_dim' => 'categoría',
 				'nombre'       => 'el valor',
+				// Etiqueta del periodo consultado, para que un resultado vacío
+				// diga de qué ventana de tiempo está hablando.
+				'periodo'      => '',
 			),
 			$opts
 		);
 
 		if ( empty( $datos ) ) {
-			return 'Todavía no hay datos suficientes para cuantificar esta vista.';
+			return $o['periodo']
+				? 'No hay sismos ' . $o['periodo'] . ' con los que calcular cifras para esta vista.'
+				: 'Todavía no hay datos suficientes para cuantificar esta vista.';
 		}
 
 		$vals = array();

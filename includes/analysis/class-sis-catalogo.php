@@ -443,7 +443,7 @@ final class SIS_Catalogo {
 	 * @param int     $meses   Nº de meses hacia atrás desde el último dato (0 = todos).
 	 * @return array<string,int> mes AAAA-MM → conteo.
 	 */
-	public static function conteo_mensual( array $eventos, $meses = 0 ) {
+	public static function conteo_mensual( array $eventos, $meses = 0, $tope = '', $piso = '' ) {
 		if ( empty( $eventos ) ) {
 			return array();
 		}
@@ -470,9 +470,16 @@ final class SIS_Catalogo {
 		// termina en el último evento parece decir que los datos se detuvieron
 		// ahí. Un mes en cero es información —«no hubo sismos»—; un mes que
 		// falta es ambiguo.
-		$hoy = gmdate( 'Y-m' );
-		if ( $max < $hoy ) {
-			$max = $hoy;
+		//
+		// El tope se puede fijar desde fuera: con un filtro de calendario
+		// cerrado —abril de 2016— rellenar hasta hoy añadiría diez años de
+		// ceros que nadie pidió.
+		$hasta = $tope ? $tope : gmdate( 'Y-m' );
+		if ( $max < $hasta ) {
+			$max = $hasta;
+		}
+		if ( $piso && $piso < $min ) {
+			$min = $piso;
 		}
 
 		// Rellena los meses intermedios sin actividad (un cero es información).
@@ -498,7 +505,7 @@ final class SIS_Catalogo {
 	 * @param array[] $eventos Eventos.
 	 * @return array<int,int> año → conteo.
 	 */
-	public static function conteo_anual( array $eventos ) {
+	public static function conteo_anual( array $eventos, $tope = 0 ) {
 		$conteo = array();
 		foreach ( $eventos as $e ) {
 			$a = (int) $e['anio'];
@@ -515,7 +522,7 @@ final class SIS_Catalogo {
 		// todavía no haya registrado sismos. El año en curso siempre aparece,
 		// aunque sea con una barra en cero.
 		$min = min( array_keys( $conteo ) );
-		$max = max( max( array_keys( $conteo ) ), (int) gmdate( 'Y' ) );
+		$max = max( max( array_keys( $conteo ) ), $tope ? (int) $tope : (int) gmdate( 'Y' ) );
 
 		$out = array();
 		for ( $a = $min; $a <= $max; $a++ ) {
@@ -565,7 +572,7 @@ final class SIS_Catalogo {
 	 * @param array[] $eventos Eventos.
 	 * @return array<string,array{julios:float,tnt:float,n:int}>
 	 */
-	public static function energia_mensual( array $eventos ) {
+	public static function energia_mensual( array $eventos, $tope = '', $piso = '' ) {
 		$acum = array();
 		foreach ( $eventos as $e ) {
 			$m = $e['mes'];
@@ -581,7 +588,7 @@ final class SIS_Catalogo {
 		// el mes en curso—: un mes sin sismos liberó cero energía, y eso se
 		// dibuja, no se omite.
 		$out = array();
-		foreach ( self::conteo_mensual( $eventos ) as $m => $n ) {
+		foreach ( self::conteo_mensual( $eventos, 0, $tope, $piso ) as $m => $n ) {
 			$v            = isset( $acum[ $m ] ) ? $acum[ $m ] : array( 'julios' => 0.0, 'tnt' => 0.0, 'n' => 0 );
 			$v['tnt']     = self::toneladas_tnt( $v['julios'] );
 			$out[ $m ]    = $v;

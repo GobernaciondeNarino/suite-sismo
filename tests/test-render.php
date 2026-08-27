@@ -67,6 +67,7 @@ require SIS_DIR . 'includes/data/class-sis-amenaza.php';
 require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
 require SIS_DIR . 'includes/analysis/class-sis-texto.php';
+require SIS_DIR . 'includes/data/class-sis-periodo.php';
 require SIS_DIR . 'includes/data/class-sis-views.php';
 require SIS_DIR . 'includes/class-sis-rest.php';
 require SIS_DIR . 'includes/sync/class-sis-sync-usgs.php';
@@ -263,6 +264,65 @@ if ( false !== strpos( $hist_tit, 'Registro &lt;b&gt;histórico&lt;/b&gt;' ) || 
 	echo "FAIL  [sismos_historico] el título se publica sin sanear\n";
 	$fallos++;
 }
+
+/* ------------------------------------------------------------------ */
+/* Los filtros llegan a todos los componentes                          */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Cualquier componente que consulte el catálogo tiene que aceptar los cinco
+ * atributos de consulta y publicarlos como data-*, porque de ahí los lee el
+ * JavaScript para pedir los datos. Si uno se queda fuera, ese componente
+ * dibuja otra cosa que el resto de la página.
+ */
+$componentes = array(
+	'sc_grafico', 'sc_estado', 'sc_ultimos', 'sc_mapa', 'sc_estadistica',
+	'sc_datos', 'sc_descripcion', 'sc_explicacion',
+	'sc_analisis_cualitativo', 'sc_analisis_cuantitativo', 'sc_analisis',
+);
+
+$filtro = array( 'ambito' => 'narino', 'dias' => '15' );
+foreach ( $componentes as $m ) {
+	$html = $sc->$m( $filtro );
+	$bien = false !== strpos( $html, 'data-ambito="narino"' ) && false !== strpos( $html, 'data-dias="15"' );
+	printf( "%s  [%s] acepta ambito y dias\n", $bien ? '  ok ' : 'FAIL', $m );
+	if ( ! $bien ) { $fallos++; }
+}
+
+// Los cinco atributos, uno a uno, con el valor que de verdad va a filtrar.
+$casos = array(
+	array( array( 'ambito' => 'colombia' ),               'data-ambito="colombia"' ),
+	array( array( 'dias' => '45' ),                       'data-dias="45"' ),
+	array( array( 'anios' => '8' ),                       'data-anios="8"' ),
+	array( array( 'anio' => '2019' ),                     'data-anio="2019"' ),
+	array( array( 'anio' => '2019', 'mes' => '8' ),       'data-mes="8"' ),
+);
+foreach ( $casos as $caso ) {
+	$html = $sc->sc_grafico( $caso[0] );
+	$bien = false !== strpos( $html, $caso[1] );
+	printf( "%s  [sismos_grafico %s] publica %s\n", $bien ? '  ok ' : 'FAIL',
+		http_build_query( $caso[0], '', ' ' ), $caso[1] );
+	if ( ! $bien ) { $fallos++; }
+}
+
+/*
+ * El data-* que viaja en el HTML es el filtro que de verdad se va a aplicar,
+ * no el que escribió quien maquetó: con anio="2020" y dias="15" a la vez, el
+ * año manda y los días salen vacíos. Si no fuera así, el atributo prometería
+ * un recorte que el servidor no hace.
+ */
+$mezcla = $sc->sc_grafico( array( 'anio' => '2020', 'dias' => '15', 'anios' => '30' ) );
+$coherente = false !== strpos( $mezcla, 'data-anio="2020"' )
+	&& false !== strpos( $mezcla, 'data-dias=""' )
+	&& false !== strpos( $mezcla, 'data-anios=""' );
+printf( "%s  Un año concreto vacía los atributos de ventana móvil\n", $coherente ? '  ok ' : 'FAIL' );
+if ( ! $coherente ) { $fallos++; }
+
+// Un valor imposible no se publica.
+$sucio = $sc->sc_grafico( array( 'mes' => '99', 'anio' => '1500' ) );
+$limpio = false !== strpos( $sucio, 'data-mes=""' ) && false !== strpos( $sucio, 'data-anio=""' );
+printf( "%s  Un mes o un año imposibles no llegan al HTML\n", $limpio ? '  ok ' : 'FAIL' );
+if ( ! $limpio ) { $fallos++; }
 
 echo "\n";
 if ( $fallos ) {

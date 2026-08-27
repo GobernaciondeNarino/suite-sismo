@@ -18,8 +18,7 @@
     cargar();
 
     function cargar() {
-      var p = { ambito: q.ambito, min_mag: q.min_mag, limite: limite };
-      if (q.dias) { p.dias = q.dias; }
+      var p = C.conPeriodo({ ambito: q.ambito, min_mag: q.min_mag, limite: limite }, q);
       C.rest('/eventos', p)
         .then(function (r) {
           pintar(box, r.eventos || [], limite, vistos);

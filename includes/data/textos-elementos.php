@@ -17,7 +17,7 @@ return array(
 		'grupo'     => 'graficas',
 		'titulo'    => 'Estado de la actividad sísmica',
 		'que_hace'  => 'Semáforo con el último sismo registrado (magnitud, profundidad, lugar y municipio más cercano) y los conteos de las últimas 24 horas, semana, mes y año. Con «vivo» activado se refresca desde el feed del USGS cada dos minutos.',
-		'atributos' => 'ambito · dias · min_mag · compacto (si|no) · vivo (si|no)',
+		'atributos' => 'ambito · dias · anio · mes · anios · min_mag · compacto (si|no) · vivo (si|no)',
 		'ejemplo'   => '[sismos_estado ambito="narino" vivo="si"]',
 	),
 
@@ -26,7 +26,7 @@ return array(
 		'grupo'     => 'graficas',
 		'titulo'    => 'Últimos sismos',
 		'que_hace'  => 'Lista de los sismos más recientes con magnitud, antigüedad, profundidad y enlace a la ficha del USGS. Los eventos nuevos se destacan al llegar.',
-		'atributos' => 'ambito · dias · min_mag · limite · vivo (si|no)',
+		'atributos' => 'ambito · dias · anio · mes · anios · min_mag · limite · vivo (si|no)',
 		'ejemplo'   => '[sismos_ultimos limite="8" ambito="regional"]',
 	),
 
@@ -35,7 +35,7 @@ return array(
 		'grupo'     => 'globo',
 		'titulo'    => 'Mapa de epicentros',
 		'que_hace'  => 'Mapa Leaflet con un círculo por sismo: el tamaño codifica la magnitud y el color la profundidad. Superpone la capa oficial de amenaza sísmica del SGC (Modelo Nacional de Amenaza Sísmica) y, si se desea, los centroides de los 64 municipios. La amenaza no se calcula: se muestra la capa oficial con su atribución.',
-		'atributos' => 'ambito · dias · anios · min_mag · alto · municipios (si|no) · amenaza (si|no) · periodo (75|225|475|975|2475) · zoom',
+		'atributos' => 'ambito · dias · anio · mes · anios · min_mag · alto · municipios (si|no) · amenaza (si|no) · periodo (75|225|475|975|2475) · zoom',
 		'ejemplo'   => '[sismos_mapa ambito="regional" anios="5" min_mag="4.5" amenaza="si" periodo="475" alto="520px"]',
 	),
 
@@ -44,7 +44,7 @@ return array(
 		'grupo'     => 'historicas',
 		'titulo'    => 'El registro completo en dos lecturas',
 		'que_hace'  => 'Publica juntas las dos gráficas que responden a «¿cómo ha sido esto a lo largo del tiempo?»: barras de sismos por año, que dan la perspectiva larga, y una línea mensual con su media móvil de doce meses, que separa la tendencia de fondo del ruido de las secuencias de réplicas. Ambas recorren todo el catálogo disponible, no una ventana reciente, y llegan hasta el mes en curso aunque no haya habido sismos.',
-		'atributos' => 'ambito · min_mag · alto · theme (claro|oscuro) · toolbar (si|no) · analisis · titulo',
+		'atributos' => 'ambito · dias · anio · mes · anios · min_mag · alto · theme (claro|oscuro) · toolbar (si|no) · analisis · titulo',
 		'ejemplo'   => '[sismos_historico ambito="regional" titulo="Registro histórico de Nariño"]',
 	),
 
@@ -53,7 +53,7 @@ return array(
 		'grupo'     => 'globo',
 		'titulo'    => 'Globo 3D de sismos recientes',
 		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. El planeta usa la imagen por satélite que viaja con el plugin —1,4 MB en escritorio y 239 KB en pantallas pequeñas o conexiones lentas, elegida sola—. Con textura="mapa" la Tierra se dibuja en el navegador desde la costa mundial (54 KB) y con textura="no" queda solo la retícula. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
-		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (foto|mapa|no) · municipios (si|no) · timeline (si|no)',
+		'atributos' => 'ambito · dias · anio · mes · anios · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (foto|mapa|no) · municipios (si|no) · timeline (si|no)',
 		'ejemplo'   => '[sismos_globo ambito="regional" limite="50" alto="70vh" autorotar="si"]',
 	),
 
@@ -62,7 +62,7 @@ return array(
 		'grupo'     => 'globo',
 		'titulo'    => 'Línea de tiempo de sismos',
 		'que_hace'  => 'Barra que recorre los sismos del periodo en orden cronológico: botones de sismo anterior y siguiente, reproducción a tres velocidades, deslizador y una tira con una marca por sismo coloreada por magnitud. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
-		'atributos' => 'ambito · limite · logo (si|no, por defecto no)',
+		'atributos' => 'ambito · dias · anio · mes · anios · limite · logo (si|no, por defecto no)',
 		'ejemplo'   => '[sismos_globo limite="50"] [sismos_timeline limite="50"]',
 	),
 
@@ -71,7 +71,7 @@ return array(
 		'grupo'     => 'graficas',
 		'titulo'    => 'Gráfico estadístico (motor D3plus)',
 		'que_hace'  => 'Tarjeta de gráfico con barra de herramientas: Cómo funciona, Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y cambio de tipo en vivo. Elija el conjunto de datos con «view» y el tipo con «type».',
-		'atributos' => 'view · type · ambito · anios · min_mag · theme (claro|oscuro) · actions · legend · legend_style · legend_pos · toolbar · alto · grupo · analisis · titulo',
+		'atributos' => 'view · type · ambito · dias · anio · mes · anios · min_mag · theme (claro|oscuro) · actions · legend · legend_style · legend_pos · toolbar · alto · grupo · analisis · titulo',
 		'ejemplo'   => '[sismos_grafico view="frecuencia_magnitud" type="line" alto="460px"]',
 	),
 
@@ -134,7 +134,7 @@ return array(
 		'grupo'     => 'graficas',
 		'titulo'    => 'Ficha estadística del catálogo',
 		'que_hace'  => 'Indicadores clave: número de sismos, años de registro, magnitud de completitud, valor b con su error, tasa anual, mayor magnitud registrada, energía liberada y recurrencia observada por magnitud.',
-		'atributos' => 'ambito · anios · dias · min_mag',
+		'atributos' => 'ambito · dias · anio · mes · anios · min_mag',
 		'ejemplo'   => '[sismos_estadistica ambito="regional" anios="20"]',
 	),
 
@@ -143,7 +143,7 @@ return array(
 		'grupo'     => 'graficas',
 		'titulo'    => 'Datos abiertos',
 		'que_hace'  => 'Botones de descarga en JSON y CSV y enlace directo a la API pública del plugin, con la atribución al USGS incorporada.',
-		'atributos' => 'recurso (eventos|estadistica|recurrencia) · ambito · anios · dias · min_mag · texto',
+		'atributos' => 'recurso (eventos|estadistica|recurrencia) · ambito · dias · anio · mes · anios · min_mag · texto',
 		'ejemplo'   => '[sismos_datos recurso="recurrencia" texto="Descargue la recurrencia observada"]',
 	),
 
@@ -161,7 +161,7 @@ return array(
 		'grupo'     => 'texto',
 		'titulo'    => 'Descripción de una vista',
 		'que_hace'  => 'Publica solo el texto que explica qué muestra el gráfico, para maquetarlo aparte de la gráfica.',
-		'atributos' => 'view · ambito · anios · titulo · grupo',
+		'atributos' => 'view · ambito · dias · anio · mes · anios · min_mag · titulo · grupo',
 		'ejemplo'   => '[sismos_descripcion view="recurrencia_historica"]',
 	),
 
@@ -170,7 +170,7 @@ return array(
 		'grupo'     => 'texto',
 		'titulo'    => 'Cómo funciona una vista',
 		'que_hace'  => 'Publica solo la explicación metodológica: qué se calcula, con qué fuente y bajo qué supuestos.',
-		'atributos' => 'view · ambito · anios · titulo · grupo',
+		'atributos' => 'view · ambito · dias · anio · mes · anios · min_mag · titulo · grupo',
 		'ejemplo'   => '[sismos_explicacion view="frecuencia_magnitud"]',
 	),
 
@@ -179,7 +179,7 @@ return array(
 		'grupo'     => 'texto',
 		'titulo'    => 'Interpretación de una vista',
 		'que_hace'  => 'Publica solo el párrafo de interpretación: cómo leer el gráfico y qué errores evitar.',
-		'atributos' => 'view · ambito · anios · titulo · grupo',
+		'atributos' => 'view · ambito · dias · anio · mes · anios · min_mag · titulo · grupo',
 		'ejemplo'   => '[sismos_analisis_cualitativo view="sismos_mensuales"]',
 	),
 
@@ -188,7 +188,7 @@ return array(
 		'grupo'     => 'texto',
 		'titulo'    => 'Cifras clave de una vista',
 		'que_hace'  => 'Publica solo las cifras calculadas con los datos vigentes (máximos, promedios, participación y tendencia). Cambia cuando cambian los datos.',
-		'atributos' => 'view · ambito · anios · titulo · grupo',
+		'atributos' => 'view · ambito · dias · anio · mes · anios · min_mag · titulo · grupo',
 		'ejemplo'   => '[sismos_analisis_cuantitativo view="energia_mensual"]',
 	),
 
@@ -197,7 +197,7 @@ return array(
 		'grupo'     => 'texto',
 		'titulo'    => 'Análisis completo de una vista',
 		'que_hace'  => 'Interpretación y cifras clave juntas, sin la gráfica.',
-		'atributos' => 'view · modo (ambos|descriptivo|cuantitativo|descripcion|como_funciona) · ambito · anios · titulo · grupo',
+		'atributos' => 'view · modo (ambos|descriptivo|cuantitativo|descripcion|como_funciona) · ambito · dias · anio · mes · anios · min_mag · titulo · grupo',
 		'ejemplo'   => '[sismos_analisis view="profundidad" modo="ambos"]',
 	),
 

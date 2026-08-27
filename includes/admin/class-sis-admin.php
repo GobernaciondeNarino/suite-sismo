@@ -614,6 +614,29 @@ final class SIS_Admin {
 		?>
 		<p class="description sis-intro"><?php esc_html_e( 'Copie cualquier shortcode y péguelo en una página, entrada o widget. Cada gráfica trae además sus tres textos —descripción, interpretación y cifras— como shortcodes independientes, para maquetarlos donde convenga.', 'sismos-narino' ); ?></p>
 
+		<details class="sis-ayuda">
+			<summary><?php esc_html_e( 'Cómo filtrar territorio y periodo en cualquier componente', 'sismos-narino' ); ?></summary>
+			<div class="sis-ayuda__cuerpo">
+				<p><?php esc_html_e( 'Todos los componentes que consultan el catálogo aceptan los mismos cinco atributos. El texto que acompaña a la gráfica —descripción, interpretación y cifras— se recalcula con el filtro y dice en su primera línea qué territorio y qué periodo se está mirando.', 'sismos-narino' ); ?></p>
+				<table class="widefat striped">
+					<thead><tr>
+						<th style="width:9em"><?php esc_html_e( 'Atributo', 'sismos-narino' ); ?></th>
+						<th><?php esc_html_e( 'Qué hace', 'sismos-narino' ); ?></th>
+						<th style="width:12em"><?php esc_html_e( 'Ejemplo', 'sismos-narino' ); ?></th>
+					</tr></thead>
+					<tbody>
+						<tr><td><code>ambito</code></td><td><?php esc_html_e( 'Territorio: narino (solo el departamento), regional (Nariño y la zona de subducción vecina), radio (300 km alrededor de Pasto) o colombia.', 'sismos-narino' ); ?></td><td><code>ambito="narino"</code></td></tr>
+						<tr><td><code>dias</code></td><td><?php esc_html_e( 'Ventana móvil: los últimos N días contados desde hoy.', 'sismos-narino' ); ?></td><td><code>dias="30"</code></td></tr>
+						<tr><td><code>anios</code></td><td><?php esc_html_e( 'Ventana móvil larga: los últimos N años contados desde hoy.', 'sismos-narino' ); ?></td><td><code>anios="5"</code></td></tr>
+						<tr><td><code>anio</code></td><td><?php esc_html_e( 'Año de calendario completo, del 1 de enero al 31 de diciembre.', 'sismos-narino' ); ?></td><td><code>anio="2026"</code></td></tr>
+						<tr><td><code>mes</code></td><td><?php esc_html_e( 'Mes de calendario (1 a 12). Sin «anio» se entiende el mes del año en curso.', 'sismos-narino' ); ?></td><td><code>anio="2016" mes="4"</code></td></tr>
+					</tbody>
+				</table>
+				<p><strong><?php esc_html_e( 'Si combina varios:', 'sismos-narino' ); ?></strong> <?php esc_html_e( 'una fecha de calendario manda sobre una ventana móvil, porque quien escribe anio="2026" pide ese año y no «los últimos N». Entre días y años gana «dias», que es la más específica. Los atributos que quedan descartados no se aplican ni aparecen en la página.', 'sismos-narino' ); ?></p>
+				<p><strong><?php esc_html_e( 'Con ambito="narino":', 'sismos-narino' ); ?></strong> <?php esc_html_e( 'todo lo publicado —epicentros, cifras y textos— queda dentro del recuadro del departamento. Como allí el catálogo global registra unos pocos sismos al año, una ventana corta puede salir vacía; el componente lo explica en lugar de dejar un hueco.', 'sismos-narino' ); ?></p>
+			</div>
+		</details>
+
 		<nav class="nav-tab-wrapper sis-tabs" aria-label="<?php esc_attr_e( 'Tipos de elemento', 'sismos-narino' ); ?>">
 			<?php foreach ( $pestanas as $slug => $etiqueta ) : ?>
 				<a class="nav-tab<?php echo $slug === $actual ? ' nav-tab-active' : ''; ?>"
@@ -661,11 +684,43 @@ final class SIS_Admin {
 				$destino = isset( $mapa[ $v['id'] ] ) ? $mapa[ $v['id'] ] : 'graficas';
 				return $destino === $actual;
 			} ) );
-			$this->tarjetas_vistas( $vistas );
+			$this->tarjetas_vistas( $vistas, $actual );
 		}
 		?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Atributos de consulta que traen por defecto las tarjetas de cada pestaña.
+	 *
+	 * Son el punto de partida que se copia y pega, no un límite: quien maqueta
+	 * los cambia en la página. «Gráficas» mira lo reciente dentro del
+	 * departamento; «Visualizaciones históricas», la perspectiva larga del
+	 * mismo territorio.
+	 *
+	 * @param string $tab Pestaña activa.
+	 * @return array<string,string> atributo → valor.
+	 */
+	private static function consulta_por_defecto( $tab ) {
+		if ( 'historicas' === $tab ) {
+			return array( 'ambito' => 'narino', 'anios' => '8' );
+		}
+		return array( 'ambito' => 'narino', 'dias' => '15' );
+	}
+
+	/**
+	 * Los atributos anteriores, ya escritos para pegar en un shortcode.
+	 *
+	 * @param string $tab Pestaña activa.
+	 * @return string
+	 */
+	private static function atributos_por_defecto( $tab ) {
+		$out = '';
+		foreach ( self::consulta_por_defecto( $tab ) as $k => $v ) {
+			$out .= sprintf( ' %s="%s"', $k, $v );
+		}
+		return $out;
 	}
 
 	/**
@@ -678,14 +733,32 @@ final class SIS_Admin {
 	 *
 	 * @param array[] $vistas Vistas del motor.
 	 */
-	private function tarjetas_vistas( array $vistas ) {
+	private function tarjetas_vistas( array $vistas, $tab = 'graficas' ) {
 		if ( ! $vistas ) {
 			return;
 		}
-		$tipos = SIS_Views::tipos();
+		$tipos  = SIS_Views::tipos();
+		$filtro = self::atributos_por_defecto( $tab );
+		$consulta = self::consulta_por_defecto( $tab );
 		?>
 		<h2><?php esc_html_e( 'Gráficas disponibles', 'sismos-narino' ); ?></h2>
 		<p class="description sis-intro"><?php esc_html_e( 'Una tarjeta por gráfica. El primer shortcode publica la gráfica; los tres siguientes publican sus textos por separado. Si prefiere gráfica y textos juntos, use el último.', 'sismos-narino' ); ?></p>
+		<p class="description sis-intro">
+			<strong><?php esc_html_e( 'Filtro de partida:', 'sismos-narino' ); ?></strong>
+			<code><?php echo esc_html( trim( $filtro ) ); ?></code> —
+			<?php
+			echo esc_html(
+				'historicas' === $tab
+					? __( 'la perspectiva larga del departamento. Cámbielo en la página con anios, anio, mes o dias.', 'sismos-narino' )
+					: __( 'lo ocurrido dentro del departamento en los últimos quince días. Cámbielo en la página con dias, anios, anio o mes.', 'sismos-narino' )
+			);
+			?>
+		</p>
+		<?php if ( 'narino' === $consulta['ambito'] ) : ?>
+			<p class="description sis-intro sis-nota">
+				<?php esc_html_e( 'Dentro del recuadro estricto del departamento el catálogo global registra unos pocos sismos al año, así que una ventana corta puede salir vacía. No es un fallo: el componente lo explica y sugiere ampliar el ámbito a «regional», que es el dominio que gobierna la amenaza de Nariño.', 'sismos-narino' ); ?>
+			</p>
+		<?php endif; ?>
 
 		<div class="sis-cards">
 			<?php foreach ( $vistas as $v ) : ?>
@@ -695,11 +768,11 @@ final class SIS_Admin {
 				$etiqueta = isset( $tipos[ $tipo ]['label'] ) ? $tipos[ $tipo ]['label'] : $tipo;
 
 				$lineas = array(
-					__( 'Gráfica', 'sismos-narino' )     => sprintf( '[sismos_grafico view="%s" type="%s"]', $id, $tipo ),
-					__( 'Descripción', 'sismos-narino' ) => sprintf( '[sismos_descripcion view="%s"]', $id ),
-					__( 'Cualitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cualitativo view="%s"]', $id ),
-					__( 'Cuantitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cuantitativo view="%s"]', $id ),
-					__( 'Todo junto', 'sismos-narino' )  => sprintf( '[sismos_grafico view="%s" analisis="ambos"]', $id ),
+					__( 'Gráfica', 'sismos-narino' )     => sprintf( '[sismos_grafico view="%s" type="%s"%s]', $id, $tipo, $filtro ),
+					__( 'Descripción', 'sismos-narino' ) => sprintf( '[sismos_descripcion view="%s"%s]', $id, $filtro ),
+					__( 'Cualitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cualitativo view="%s"%s]', $id, $filtro ),
+					__( 'Cuantitativo', 'sismos-narino' ) => sprintf( '[sismos_analisis_cuantitativo view="%s"%s]', $id, $filtro ),
+					__( 'Todo junto', 'sismos-narino' )  => sprintf( '[sismos_grafico view="%s" analisis="ambos"%s]', $id, $filtro ),
 				);
 				?>
 				<article class="sis-card">

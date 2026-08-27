@@ -58,9 +58,7 @@
     cargar();
 
     function cargar() {
-      var p = { ambito: q.ambito, min_mag: q.min_mag, limite: 500 };
-      if (q.dias) { p.dias = q.dias; }
-      if (q.anios) { p.anios = q.anios; }
+      var p = C.conPeriodo({ ambito: q.ambito, min_mag: q.min_mag, limite: 500 }, q);
 
       C.rest('/eventos', p)
         .then(function (r) {

@@ -71,6 +71,7 @@ final class SIS_Plugin {
 		require_once $base . 'analysis/class-sis-texto.php';
 
 		// Vistas del motor de gráficos (dependen de análisis).
+		require_once $base . 'data/class-sis-periodo.php';
 		require_once $base . 'data/class-sis-views.php';
 
 		// REST (expone catálogo, estadística, pronóstico y /render).

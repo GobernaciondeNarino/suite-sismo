@@ -84,6 +84,7 @@ require SIS_DIR . 'includes/data/class-sis-amenaza.php';
 require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
 require SIS_DIR . 'includes/analysis/class-sis-texto.php';
+require SIS_DIR . 'includes/data/class-sis-periodo.php';
 require SIS_DIR . 'includes/data/class-sis-views.php';
 require SIS_DIR . 'includes/class-sis-rest.php';
 require SIS_DIR . 'includes/sync/class-sis-sync-usgs.php';
@@ -179,23 +180,56 @@ chk( count( $vistas ) === $tarjetas_totales, 'Hay una tarjeta por vista, ni más
 chk( 0 === substr_count( $html['globo'], 'class="sis-card"' ), 'La pestaña del globo no inventa tarjetas de gráfica' );
 chk( 0 === substr_count( $html['texto'], 'class="sis-card"' ), 'La pestaña de información no inventa tarjetas de gráfica' );
 
-// Cada vista, en su pestaña, con sus cuatro shortcodes y el combinado.
-$todo = $html['graficas'] . $html['historicas'];
+// Cada vista, en su pestaña, con sus cinco shortcodes y el filtro de partida.
+$mf = $reflex->getMethod( 'atributos_por_defecto' );
+$mf->setAccessible( true );
+
+$mc = $reflex->getMethod( 'consulta_por_defecto' );
+$mc->setAccessible( true );
+
 foreach ( $vistas as $v ) {
-	$id = $v['id'];
+	$id  = $v['id'];
+	$tab = isset( $mapa_vistas[ $id ] ) ? $mapa_vistas[ $id ] : 'graficas';
+	$f   = $mf->invoke( null, $tab );
+
 	$esperados = array(
-		'[sismos_grafico view="' . $id . '" type="' . $v['default'] . '"]',
-		'[sismos_descripcion view="' . $id . '"]',
-		'[sismos_analisis_cualitativo view="' . $id . '"]',
-		'[sismos_analisis_cuantitativo view="' . $id . '"]',
-		'[sismos_grafico view="' . $id . '" analisis="ambos"]',
+		'[sismos_grafico view="' . $id . '" type="' . $v['default'] . '"' . $f . ']',
+		'[sismos_descripcion view="' . $id . '"' . $f . ']',
+		'[sismos_analisis_cualitativo view="' . $id . '"' . $f . ']',
+		'[sismos_analisis_cuantitativo view="' . $id . '"' . $f . ']',
+		'[sismos_grafico view="' . $id . '" analisis="ambos"' . $f . ']',
 	);
 	$faltan = array();
 	foreach ( $esperados as $sc ) {
-		if ( false === strpos( $todo, esc_attr( $sc ) ) ) { $faltan[] = $sc; }
+		if ( false === strpos( $html[ $tab ], esc_attr( $sc ) ) ) { $faltan[] = $sc; }
 	}
-	chk( ! $faltan, "«{$id}» publica sus cinco shortcodes copiables" . ( $faltan ? ' — falta ' . $faltan[0] : '' ) );
+	chk( ! $faltan, "«{$id}» publica sus cinco shortcodes con el filtro de su pestaña" . ( $faltan ? ' — falta ' . $faltan[0] : '' ) );
 }
+
+/* ------------------------------------------------------------------ */
+seccion( 'Filtro de partida de cada pestaña' );
+
+/*
+ * Las tarjetas se copian y pegan tal cual, así que el filtro que traen es lo
+ * que va a acabar publicado en el sitio. Si cambia, tiene que cambiar aquí.
+ */
+$g = $mc->invoke( null, 'graficas' );
+chk( 'narino' === $g['ambito'], 'La pestaña de gráficas parte del departamento de Nariño' );
+chk( '15' === (string) $g['dias'], 'La pestaña de gráficas parte de los últimos 15 días' );
+
+$h = $mc->invoke( null, 'historicas' );
+chk( 'narino' === $h['ambito'], 'La pestaña histórica parte del departamento de Nariño' );
+chk( '8' === (string) $h['anios'], 'La pestaña histórica parte de los últimos 8 años' );
+chk( ! isset( $h['dias'] ), 'La pestaña histórica no mezcla días con años' );
+
+// Y ese filtro tiene que aparecer de verdad en el HTML de cada pestaña.
+chk( false !== strpos( $html['graficas'], esc_attr( 'ambito="narino" dias="15"' ) ), 'El filtro de gráficas llega al HTML' );
+chk( false !== strpos( $html['historicas'], esc_attr( 'ambito="narino" anios="8"' ) ), 'El filtro histórico llega al HTML' );
+chk( false === strpos( $html['graficas'], esc_attr( 'anios="8"' ) ), 'La pestaña de gráficas no arrastra el filtro histórico' );
+
+// Con ámbito «narino» la pantalla avisa de que una ventana corta puede salir
+// vacía: quien maqueta debe saberlo antes de publicar.
+chk( false !== strpos( $html['graficas'], 'unos pocos sismos al año' ), 'La pestaña avisa de que el recuadro del departamento es poco activo' );
 
 // El mapa de pestañas no puede citar vistas que ya no existen.
 $ids = wp_list_pluck( $vistas, 'id' );

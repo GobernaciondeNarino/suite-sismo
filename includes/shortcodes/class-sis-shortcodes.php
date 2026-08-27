@@ -252,6 +252,8 @@ final class SIS_Shortcodes {
 			'ambito'  => SIS_Regiones::por_defecto(),
 			'anios'   => '',
 			'dias'    => '',
+			'anio'    => '',
+			'mes'     => '',
 			'min_mag' => '',
 		);
 	}
@@ -284,13 +286,27 @@ final class SIS_Shortcodes {
 	 */
 	private function data_consulta( $atts ) {
 		$ambito  = SIS_Security::sanitizar_ambito( isset( $atts['ambito'] ) ? $atts['ambito'] : '' );
-		$anios   = ( isset( $atts['anios'] ) && '' !== $atts['anios'] ) ? max( 0, min( 60, (int) $atts['anios'] ) ) : '';
-		$dias    = ( isset( $atts['dias'] ) && '' !== $atts['dias'] ) ? SIS_Security::sanitizar_dias( $atts['dias'], 30 ) : '';
 		$min_mag = ( isset( $atts['min_mag'] ) && '' !== $atts['min_mag'] ) ? SIS_Security::sanitizar_magnitud( $atts['min_mag'] ) : '';
 
+		/*
+		 * El periodo se normaliza aquí una sola vez —con la misma precedencia
+		 * que aplicará el servidor al filtrar— para que el atributo que viaja
+		 * en el HTML sea exactamente el que va a decidir qué se dibuja. Los
+		 * campos que el periodo descarta salen vacíos, no con el valor que
+		 * escribió quien maquetó: así el data-* no promete un filtro que no
+		 * se va a aplicar.
+		 */
+		$p = SIS_Periodo::normalizar( $atts );
+
+		$v = static function ( $n ) {
+			return $n ? (string) $n : '';
+		};
+
 		return ' data-ambito="' . esc_attr( $ambito ) . '"'
-			. ' data-anios="' . esc_attr( $anios ) . '"'
-			. ' data-dias="' . esc_attr( $dias ) . '"'
+			. ' data-anios="' . esc_attr( $v( $p['anios'] ) ) . '"'
+			. ' data-dias="' . esc_attr( $v( $p['dias'] ) ) . '"'
+			. ' data-anio="' . esc_attr( $v( $p['anio'] ) ) . '"'
+			. ' data-mes="' . esc_attr( $v( $p['mes'] ) ) . '"'
 			. ' data-min-mag="' . esc_attr( $min_mag ) . '"';
 	}
 

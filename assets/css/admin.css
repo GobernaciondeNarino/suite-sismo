@@ -86,3 +86,25 @@
   .sis-sc__etq { display: none; }
   .sis-cards { grid-template-columns: 1fr; }
 }
+
+/* Aviso sobre un filtro que puede quedarse sin datos. */
+.sis-nota {
+  padding: 9px 12px;
+  border-left: 3px solid #dba617;
+  background: #fcf9e8;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Ayuda plegable de los atributos de consulta. */
+.sis-ayuda {
+  max-width: 62em;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+}
+.sis-ayuda > summary { cursor: pointer; font-weight: 600; }
+.sis-ayuda__cuerpo { margin-top: 10px; }
+.sis-ayuda__cuerpo p { margin: 0 0 10px; }
+.sis-ayuda__cuerpo table { margin: 10px 0; }

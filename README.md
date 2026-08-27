@@ -19,7 +19,7 @@ Plugin de WordPress que publica el **análisis estadístico de la sismicidad** d
 
 Sin proceso de build y **sin CDN**: D3plus v4, Leaflet y three.js viajan con el plugin en `assets/vendor/`. Requiere WordPress 5.8+ y PHP 7.4+.
 
-> **¿Dónde copio los shortcodes?** En **Sismos Nariño → Elementos**, repartido en cuatro pestañas —**Gráficas**, **Visualizaciones históricas**, **Globo y mapa** e **Información**—. Cada gráfica tiene su propia tarjeta con los cinco shortcodes listos para copiar: la gráfica, sus tres textos por separado (descripción, interpretación y cifras) y la versión con todo junto.
+> **¿Dónde copio los shortcodes?** En **Sismos Nariño → Elementos**, repartido en cuatro pestañas —**Gráficas**, **Visualizaciones históricas**, **Globo y mapa** e **Información**—. Cada gráfica tiene su propia tarjeta con los cinco shortcodes listos para copiar: la gráfica, sus tres textos por separado (descripción, interpretación y cifras) y la versión con todo junto. Vienen con un filtro de partida —`ambito="narino" dias="15"` en **Gráficas** y `ambito="narino" anios="8"` en **Visualizaciones históricas**— que se cambia en la propia página.
 
 ---
 
@@ -133,6 +133,29 @@ La capa 3 es agnóstica al dominio: solo entiende de dimensiones y medidas. Si D
 **Lectura territorial** — `municipios_cercanos`, `subregiones`, `mayores_sismos`
 **Recurrencia** — `recurrencia_historica`
 
+### Filtros de territorio y periodo
+
+Todos los componentes que consultan el catálogo aceptan los mismos cinco atributos, y los textos que los acompañan —descripción, interpretación y cifras— se recalculan con ellos.
+
+| Atributo | Qué hace | Ejemplo |
+|---|---|---|
+| `ambito` | Territorio: `narino`, `regional`, `radio`, `colombia` | `ambito="narino"` |
+| `dias` | Ventana móvil: los últimos N días desde hoy | `dias="30"` |
+| `anios` | Ventana móvil larga: los últimos N años desde hoy | `anios="5"` |
+| `anio` | Año de calendario completo | `anio="2026"` |
+| `mes` | Mes de calendario (1–12); sin `anio`, el del año en curso | `anio="2016" mes="4"` |
+
+**Si se combinan varios**, una fecha de calendario manda sobre una ventana móvil —quien escribe `anio="2026"` pide ese año y no «los últimos N»— y entre días y años gana `dias`, que es la más específica. Los atributos descartados no se aplican ni viajan en el HTML de la página.
+
+**Con `ambito="narino"`** todo lo publicado queda dentro del recuadro del departamento: epicentros, cifras y textos. Conviene saber que allí el catálogo global registra unos pocos sismos al año, así que una ventana corta puede salir vacía; en ese caso el componente explica qué significa el cero y ofrece ampliar el ámbito, en vez de dejar un hueco.
+
+```
+[sismos_grafico view="sismos_mensuales" ambito="narino" dias="15"]
+[sismos_grafico view="sismos_anuales" ambito="narino" anios="8"]
+[sismos_grafico view="distribucion_magnitud" ambito="regional" anio="2016" mes="4"]
+[sismos_estadistica ambito="narino" anios="8"]
+```
+
 ### Tipos de gráfico (`type`)
 
 `bar` · `stacked_bar` · `line` · `area` · `stacked_area` · `pie` · `donut` · `treemap` · `box_whisker` · `plot` (dispersión) · `matrix` (matriz de calor)
@@ -207,6 +230,7 @@ includes/
     class-sis-municipios.php   64 municipios (DIVIPOLA + centroides) y distancias
     class-sis-regiones.php     Ámbitos espaciales y escalas del dominio
     class-sis-amenaza.php      Marco de amenaza: glosario, fuentes oficiales, geología, normativa
+    class-sis-periodo.php      Periodo consultado: filtros, etiquetas y encabezados
     class-sis-views.php        Catálogo de vistas del motor de gráficos
     textos-graficos.php        Textos largos por vista
     textos-preparacion.php     Guía ciudadana antes/durante/después

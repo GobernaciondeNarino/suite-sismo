@@ -310,15 +310,31 @@
   }
 
   /* ---------- Estado «sin datos» ---------- */
+  /* Un periodo sin sismos no es un error del sitio ni un fallo de datos: es un
+     dato. El mensaje lo dice con las palabras del filtro que se aplicó —«dentro
+     del departamento de Nariño en los últimos 15 días»— y explica qué significa
+     un cero, en vez de mandar a quien lee a tocar la configuración. */
   function vacio(node, payload) {
     if (!node) { return null; }
     node.innerHTML = '';
     var v = (payload && payload.view) || {};
-    var p = document.createElement('p');
-    p.className = 'sis-g__analisis-desc';
-    p.style.cssText = 'padding:18px;text-align:center;font-size:.9rem';
-    p.textContent = 'Aún no hay datos para «' + (v.name || 'esta vista') + '» en el ámbito consultado. Sincroniza la fuente USGS en Sismos Nariño → Fuentes o amplía la ventana de años.';
-    node.appendChild(p);
+
+    var caja = document.createElement('div');
+    caja.className = 'sis-g__sindatos';
+
+    var t = document.createElement('p');
+    t.className = 'sis-g__sindatos-tit';
+    t.textContent = v.encabezado || ('Sin datos para «' + (v.name || 'esta vista') + '» en el periodo consultado.');
+    caja.appendChild(t);
+
+    if (v.nota_vacia) {
+      var n = document.createElement('p');
+      n.className = 'sis-g__sindatos-nota';
+      n.textContent = v.nota_vacia;
+      caja.appendChild(n);
+    }
+
+    node.appendChild(caja);
     return null;
   }
 

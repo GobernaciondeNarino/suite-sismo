@@ -82,6 +82,7 @@ require SIS_DIR . 'includes/data/class-sis-regiones.php';
 require SIS_DIR . 'includes/analysis/class-sis-catalogo.php';
 require SIS_DIR . 'includes/analysis/class-sis-estadistica.php';
 require SIS_DIR . 'includes/analysis/class-sis-texto.php';
+require SIS_DIR . 'includes/data/class-sis-periodo.php';
 require SIS_DIR . 'includes/data/class-sis-amenaza.php';
 
 use GobernacionNarino\Sismos\SIS_Catalogo;
