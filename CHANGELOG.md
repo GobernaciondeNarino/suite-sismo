@@ -1,5 +1,32 @@
 # Registro de cambios
 
+## 2.10.0 — 2026-08-27
+
+### El globo abre mirando el planeta, y con el último mes
+
+Un globo que arranca encuadrado en Nariño, con los cincuenta sismos más recientes del ámbito, dice dos cosas falsas a la vez: que solo tiembla aquí —el resto del planeta sale vacío— y que no ha pasado gran cosa últimamente, porque en el recuadro del departamento esos cincuenta sismos pueden remontarse años atrás.
+
+Ahora `[sismos_globo]` abre en la vista **Global** y con los **últimos 30 días, hoy incluido**: unos 2 200 sismos de magnitud 2,5 o mayor en todo el mundo, con el Cinturón de Fuego dibujado entero. Las vistas «Zona sísmica» y «Nariño» siguen ahí y muestran el ámbito publicado en el shortcode, que se precarga en segundo plano para que respondan al instante. Se cambia con `vista="sismos"` o `vista="narino"`, y el periodo con los mismos `dias`, `anio`, `mes` y `anios` de cualquier otro componente.
+
+Para que eso fuera viable hubo que tocar cuatro cosas:
+
+- **El conjunto mundial pasa de una semana a un mes** (`2.5_week` → `2.5_month`), y el tope de guardado de 1 500 a 4 000 para que el mes entre entero en lugar de recortarse por el extremo antiguo sin avisar.
+- **La respuesta viaja adelgazada.** Con `campos=globo`, `/eventos` entrega solo los siete campos que el globo dibuja en vez del evento completo: de 1 229 KB a 316 KB para el mes del planeta.
+- **El campo de calor tiene presupuesto propio.** Antes eran 16 partículas por sismo, así que su coste crecía con el número de sismos y el bucle de animación —que corre en cada fotograma— se disparaba. Ahora el presupuesto es del campo entero: con cincuenta epicentros cada uno recibe sus 16, y con dos mil se reparten las mismas 12 000. El color de cada partícula, que solo depende de la magnitud, se calcula una vez y no en cada fotograma.
+- **Los sismos del mundo ya no se atribuyen a un municipio de Nariño.** El campo guardaba el municipio más cercano, y para un sismo en Japón eso llegaba a poner «Cerca de Tumaco» a nueve mil kilómetros.
+
+Medido en el navegador con renderizado por software —el peor caso— y los 2 234 sismos del último mes: listo en 2,1 s y 34 cuadros por segundo, sin errores de consola.
+
+### El encuadre de la vista mundial se calcula
+
+La cámara de la vista global estaba fija a una distancia pensada para una pantalla apaisada. En un lienzo vertical —un teléfono— el campo de visión horizontal es mucho más estrecho, y el planeta salía cortado. Ahora la distancia se deriva del radio que hay que cubrir y de la forma del contenedor, como ya hacía el encuadre de «Zona sísmica».
+
+### Correcciones
+
+- **El cintillo del globo tapaba el pie.** Los bloques que van encima del planeta —botonera, cintillo, leyenda— se anclaban al componente entero, que además del lienzo lleva el aviso de la fuente y la atribución. Ahora se anclan a la escena, y los textos quedan debajo, en flujo normal y legibles.
+- **La botonera decía «Zona sísmica» mientras el globo mostraba otra cosa.** La marca de vista activa estaba escrita a mano en el HTML; ahora sigue a la vista de partida.
+- **Dos píxeles de scroll horizontal en móvil.** El navegador le pone 2 px de margen propio al deslizador de la línea de tiempo, que en móvil ocupa el 100 % de la fila: esos dos píxeles ensanchaban la página entera.
+
 ## 2.9.0 — 2026-08-27
 
 ### El catálogo ya cubre Colombia entera

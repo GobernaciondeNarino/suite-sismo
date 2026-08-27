@@ -23,8 +23,15 @@ final class SIS_Sync_Feed {
 	/** Base de los feeds de resumen. */
 	const BASE = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/';
 
-	/** Tope de eventos que se guardan del feed sin recortar (vista global). */
-	const TOPE_MUNDO = 1500;
+	/*
+	 * Tope de eventos que se guardan del feed sin recortar (vista global).
+	 *
+	 * El feed de un mes con magnitud 2,5 o mayor ronda los 2 200 sismos, así
+	 * que el tope los admite enteros: recortarlo por debajo dejaría fuera los
+	 * más antiguos del mes sin decirlo. Sigue siendo un tope, no una promesa:
+	 * si un enjambre dispara el feed, se conservan los más recientes.
+	 */
+	const TOPE_MUNDO = 4000;
 
 	/**
 	 * Feeds admitidos (lista blanca: evita construir URLs arbitrarias).
@@ -100,7 +107,17 @@ final class SIS_Sync_Feed {
 		// Además se guarda el feed sin recortar, que es lo que alimenta la
 		// vista global del globo. Se limita a los más recientes para que la
 		// respuesta no crezca sin control cuando el feed trae un enjambre.
-		$mundo = SIS_Catalogo::normalizar( $json, array( 'ambito' => 'mundo' ) );
+		/*
+		 * Sin municipio: el campo guarda el municipio de Nariño más cercano, y
+		 * para un sismo en Japón eso es un dato absurdo —el globo llegaría a
+		 * poner «Cerca de Tumaco» a nueve mil kilómetros— además del grueso
+		 * del coste de normalizar dos mil eventos, que son dos mil barridos
+		 * sobre los sesenta y cuatro municipios.
+		 */
+		$mundo = SIS_Catalogo::normalizar( $json, array(
+			'ambito'            => 'mundo',
+			'asignar_municipio' => false,
+		) );
 		if ( count( $mundo ) > self::TOPE_MUNDO ) {
 			$mundo = array_slice( $mundo, -1 * self::TOPE_MUNDO );
 		}

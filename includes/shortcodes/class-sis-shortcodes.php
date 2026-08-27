@@ -849,9 +849,24 @@ final class SIS_Shortcodes {
 			array(
 				'limite'     => '50',
 				'calidad'    => 'auto',
-				// El globo abre encuadrando la zona sísmica: si además girase
-				// solo, en pocos segundos la perdería de vista. Quien quiera el
-				// planeta en rotación lo pide con autorotar="si".
+				// Vista de partida. «global» abre con la sismicidad del
+				// planeta: un globo que arranca con cincuenta puntos sobre
+				// Nariño y el resto vacío hace creer que solo tiembla aquí.
+				// «sismos» abre encuadrando el ámbito y «narino», el
+				// departamento.
+				'vista'      => 'global',
+				/*
+				 * Periodo de partida: los últimos treinta días, hoy incluido.
+				 * Sin él, el globo dibujaba los cincuenta sismos más recientes
+				 * del ámbito, que en el recuadro del departamento pueden
+				 * remontarse años atrás: un mapa de «lo que está pasando» hecho
+				 * con sismos de 2019. Se cambia con dias, anio, mes o anios,
+				 * como en cualquier otro componente.
+				 */
+				'dias'       => '30',
+				// El globo abre con el planeta a la vista: si además girase
+				// solo, en pocos segundos perdería el encuadre. Quien quiera la
+				// rotación la pide con autorotar="si".
 				'autorotar'  => 'no',
 				'alto'       => '70vh',
 				// «foto» (por defecto) usa la imagen por satélite que viaja con
@@ -895,7 +910,8 @@ final class SIS_Shortcodes {
 			'geojsonDepto' => $conMuni ? esc_url_raw( SIS_URL . 'data/narino_departamento_globo.geojson' ) : '',
 		) );
 
-		$id = $this->id();
+		$id    = $this->id();
+		$vista = in_array( $atts['vista'], array( 'global', 'sismos', 'narino' ), true ) ? $atts['vista'] : 'global';
 
 		ob_start();
 		echo $this->importmap_three(); // phpcs:ignore WordPress.Security.EscapeOutput
@@ -904,15 +920,28 @@ final class SIS_Shortcodes {
 			style="<?php echo esc_attr( SIS_Estilos::estilo_inline( $atts ) ); ?>"
 			data-sis-globo
 			data-limite="<?php echo esc_attr( $limite ); ?>"
+			data-vista="<?php echo esc_attr( $vista ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+
+			<?php
+			/*
+			 * La escena es el marco de posicionamiento de todo lo que va
+			 * encima del planeta —botonera, cintillo y leyenda—. Sin ella esos
+			 * bloques se anclaban al componente entero, que además del lienzo
+			 * lleva el aviso de la fuente y la atribución al pie: el cintillo
+			 * caía sobre ellos y los tapaba.
+			 */
+			?>
+			<div class="sis-globo__escena">
 
 			<div class="sis-globo__lienzo" style="height:<?php echo esc_attr( $alto ); ?>" role="img"
 				aria-label="<?php esc_attr_e( 'Globo terráqueo con los últimos sismos: cada epicentro levanta una línea cuya altura y color indican la magnitud, y hunde otra proporcional a la profundidad.', 'sismos-narino' ); ?>"></div>
 
 			<div class="sis-globo__controles" role="toolbar" aria-label="<?php esc_attr_e( 'Vista y capas del globo', 'sismos-narino' ); ?>">
-				<button type="button" class="sis-globo__btn" data-camara="global"><?php esc_html_e( 'Global', 'sismos-narino' ); ?></button>
-				<button type="button" class="sis-globo__btn is-activo" data-camara="sismos"><?php esc_html_e( 'Zona sísmica', 'sismos-narino' ); ?></button>
-				<button type="button" class="sis-globo__btn" data-camara="narino"><?php esc_html_e( 'Nariño', 'sismos-narino' ); ?></button>
+				<?php // La vista de partida sale ya marcada: si no, la botonera dice «Zona sísmica» mientras el globo muestra el planeta. ?>
+				<button type="button" class="sis-globo__btn<?php echo 'global' === $vista ? ' is-activo' : ''; ?>" data-camara="global"><?php esc_html_e( 'Global', 'sismos-narino' ); ?></button>
+				<button type="button" class="sis-globo__btn<?php echo 'sismos' === $vista ? ' is-activo' : ''; ?>" data-camara="sismos"><?php esc_html_e( 'Zona sísmica', 'sismos-narino' ); ?></button>
+				<button type="button" class="sis-globo__btn<?php echo 'narino' === $vista ? ' is-activo' : ''; ?>" data-camara="narino"><?php esc_html_e( 'Nariño', 'sismos-narino' ); ?></button>
 				<span class="sis-globo__sep-btn" aria-hidden="true"></span>
 				<button type="button" class="sis-globo__btn is-activo" data-capa="calor" aria-pressed="true"><?php esc_html_e( 'Mapa de calor', 'sismos-narino' ); ?></button>
 				<button type="button" class="sis-globo__btn is-activo" data-capa="profundidad" aria-pressed="true"><?php esc_html_e( 'Profundidad', 'sismos-narino' ); ?></button>
@@ -932,6 +961,9 @@ final class SIS_Shortcodes {
 			</div>
 
 			<?php echo $this->skeleton( __( 'Cargando el globo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+
+			</div><?php // .sis-globo__escena ?>
+
 			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'Sismos: USGS · Cartografía municipal: DANE · Motor 3D: Three.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>

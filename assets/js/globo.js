@@ -49,14 +49,18 @@ function _consulta(cont) {
   return {
     ambito: lee('ambito') || CFG.ambito || 'regional',
     limite: limite > 0 ? limite : (CFG.limite || 50),
-    periodo: periodo
+    periodo: periodo,
+    vista: lee('vista') || 'global'
   };
 }
 
 /* Cuántos sismos se piden para la vista global. El feed de resumen del USGS
-   trae unos cuantos cientos por semana: con este tope se ve el Cinturón de
-   Fuego completo sin castigar a un equipo modesto. */
-var LIMITE_MUNDO = 400;
+   trae unos dos mil de magnitud 2,5 o mayor en un mes: el tope los admite
+   todos para que el Cinturón de Fuego se vea completo. El peso se controla
+   por otro lado —la respuesta viaja adelgazada a los siete campos que se
+   pintan, y el campo de calor tiene presupuesto propio de partículas—, no
+   recortando el mes que se pidió. */
+var LIMITE_MUNDO = 2500;
 
 /* Escala de color del mapa de calor, compartida con las líneas y la leyenda.
    Dominio fijo (magnitud 3 a 7) para que un color signifique lo mismo hoy y
@@ -327,6 +331,9 @@ class GloboSismico {
 
   constructor(cont) {
     this.cont = cont;
+    // Los sobrepuestos —tooltip incluido— se posicionan contra la escena, que
+    // es el marco del planeta; el componente además lleva textos al pie.
+    this.escenaHTML = cont.querySelector('.sis-globo__escena') || cont;
     this.lienzo = cont.querySelector('.sis-globo__lienzo') || cont;
     this.ligero = esLigero();
     this.reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -373,11 +380,17 @@ class GloboSismico {
     this.escena.background = new THREE.Color(0x00080f);
 
     this.camara = new THREE.PerspectiveCamera(45, this._ancho() / this._alto(), 0.1, 100);
-    this.camDefault = new THREE.Vector3(0, 1.1, 4.0);
+    /* Encuadre de la vista mundial, que es con la que abre el globo: el
+       planeta tiene que llenar el marco sin que las astas más altas se salgan
+       por el borde. Se calcula, no se fija: el campo de visión vertical es de
+       45°, así que la distancia que encuadra bien un lienzo apaisado deja el
+       planeta cortado en uno vertical. */
+    this.camDefault = new THREE.Vector3(0, 0, 4);
     // La vista de los datos se calcula al cargarlos; hasta entonces, el centro
     // del ámbito sirve de aproximación.
     this.camDatos = latLngAVector3(0.5, -80, 2.9);
     this.camNarino = latLngAVector3(1.3, -77.5, 2.1);
+    this._encuadrarMundo();
     this.camara.position.copy(this.camDatos);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: !this.ligero, alpha: false });
@@ -424,6 +437,7 @@ class GloboSismico {
     if (this.centroDatos) {
       this.camDatos = this.centroDatos.clone().multiplyScalar(this._distanciaEncuadre());
     }
+    this._encuadrarMundo();
   }
 
   /* ---------------- planeta y atmósfera ---------------- */
@@ -544,22 +558,95 @@ class GloboSismico {
     this.conjuntos = { local: null, mundo: null };
     this.conjunto = 'local';
 
-    this._pedirEventos(this.consulta.ambito, this.consulta.limite, this.consulta.periodo)
-      .then(function (eventos) {
-        self.conjuntos.local = eventos;
+    if (CFG.geojsonDepto) { this._pintarContorno(CFG.geojsonDepto, 0xFFD500, 0.9, 1.004); }
+    if (CFG.geojson) { this._pintarContorno(CFG.geojson, 0x8fb3d9, 0.42, 1.002); }
+
+    /* Un planeta que se abre mostrando cincuenta puntos sobre Nariño y el
+       resto del mundo vacío hace creer que solo tiembla aquí. Por eso la
+       vista de partida es la mundial: el globo abre con la sismicidad del
+       planeta del periodo pedido, y las vistas «Zona sísmica» y «Nariño»
+       cambian a los sismos del ámbito publicado en el shortcode. */
+    if ('global' === this.consulta.vista) {
+      this._arrancarEnMundo();
+      return;
+    }
+
+    this._cargarLocal()
+      .then(function () {
         self._aplicarConjunto('local', true);
         self._quitarSkeleton();
       })
       .catch(function () { self._error('No se pudieron cargar los sismos del globo.'); });
+  }
 
-    if (CFG.geojsonDepto) { this._pintarContorno(CFG.geojsonDepto, 0xFFD500, 0.9, 1.004); }
-    if (CFG.geojson) { this._pintarContorno(CFG.geojson, 0x8fb3d9, 0.42, 1.002); }
+  /* Pide el conjunto del ámbito del shortcode y lo guarda, sin pintarlo:
+     quién se dibuja lo decide _aplicarConjunto. Separar las dos cosas es lo
+     que permite precargarlo en segundo plano mientras se mira el mundo. */
+  _cargarLocal() {
+    var self = this;
+    if (this.conjuntos.local) { return Promise.resolve(this.conjuntos.local); }
+    if (this._pidiendoLocal) { return this._pidiendoLocal; }
+
+    this._pidiendoLocal = this._pedirEventos(this.consulta.ambito, this.consulta.limite, this.consulta.periodo)
+      .then(function (eventos) {
+        self.conjuntos.local = eventos;
+        self._pidiendoLocal = null;
+        return eventos;
+      })
+      .catch(function (e) {
+        self._pidiendoLocal = null;
+        throw e;
+      });
+
+    return this._pidiendoLocal;
+  }
+
+  /* Arranque en la vista mundial. El conjunto del ámbito se pide después, en
+     segundo plano: es pequeño y así los botones «Zona sísmica» y «Nariño»
+     responden al instante cuando alguien los pulsa. */
+  _arrancarEnMundo() {
+    var self = this;
+
+    this._marcarVista('global');
+    this.camara.position.copy(this.camDefault);
+    this.controles.update();
+
+    this._cargarMundo()
+      .then(function () {
+        self._aplicarConjunto('mundo', false);
+        self._quitarSkeleton();
+        // Precarga silenciosa: si falla, no se dice nada. El botón que la
+        // necesite volverá a pedirla y entonces sí avisará.
+        self._cargarLocal().catch(function () {});
+      })
+      .catch(function () {
+        // Si el feed mundial no llega, el globo no se queda en blanco: cae al
+        // ámbito del shortcode, que se sirve del catálogo local.
+        self._cargarLocal()
+          .then(function () {
+            self._aplicarConjunto('local', true);
+            self._quitarSkeleton();
+          })
+          .catch(function () { self._error('No se pudieron cargar los sismos del globo.'); });
+      });
+  }
+
+  /* Deja marcado en la botonera qué vista está activa. */
+  _marcarVista(vista) {
+    var btn = this.cont.querySelector('[data-camara="' + vista + '"]');
+    if (!btn) { return; }
+    this.cont.querySelectorAll('[data-camara]').forEach(function (x) {
+      x.classList.toggle('is-activo', x === btn);
+    });
   }
 
   /* Una petición al catálogo del plugin. Devuelve del más reciente al más
      antiguo, que es el orden en que lo entrega la REST. */
   _pedirEventos(ambito, limite, periodo) {
-    var qs = 'ambito=' + encodeURIComponent(ambito) + '&limite=' + encodeURIComponent(limite);
+    // campos=globo entrega solo los siete campos que se dibujan. Con un mes de
+    // sismicidad mundial la diferencia es de un megabyte a poco más de
+    // trescientos kilobytes.
+    var qs = 'ambito=' + encodeURIComponent(ambito) + '&limite=' + encodeURIComponent(limite) + '&campos=globo';
     var p = periodo || {};
     Object.keys(p).forEach(function (k) {
       if (p[k]) { qs += '&' + k + '=' + encodeURIComponent(p[k]); }
@@ -599,7 +686,7 @@ class GloboSismico {
     if (this._pidiendoMundo) { return this._pidiendoMundo; }
 
     this._cintilloTexto('Cargando la sismicidad reciente del mundo…');
-    this._pidiendoMundo = this._pedirEventos('mundo', LIMITE_MUNDO)
+    this._pidiendoMundo = this._pedirEventos('mundo', LIMITE_MUNDO, this.consulta.periodo)
       .then(function (eventos) {
         self.conjuntos.mundo = eventos;
         self._pidiendoMundo = null;
@@ -640,11 +727,25 @@ class GloboSismico {
     this.camDatos = centro.clone().multiplyScalar(this._distanciaEncuadre());
     this._volarA(this.camDatos);
 
-    var btn = this.cont.querySelector('[data-camara="sismos"]');
-    if (btn) {
-      this.cont.querySelectorAll('[data-camara]').forEach(function (x) { x.classList.toggle('is-activo', x === btn); });
-    }
+    this._marcarVista('sismos');
     void self;
+  }
+
+  /* Encuadre de la vista mundial: el planeta entero, con sus astas, dentro del
+     marco. El radio a cubrir es 1 —la esfera— más el asta más larga que puede
+     dibujarse, y la distancia que hace que una esfera de ese radio toque los
+     bordes es radio / sen(semiángulo). El semiángulo que manda es el menor de
+     los dos: en un lienzo apaisado es el vertical, y en uno vertical —un
+     móvil— el horizontal. */
+  _encuadrarMundo() {
+    var RADIO = 1.38; // 1,001 de la superficie + 0,37 del asta de una M8.
+    var mitadV = (this.camara.fov / 2) * Math.PI / 180;
+    var mitadH = Math.atan(Math.tan(mitadV) * (this.camara.aspect || 1));
+    var d = Math.max(2.6, Math.min(6, RADIO / Math.sin(Math.min(mitadV, mitadH))));
+
+    // Una pizca de inclinación: de frente y a la altura del ecuador, la Tierra
+    // se lee como un disco.
+    this.camDefault = new THREE.Vector3(0, 0.26, 0.966).normalize().multiplyScalar(d);
   }
 
   /* Distancia de cámara que deja toda la nube dentro del encuadre.
@@ -804,10 +905,17 @@ class GloboSismico {
     while (this.gCalor.children.length) { this.gCalor.remove(this.gCalor.children[0]); }
     if (!this.eventos.length) { return; }
 
-    // La mezcla aditiva suma el color de cada partícula: con demasiadas
-    // superpuestas el racimo se quema en blanco y deja de leerse la escala.
-    // Se limita el número por sismo y se normaliza la intensidad.
-    var porSismo = this.ligero ? 10 : 16;
+    /* La mezcla aditiva suma el color de cada partícula: con demasiadas
+       superpuestas el racimo se quema en blanco y deja de leerse la escala.
+
+       El presupuesto es del campo entero, no de cada sismo: con cincuenta
+       epicentros cada uno recibe las dieciséis partículas de siempre, y con
+       los dos mil de un mes del planeta se reparten las mismas doce mil. Así
+       el coste del bucle por fotograma —que recorre partícula a partícula—
+       no depende de cuántos sismos se estén dibujando. */
+    var PRESUPUESTO = this.ligero ? 6000 : 12000;
+    var porSismo = Math.max(1, Math.min(this.ligero ? 10 : 16,
+      Math.round(PRESUPUESTO / this.eventos.length)));
     var n = this.eventos.length * porSismo;
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     this._calorPts = [];
@@ -831,13 +939,20 @@ class GloboSismico {
         // sismo: la suma de la nube tiende al mismo brillo con 14 que con 26.
         var intensidad = Math.max(0.05, Math.min(1, caida)) * (13 / porSismo);
 
-        var p = { lat: lat, lng: lng, fase: Math.random() * 6.28, intensidad: intensidad, mag: e.mag };
+        // El color depende solo de la magnitud, que no cambia: se resuelve
+        // aquí y se guarda. El bucle de respiración, que corre sesenta veces
+        // por segundo, se queda en tres multiplicaciones por partícula.
+        var c = colorPorMagnitud(e.mag);
+
+        var p = {
+          lat: lat, lng: lng, fase: Math.random() * 6.28, intensidad: intensidad,
+          r: c.r, g: c.g, b: c.b
+        };
         this._calorPts.push(p);
 
         var v = latLngAVector3(lat, lng, 1.008);
         pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z;
 
-        var c = colorPorMagnitud(e.mag);
         col[k * 3] = c.r * intensidad;
         col[k * 3 + 1] = c.g * intensidad;
         col[k * 3 + 2] = c.b * intensidad;
@@ -868,7 +983,7 @@ class GloboSismico {
     this.tip = document.createElement('div');
     this.tip.className = 'sis-globo__tip';
     this.tip.hidden = true;
-    this.cont.appendChild(this.tip);
+    this.escenaHTML.appendChild(this.tip);
 
     var indiceEn = function (ev) {
       if (!self.puntos) { return -1; }
@@ -900,7 +1015,7 @@ class GloboSismico {
 
   _tooltip(ev, e) {
     if (!e) { return; }
-    var rect = this.cont.getBoundingClientRect();
+    var rect = this.escenaHTML.getBoundingClientRect();
     this.tip.innerHTML =
       '<strong>Magnitud ' + esc(num(e.mag, 1)) + '</strong><br>' +
       esc(e.lugar || '') + '<br>' +
@@ -936,9 +1051,22 @@ class GloboSismico {
           return;
         }
 
-        if ('local' !== self.conjunto) { self._aplicarConjunto('local', false); }
-        var destino = 'narino' === vista ? self.camNarino : self.camDatos;
-        if (destino) { self._volarA(destino); }
+        /* Las otras dos vistas miran el ámbito publicado en el shortcode. Si
+           el globo abrió en la vista mundial puede que todavía se esté
+           precargando, así que se espera a que llegue en vez de no hacer nada.
+
+           «Zona sísmica» no vuela a un punto fijo: su encuadre se calcula con
+           los epicentros del ámbito, así que lo hace _encuadrarDatos cuando
+           los datos ya están. Volar antes daría un salto en dos tiempos. */
+        var yaEstaba = 'local' === self.conjunto;
+        if ('narino' === vista) { self._volarA(self.camNarino); }
+        else if (yaEstaba && self.camDatos) { self._volarA(self.camDatos); }
+
+        if (yaEstaba) { return; }
+
+        self._cargarLocal()
+          .then(function () { self._aplicarConjunto('local', 'sismos' === vista); })
+          .catch(function () { self._cintilloTexto('No se pudieron cargar los sismos del ámbito.'); });
       });
     });
 
@@ -1088,10 +1216,9 @@ class GloboSismico {
         for (var i = 0; i < self._calorPts.length; i++) {
           var p = self._calorPts[i];
           var f = p.intensidad * (0.72 + 0.28 * Math.sin(self._t * 1.6 + p.fase));
-          var c = colorPorMagnitud(p.mag);
-          col[i * 3] = c.r * f;
-          col[i * 3 + 1] = c.g * f;
-          col[i * 3 + 2] = c.b * f;
+          col[i * 3] = p.r * f;
+          col[i * 3 + 1] = p.g * f;
+          col[i * 3 + 2] = p.b * f;
         }
         self.calor.geometry.attributes.color.needsUpdate = true;
       }

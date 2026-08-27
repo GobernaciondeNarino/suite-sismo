@@ -274,7 +274,12 @@
    El componente sí impone su propio chrome: es una escena oscura y necesita
    contraste propio para que los controles se lean sobre el planeta.
    ===================================================================== */
-.sis-globo { position: relative; overflow: hidden; border-radius: var(--sis-borde-radio, 12px); background: #00080f; }
+.sis-globo { overflow: hidden; border-radius: var(--sis-borde-radio, 12px); background: #00080f; }
+/* La escena es el marco de la botonera, el cintillo y la leyenda, que van
+   encima del planeta. El aviso de la fuente y la atribución quedan fuera, en
+   flujo normal: si compartieran marco, el cintillo —anclado abajo— caería
+   sobre ellos. */
+.sis-globo__escena { position: relative; }
 .sis-globo__lienzo { width: 100%; min-height: 320px; display: block; }
 .sis-globo__lienzo canvas { display: block; width: 100% !important; height: 100% !important; }
 
@@ -349,7 +354,7 @@
 }
 .sis-globo__tip[hidden] { display: none; }
 .sis-globo__error { color: #ffd7d7; background: rgba(120, 20, 20, .35); padding: 14px; margin: 0; font-size: .9em; }
-.sis-globo .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
+.sis-globo__escena .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
 .sis-globo .sis-fuentes { padding: 8px 12px; margin: 0; color: #7f93a9; background: #00080f; }
 /* Sobre el fondo oscuro del globo el aviso hereda el color del cintillo. */
 .sis-globo .sis-nota--umbral {
@@ -407,6 +412,10 @@
 .sis-tl__rango {
   flex: 1 1 auto; min-width: 0;
   height: 28px;
+  /* El navegador le pone 2 px de margen propio a un input de rango. Con
+     flex-basis del 100 % —que es lo que hace en móvil— esos dos píxeles se
+     suman al ancho de la fila y sacan un scroll horizontal en toda la página. */
+  margin: 0;
   accent-color: var(--sis-acento, #003087);
 }
 /* La tira se desplaza dentro de su propia caja: con 50 marcas nunca debe

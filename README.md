@@ -59,7 +59,7 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 | `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo`, `nota` |
 | `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom`, `nota` |
 | `[sismos_historico]` | **El registro completo en dos lecturas**: barras de sismos por año y línea mensual con media móvil de 12 meses. Recorre todo el catálogo y llega hasta el mes en curso | `ambito`, `min_mag`, `alto`, `theme`, `toolbar`, `analisis`, `titulo` |
-| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. El planeta usa la imagen por satélite incluida en el plugin (1,4 MB en escritorio, 239 KB en móvil, elegida sola); `textura="mapa"` la dibuja desde la costa mundial en 54 KB | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline`, `nota` |
+| `[sismos_globo]` | **Globo 3D WebGL** que abre mostrando el planeta con la sismicidad de los **últimos 30 días** —unos 2 200 sismos de magnitud 2,5 o mayor, el Cinturón de Fuego entero—: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. Las vistas «Zona sísmica» y «Nariño» muestran el ámbito publicado en el shortcode. El planeta usa la imagen por satélite incluida en el plugin (1,4 MB en escritorio, 239 KB en móvil, elegida sola); `textura="mapa"` la dibuja desde la costa mundial en 54 KB | `ambito`, `vista`, `dias`, `anios`, `anio`, `mes`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline`, `nota` |
 | `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo`, `nota` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
@@ -144,6 +144,8 @@ Todos los componentes que consultan el catálogo aceptan los mismos cinco atribu
 | `anios` | Ventana móvil larga: los últimos N años desde hoy | `anios="5"` |
 | `anio` | Año de calendario completo | `anio="2026"` |
 | `mes` | Mes de calendario (1–12); sin `anio`, el del año en curso | `anio="2016" mes="4"` |
+
+El globo tiene además `vista`, que decide con qué encuadre abre: `global` (por defecto, el planeta entero), `sismos` (la nube de epicentros del ámbito) o `narino`. Y su periodo de partida son los últimos 30 días, hoy incluido.
 
 **Si se combinan varios**, una fecha de calendario manda sobre una ventana móvil —quien escribe `anio="2026"` pide ese año y no «los últimos N»— y entre días y años gana `dias`, que es la más específica. Los atributos descartados no se aplican ni viajan en el HTML de la página.
 

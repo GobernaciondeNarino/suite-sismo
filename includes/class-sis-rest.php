@@ -128,6 +128,7 @@ final class SIS_Rest {
 			'anios'   => array( 'type' => 'integer' ),
 			'min_mag' => array( 'type' => 'number' ),
 			'limite'  => array( 'type' => 'integer' ),
+			'campos'  => array( 'type' => 'string' ),
 		);
 	}
 
@@ -298,11 +299,45 @@ final class SIS_Rest {
 
 		$eventos = array_reverse( $c['eventos'] );
 
+		/*
+		 * El globo dibuja la sismicidad de un mes entero del planeta: son
+		 * miles de eventos, y de cada uno solo usa siete campos. Servirlos
+		 * completos —con municipio de Nariño, subregión, energía en julios y
+		 * clasificaciones que ahí no se leen— multiplica por tres el peso de
+		 * la respuesta para nada. Con campos=globo se entrega lo que se pinta.
+		 */
+		if ( 'globo' === $req->get_param( 'campos' ) ) {
+			$eventos = self::adelgazar( $eventos );
+		}
+
 		return rest_ensure_response( array(
 			'total'   => count( $eventos ),
 			'eventos' => $eventos,
 			'meta'    => $this->meta( $p, $c['catalogo'] ),
 		) );
+	}
+
+	/** Campos que necesita el globo —y su línea de tiempo— para pintar. */
+	const CAMPOS_GLOBO = array( 'fecha', 'lat', 'lon', 'lugar', 'mag', 'municipio', 'profundidad' );
+
+	/**
+	 * Reduce cada evento a los campos que el globo dibuja.
+	 *
+	 * @param array[] $eventos Eventos completos.
+	 * @return array[]
+	 */
+	private static function adelgazar( array $eventos ) {
+		$out = array();
+		foreach ( $eventos as $e ) {
+			$fila = array();
+			foreach ( self::CAMPOS_GLOBO as $campo ) {
+				if ( isset( $e[ $campo ] ) ) {
+					$fila[ $campo ] = $e[ $campo ];
+				}
+			}
+			$out[] = $fila;
+		}
+		return $out;
 	}
 
 	/**

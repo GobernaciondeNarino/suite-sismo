@@ -23,8 +23,17 @@ final class SIS_Catalogo {
 	const CLAVE = 'catalogo';
 
 	/** Semilla de respaldo incluida en el plugin. */
-	/** Feed de resumen que alimenta la vista global del globo. */
-	const FEED_MUNDO = '2.5_week';
+	/*
+	 * Feed de resumen que alimenta la vista global del globo.
+	 *
+	 * Cubre treinta días —el mismo periodo con el que abre el globo—, no una
+	 * semana: con la ventana corta, la vista mundial mostraba un Cinturón de
+	 * Fuego a medio dibujar y la línea de tiempo se quedaba sin recorrido. Son
+	 * unos dos mil sismos de magnitud 2,5 o mayor, 1,6 MB que se descargan una
+	 * vez en el servidor y viven en caché; al navegador llegan ya normalizados
+	 * y adelgazados a los campos que se pintan.
+	 */
+	const FEED_MUNDO = '2.5_month';
 
 	/*
 	 * La semilla cubre el recuadro del ámbito más amplio del plugin, de modo

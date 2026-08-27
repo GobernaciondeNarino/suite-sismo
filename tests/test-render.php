@@ -77,6 +77,8 @@ require SIS_DIR . 'includes/shortcodes/class-sis-shortcodes.php';
 
 use GobernacionNarino\Sismos\SIS_Shortcodes;
 use GobernacionNarino\Sismos\SIS_Regiones;
+use GobernacionNarino\Sismos\SIS_Catalogo;
+use GobernacionNarino\Sismos\SIS_Sync_Feed;
 
 $sc = new SIS_Shortcodes();
 $fallos = 0;
@@ -354,6 +356,82 @@ $mismo = 2 === substr_count( $con_barra, 'data-dias="30"' )
 	&& 2 === substr_count( $con_barra, 'data-ambito="colombia"' );
 printf( "%s  La línea de tiempo del globo hereda su mismo filtro\n", $mismo ? '  ok ' : 'FAIL' );
 if ( ! $mismo ) { $fallos++; }
+
+/*
+ * El globo abre mirando el planeta y con los últimos treinta días. Abrirlo
+ * encuadrado en Nariño, con los cincuenta sismos más recientes del ámbito
+ * —que en el recuadro del departamento pueden remontarse años atrás—, dejaba
+ * un planeta casi vacío que se lee como «solo tiembla aquí» y como «no ha
+ * pasado nada últimamente». Las dos lecturas son falsas.
+ */
+$g = $sc->sc_globo( array() );
+$abre = false !== strpos( $g, 'data-vista="global"' ) && false !== strpos( $g, 'data-dias="30"' );
+printf( "%s  El globo abre en la vista mundial y con los últimos 30 días\n", $abre ? '  ok ' : 'FAIL' );
+if ( ! $abre ) { $fallos++; }
+
+$g2 = $sc->sc_globo( array( 'vista' => 'narino', 'anio' => '2019' ) );
+$manda = false !== strpos( $g2, 'data-vista="narino"' )
+	&& false !== strpos( $g2, 'data-anio="2019"' )
+	&& false !== strpos( $g2, 'data-dias=""' );
+printf( "%s  La vista y el periodo del globo se pueden cambiar\n", $manda ? '  ok ' : 'FAIL' );
+if ( ! $manda ) { $fallos++; }
+
+$g3 = $sc->sc_globo( array( 'vista' => 'inventada' ) );
+$sano = false !== strpos( $g3, 'data-vista="global"' );
+printf( "%s  Una vista inexistente cae en la mundial\n", $sano ? '  ok ' : 'FAIL' );
+if ( ! $sano ) { $fallos++; }
+
+// El conjunto mundial se surte de un feed de resumen de treinta días: con la
+// ventana de una semana el Cinturón de Fuego salía a medio dibujar.
+$mes = in_array( SIS_Catalogo::FEED_MUNDO, array( '2.5_month', '4.5_month', 'all_month', 'significant_month' ), true );
+printf( "%s  El conjunto mundial se surte de un feed de un mes (%s)\n", $mes ? '  ok ' : 'FAIL', SIS_Catalogo::FEED_MUNDO );
+if ( ! $mes ) { $fallos++; }
+
+// Y el tope de guardado tiene que admitirlo entero, o se recortarían los más
+// antiguos del mes sin decirlo.
+$cabe = SIS_Sync_Feed::TOPE_MUNDO >= 2500;
+printf( "%s  El tope de guardado admite el mes entero (%d)\n", $cabe ? '  ok ' : 'FAIL', SIS_Sync_Feed::TOPE_MUNDO );
+if ( ! $cabe ) { $fallos++; }
+
+/*
+ * Con dos mil sismos en pantalla, servir cada uno completo —con municipio de
+ * Nariño, subregión, energía en julios y clasificaciones que el globo no
+ * dibuja— es más de un megabyte para pintar siete campos. campos=globo
+ * entrega solo esos siete.
+ */
+$rest = new ReflectionClass( 'GobernacionNarino\Sismos\SIS_Rest' );
+$adelgazar = $rest->getMethod( 'adelgazar' );
+$adelgazar->setAccessible( true );
+
+$semilla = json_decode( file_get_contents( SIS_DIR . 'data/' . SIS_Catalogo::SEMILLA ), true );
+$muestra = array_slice( SIS_Catalogo::normalizar( $semilla, array( 'ambito' => 'regional' ) ), -3 );
+$ligeros  = $adelgazar->invoke( null, $muestra );
+
+$campos_ok = true;
+foreach ( $ligeros as $e ) {
+	if ( array_keys( $e ) !== array( 'fecha', 'lat', 'lon', 'lugar', 'mag', 'municipio', 'profundidad' ) ) {
+		$campos_ok = false;
+	}
+}
+printf( "%s  campos=globo entrega exactamente los campos que se pintan\n", $campos_ok ? '  ok ' : 'FAIL' );
+if ( ! $campos_ok ) { $fallos++; }
+
+$antes   = strlen( wp_json_encode( $muestra ) );
+$despues = strlen( wp_json_encode( $ligeros ) );
+$aligera = $despues < $antes / 2;
+printf( "%s  y pesa menos de la mitad (%d B → %d B)\n", $aligera ? '  ok ' : 'FAIL', $antes, $despues );
+if ( ! $aligera ) { $fallos++; }
+
+// Lo que se recorta tiene que ser solo peso, nunca dato que se dibuje: los
+// valores de los siete campos deben llegar intactos.
+$intactos = true;
+foreach ( $muestra as $i => $e ) {
+	foreach ( array( 'fecha', 'lat', 'lon', 'lugar', 'mag', 'municipio', 'profundidad' ) as $k ) {
+		if ( $e[ $k ] !== $ligeros[ $i ][ $k ] ) { $intactos = false; }
+	}
+}
+printf( "%s  sin alterar ninguno de sus valores\n", $intactos ? '  ok ' : 'FAIL' );
+if ( ! $intactos ) { $fallos++; }
 
 echo "\n";
 if ( $fallos ) {
