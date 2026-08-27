@@ -98,8 +98,8 @@
 
       var cab = C.el('div', 'sis-tl__cab');
 
-      // Marca institucional: si el archivo no estuviera, la imagen se retira
-      // sola y la barra sigue funcionando.
+      // Marca institucional, desactivada por defecto: si el archivo no
+      // estuviera, la imagen se retira sola y la barra sigue funcionando.
       var logo = box.getAttribute('data-logo');
       if (logo) {
         var img = document.createElement('img');

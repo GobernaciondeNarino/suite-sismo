@@ -35,3 +35,11 @@ minificar pesa 1.243 KB frente a los 655 KB de `three.module.min.js`.
 [`world-atlas@2/land-110m.json`](https://github.com/topojson/world-atlas) —Natural
 Earth, dominio público—. El globo la decodifica y dibuja la textura del planeta
 en un canvas, sin librería de terceros.
+
+## Texturas del planeta
+
+`assets/img/planeta/tierra.jpg` (Blue Marble, 4096×2048) y `tierra-ligera.jpg`
+(1600×800) provienen de [`three-globe`](https://github.com/vasturiano/three-globe)
+(`example/img/earth-blue-marble.jpg` y `earth-day.jpg`), que a su vez las toma
+del [NASA Visible Earth](https://visibleearth.nasa.gov/) — dominio público.
+El globo elige una u otra según la pantalla y la conexión.

@@ -24,7 +24,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 var CFG = window.SISGLOBO || {
   rest: '', ambito: 'regional', limite: 50, autorotar: true,
-  calidad: 'auto', textura: '', geojson: '', geojsonDepto: ''
+  calidad: 'auto', textura: '', texturaLigera: '', mundo: '', geojson: '', geojsonDepto: ''
 };
 
 /* Cuántos sismos se piden para la vista global. El feed de resumen del USGS
@@ -76,6 +76,22 @@ function distanciaKm(lat1, lon1, lat2, lon2) {
   var df = (lat2 - lat1) * rad, dl = (lon2 - lon1) * rad;
   var a = Math.sin(df / 2) * Math.sin(df / 2) + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) * Math.sin(dl / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
+/* Qué fotografía del planeta descargar.
+
+   No se decide con esLigero(), que mira el procesador para ajustar partículas
+   y estrellas: aquí lo que está en juego son 1,2 MB de descarga, así que manda
+   el tamaño de la pantalla y la conexión. Un portátil de cuatro núcleos con
+   pantalla grande merece la textura buena; un teléfono en 3G, no. */
+function fotoLigera() {
+  if (CFG.calidad === 'alta') { return false; }
+  if (CFG.calidad === 'ligera') { return true; }
+  var red = navigator.connection || {};
+  if (red.saveData) { return true; }
+  if (/(^|-)2g|3g/.test(red.effectiveType || '')) { return true; }
+  if ((navigator.deviceMemory || 8) <= 4) { return true; }
+  return Math.max(window.innerWidth, window.innerHeight) < 900;
 }
 
 function esLigero() {
@@ -389,29 +405,29 @@ class GloboSismico {
     );
     this.escena.add(this.globo);
 
-    /* La Tierra llega en dos tiempos. El planeta con retícula ya está en
-       pantalla; en cuanto la costa mundial termina de descargarse —54 KB del
-       propio sitio— se sustituye por el mapa dibujado. Así nunca hay un hueco
-       esperando a una imagen. */
-    if (CFG.mundo) {
-      fetch(CFG.mundo)
-        .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
-        .then(function (topo) { self._aplicarTextura(texturaMundo(topo, self.ligero)); })
-        .catch(function () { /* se conserva el planeta con retícula */ });
-    }
+    /* La Tierra llega en dos tiempos: el planeta con retícula ya está en
+       pantalla y se sustituye cuando su textura termina de cargar, así que
+       nunca hay un hueco esperando a una imagen.
 
-    // Fotografía por satélite: solo si alguien la pidió a propósito, porque
-    // pesa 1,4 MB y es lo único que el globo trae de fuera del sitio.
-    if (CFG.textura) {
+       Los dos caminos son excluyentes a propósito. Si se lanzaran a la vez
+       competirían, y el que terminara último pisaría al otro: el mapa
+       vectorial gana casi siempre la carrera —es más pequeño— y la fotografía
+       no llegaba a verse nunca. El mapa queda como respaldo si la foto falla. */
+    var foto = fotoLigera() && CFG.texturaLigera ? CFG.texturaLigera : CFG.textura;
+
+    if (foto) {
       new THREE.TextureLoader().load(
-        CFG.textura,
+        foto,
         function (tex) {
           tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = 4;
           self._aplicarTextura(tex);
         },
         undefined,
-        function () { /* se conserva lo que ya hubiera */ }
+        function () { self._texturaMapa(); }
       );
+    } else {
+      this._texturaMapa();
     }
 
     // Atmósfera: halo fresnel dibujado por la cara interna de una esfera mayor.
@@ -440,6 +456,16 @@ class GloboSismico {
       })
     );
     this.escena.add(this.atmosfera);
+  }
+
+  /* Tierra dibujada en el navegador desde la costa mundial del propio sitio. */
+  _texturaMapa() {
+    var self = this;
+    if (!CFG.mundo) { return; }
+    fetch(CFG.mundo)
+      .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+      .then(function (topo) { self._aplicarTextura(texturaMundo(topo, self.ligero)); })
+      .catch(function () { /* se conserva el planeta con retícula */ });
   }
 
   /* Sustituye el mapa del planeta liberando el anterior: una textura de 4096

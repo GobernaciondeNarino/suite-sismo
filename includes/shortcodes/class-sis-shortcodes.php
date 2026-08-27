@@ -45,13 +45,15 @@ final class SIS_Shortcodes {
 	);
 
 	/**
-	 * Fotografía por satélite opcional del planeta (1,4 MB).
+	 * Fotografías por satélite del planeta, servidas por el propio plugin.
 	 *
-	 * Es lo único que el globo puede pedir fuera del sitio, y solo si alguien
-	 * lo activa a propósito con textura="foto". Por defecto la Tierra se dibuja
-	 * en el navegador a partir de la costa mundial incluida en el plugin.
+	 * «tierra.jpg» es Blue Marble a 4096×2048 (1,4 MB) y es la que se ve en un
+	 * escritorio. «tierra-ligera.jpg» son 1600×800 (239 KB) y es la que reciben
+	 * los equipos modestos y las pantallas pequeñas, donde la resolución alta
+	 * no se aprecia y el peso sí se nota.
 	 */
-	const TEXTURA_PLANETA = 'https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg';
+	const TEXTURA_PLANETA = 'assets/img/planeta/tierra.jpg';
+	const TEXTURA_PLANETA_LIGERA = 'assets/img/planeta/tierra-ligera.jpg';
 
 	/** Atribución por defecto al pie de cada componente. */
 	const FUENTE = 'U.S. Geological Survey — Earthquake Hazards Program (dominio público) · Gráficos: D3plus';
@@ -802,11 +804,11 @@ final class SIS_Shortcodes {
 				// planeta en rotación lo pide con autorotar="si".
 				'autorotar'  => 'no',
 				'alto'       => '70vh',
-				// «mapa» (por defecto) dibuja la Tierra en el navegador desde
-				// la costa mundial que viaja con el plugin: 54 KB. «foto» pide
-				// la imagen por satélite a un tercero, 1,4 MB. «no» deja el
-				// planeta con solo la retícula.
-				'textura'    => 'mapa',
+				// «foto» (por defecto) usa la imagen por satélite que viaja con
+				// el plugin. «mapa» dibuja la Tierra en el navegador desde la
+				// costa mundial, 54 KB, para quien priorice el peso. «no» deja
+				// el planeta con solo la retícula.
+				'textura'    => 'foto',
 				'municipios' => 'si',
 				'timeline'   => 'no',
 			)
@@ -819,6 +821,7 @@ final class SIS_Shortcodes {
 		$calidad = in_array( $atts['calidad'], array( 'auto', 'alta', 'ligera' ), true ) ? $atts['calidad'] : 'auto';
 		$alto    = preg_match( '/^\d{1,4}(px|vh|dvh|rem|em)$/', $atts['alto'] ) ? $atts['alto'] : '70vh';
 		$conMuni = 'no' !== $atts['municipios'];
+		$conFoto = in_array( $atts['textura'], array( 'foto', 'si' ), true );
 
 		wp_localize_script( 'sis-globo', 'SISGLOBO', array(
 			'rest'         => esc_url_raw( rest_url( self::rest_ns() ) ),
@@ -830,7 +833,10 @@ final class SIS_Shortcodes {
 			// un planeta propio con retícula y sigue funcionando.
 			// «si» se aceptaba antes con el sentido de «foto»: se respeta para
 			// no romper las páginas ya publicadas.
-			'textura'      => in_array( $atts['textura'], array( 'foto', 'si' ), true ) ? self::TEXTURA_PLANETA : '',
+			'textura'      => $conFoto ? esc_url_raw( SIS_URL . self::TEXTURA_PLANETA ) : '',
+			'texturaLigera' => $conFoto ? esc_url_raw( SIS_URL . self::TEXTURA_PLANETA_LIGERA ) : '',
+			// El mapa vectorial es la alternativa ligera y, además, el respaldo
+			// si la fotografía no llega.
 			'mundo'        => 'no' === $atts['textura'] ? '' : esc_url_raw( SIS_URL . 'data/mundo_tierra.topo.json' ),
 			// Versión simplificada para el globo: a esta escala el detalle de la
 			// cartografía completa no llega ni a un píxel, y son 300 KB menos
@@ -902,7 +908,10 @@ final class SIS_Shortcodes {
 			$this->defaults_consulta(),
 			array(
 				'limite' => '50',
-				'logo'   => 'si',
+				// La barra vive pegada al globo: una marca institucional ahí
+				// compite con el dato y ya está en la cabecera del sitio.
+				// Quien la quiera la pide con logo="si".
+				'logo'   => 'no',
 			)
 		), $atts, 'sismos_timeline' );
 
@@ -912,7 +921,7 @@ final class SIS_Shortcodes {
 		$id = $this->id();
 		// La marca institucional viaja como atributo, no como script aparte: si
 		// el archivo no estuviera, la imagen se oculta sola y la barra sigue.
-		$logo = 'no' === $atts['logo'] ? '' : SIS_URL . 'assets/img/TIC.png';
+		$logo = 'si' === $atts['logo'] ? SIS_URL . 'assets/img/TIC.png' : '';
 
 		ob_start();
 		?>

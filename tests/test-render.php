@@ -194,6 +194,23 @@ if ( false === strpos( $primero, '<script type="importmap">' ) ) {
 	$fallos++;
 }
 
+// La barra vive pegada al globo: la marca institucional no se publica salvo
+// que alguien la pida.
+$tl_def = $sc->sc_timeline( array() );
+if ( false !== strpos( $tl_def, 'data-logo=""' ) ) {
+	echo "  ok   [sismos_timeline] no publica la marca institucional por defecto\n";
+} else {
+	echo "FAIL  [sismos_timeline] publica la marca institucional sin que nadie la pida\n";
+	$fallos++;
+}
+$tl_logo = $sc->sc_timeline( array( 'logo' => 'si' ) );
+if ( false !== strpos( $tl_logo, 'TIC.png' ) ) {
+	echo "  ok   [sismos_timeline logo=\"si\"] sí la publica\n";
+} else {
+	echo "FAIL  [sismos_timeline logo=\"si\"] no publica la marca\n";
+	$fallos++;
+}
+
 // La línea de tiempo publica su gancho y su límite recortado.
 $tl = $sc->sc_timeline( array( 'limite' => '3' ) );
 if ( false !== strpos( $tl, 'data-sis-timeline' ) && false !== strpos( $tl, 'data-limite="5"' ) && false === strpos( $tl, '<?php' ) ) {

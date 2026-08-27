@@ -297,24 +297,36 @@ $externos = array_values( array_unique( array_filter( $externos, static function
 } ) ) );
 chk( ! $externos, 'Ningún componente carga recursos de terceros' . ( $externos ? ': ' . implode( ', ', $externos ) : '' ) );
 
-// La Tierra se dibuja desde la costa mundial incluida en el plugin; la
-// fotografía por satélite es la única excepción externa y viene desactivada.
+// La fotografía del planeta también viaja con el plugin: es la que da el
+// aspecto del globo y ya no se pide a un tercero.
 $sc->sc_globo( array() );
 $conf = isset( $GLOBALS['sis_localizado']['SISGLOBO'] ) ? $GLOBALS['sis_localizado']['SISGLOBO'] : array();
-chk( isset( $conf['textura'] ) && '' === $conf['textura'], 'El globo no descarga la fotografía del planeta por defecto' );
-chk( ! empty( $conf['mundo'] ) && false !== strpos( $conf['mundo'], 'mundo_tierra.topo.json' ), 'El globo dibuja la Tierra desde la cartografía local' );
+chk( ! empty( $conf['textura'] ) && 0 === strpos( $conf['textura'], SIS_URL ), 'La fotografía del planeta sale del propio sitio' );
+chk( ! empty( $conf['texturaLigera'] ) && $conf['texturaLigera'] !== $conf['textura'], 'Hay una versión ligera para pantallas pequeñas y conexiones lentas' );
+
+foreach ( array( 'tierra.jpg' => 2048, 'tierra-ligera.jpg' => 400 ) as $archivo => $tope_kb ) {
+	$ruta = SIS_DIR . 'assets/img/planeta/' . $archivo;
+	chk( is_readable( $ruta ), "La textura «{$archivo}» viaja con el plugin" );
+	chk( is_readable( $ruta ) && filesize( $ruta ) < $tope_kb * 1024, "La textura «{$archivo}» se mantiene por debajo de {$tope_kb} KB" );
+}
+
+// La cartografía vectorial sigue disponible como alternativa ligera y respaldo.
 chk( is_readable( SIS_DIR . 'data/mundo_tierra.topo.json' ), 'La cartografía mundial viaja con el plugin' );
 chk( filesize( SIS_DIR . 'data/mundo_tierra.topo.json' ) < 200 * 1024, 'La cartografía mundial se mantiene por debajo de 200 KB' );
 
-foreach ( array( 'foto', 'si' ) as $valor ) {
-	$sc->sc_globo( array( 'textura' => $valor ) );
-	$c = $GLOBALS['sis_localizado']['SISGLOBO'];
-	chk( ! empty( $c['textura'] ), "Con textura=\"{$valor}\" sí se pide la fotografía, porque alguien lo decidió" );
-}
+$sc->sc_globo( array( 'textura' => 'mapa' ) );
+$c = $GLOBALS['sis_localizado']['SISGLOBO'];
+chk( '' === $c['textura'] && ! empty( $c['mundo'] ), 'Con textura="mapa" la Tierra se dibuja, no se descarga' );
 
 $sc->sc_globo( array( 'textura' => 'no' ) );
 $c = $GLOBALS['sis_localizado']['SISGLOBO'];
 chk( '' === $c['textura'] && '' === $c['mundo'], 'Con textura="no" el planeta se queda con la retícula' );
+
+// «si» era el nombre antiguo de la fotografía: las páginas ya publicadas
+// no deben cambiar de aspecto.
+$sc->sc_globo( array( 'textura' => 'si' ) );
+$c = $GLOBALS['sis_localizado']['SISGLOBO'];
+chk( ! empty( $c['textura'] ), 'El antiguo textura="si" sigue mostrando la fotografía' );
 
 $modulo = $sc->marcar_modulo( '<script src="https://example.test/globo.js" id="sis-globo-js"></script>', 'sis-globo', 'https://example.test/globo.js' );
 chk( false !== strpos( $modulo, 'type="module"' ), 'El globo se carga como módulo ES' );

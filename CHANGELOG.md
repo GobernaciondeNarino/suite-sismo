@@ -1,5 +1,25 @@
 # Registro de cambios
 
+## 2.7.0 — 2026-08-26
+
+### El planeta vuelve a la fotografía por satélite
+
+La textura vectorial de 2.6.0 era ligera y correcta, pero la de un globo terráqueo fotográfico se ve mejor y es lo que pedía el plugin de referencia. Se adopta, con dos diferencias respecto a él:
+
+- **La imagen viaja con el plugin.** `assets/img/planeta/tierra.jpg` es Blue Marble a 4096×2048 (1,4 MB). El plugin de referencia la pide a un CDN; aquí se sirve desde el propio sitio, así que ningún bloqueador puede dejar el planeta liso y el navegador de quien consulta la página no habla con terceros.
+- **Hay una versión ligera.** `tierra-ligera.jpg` son 1600×800 y 239 KB. La elige el propio globo cuando la pantalla es pequeña, la memoria del equipo es escasa, la conexión es 2G/3G o el navegador pide ahorro de datos. A ese tamaño no se distingue de la grande y son 1,2 MB menos.
+
+Ese criterio es deliberadamente distinto del que ajusta partículas y estrellas: allí manda el procesador; aquí, lo que está en juego es la descarga, así que mandan la pantalla y la red.
+
+El atributo `textura` queda con tres valores: `foto` (por defecto), `mapa` —la Tierra dibujada en el navegador desde la costa mundial, 54 KB, para quien priorice el peso— y `no` —solo retícula—. `si` se sigue aceptando como sinónimo de `foto`.
+
+Medido en Chromium: **2.298 KB en escritorio y 1.110 KB en móvil**, con el lienzo en 1,4 s. El mapa vectorial sigue siendo el respaldo si la fotografía no llega.
+
+### Correcciones
+
+- **La fotografía no llegaba a verse.** Los dos caminos de textura —foto y mapa vectorial— se lanzaban a la vez y el que terminaba último pisaba al otro. El mapa gana casi siempre la carrera porque es más pequeño, así que la foto se aplicaba y desaparecía. Ahora son excluyentes: el mapa solo entra si no hay foto o si la foto falla.
+- La línea de tiempo deja de publicar la marca institucional: vive pegada al globo, compite con el dato y ya está en la cabecera del sitio. Quien la quiera la pide con `logo="si"`.
+
 ## 2.6.0 — 2026-08-26
 
 ### El planeta vuelve a tener geografía

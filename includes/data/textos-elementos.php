@@ -52,8 +52,8 @@ return array(
 		'shortcode' => '[sismos_globo]',
 		'grupo'     => 'globo',
 		'titulo'    => 'Globo 3D de sismos recientes',
-		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. La Tierra se dibuja en el navegador a partir de la costa mundial incluida en el plugin (54 KB): con textura="foto" se cambia por la imagen por satélite (1,4 MB, pedida a un tercero) y con textura="no" el planeta queda solo con su retícula. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
-		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (mapa|foto|no) · municipios (si|no) · timeline (si|no)',
+		'que_hace'  => 'Globo terráqueo interactivo (WebGL) con los últimos sismos registrados. Cada epicentro dibuja una línea radial cuya altura codifica la magnitud y cuyo color sigue la misma rampa de calor del resto de la suite; el campo difuso alrededor de cada evento forma el mapa de calor sobre la esfera. Incluye tres vistas: «Zona sísmica» y «Nariño» dibujan el ámbito publicado, y «Global» carga además la sismicidad reciente de todo el planeta —tomada del feed de resumen del USGS— para ver a Nariño dentro del Cinturón de Fuego. Suma capa de profundidad en modo radiografía, contorno municipal del departamento y rotación automática opcional. El planeta usa la imagen por satélite que viaja con el plugin —1,4 MB en escritorio y 239 KB en pantallas pequeñas o conexiones lentas, elegida sola—. Con textura="mapa" la Tierra se dibuja en el navegador desde la costa mundial (54 KB) y con textura="no" queda solo la retícula. Si el navegador no soporta WebGL se muestra un aviso y el resto de la página sigue funcionando.',
+		'atributos' => 'ambito · limite (5–200) · calidad (auto|alta|ligera) · autorotar (si|no) · alto · textura (foto|mapa|no) · municipios (si|no) · timeline (si|no)',
 		'ejemplo'   => '[sismos_globo ambito="regional" limite="50" alto="70vh" autorotar="si"]',
 	),
 
@@ -62,7 +62,7 @@ return array(
 		'grupo'     => 'globo',
 		'titulo'    => 'Línea de tiempo de sismos',
 		'que_hace'  => 'Barra que recorre los sismos del periodo en orden cronológico: botones de sismo anterior y siguiente, reproducción a tres velocidades, deslizador y una tira con una marca por sismo coloreada por magnitud. Al moverla se resalta el evento correspondiente en el globo 3D publicado en la misma página, y al elegir un epicentro en el globo la línea de tiempo se sincroniza sola.',
-		'atributos' => 'ambito · limite · logo (si|no)',
+		'atributos' => 'ambito · limite · logo (si|no, por defecto no)',
 		'ejemplo'   => '[sismos_globo limite="50"] [sismos_timeline limite="50"]',
 	),
 
