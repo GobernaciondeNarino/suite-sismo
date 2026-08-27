@@ -55,12 +55,12 @@ El catálogo global es completo en Colombia a partir de M≈4,5, así que el rec
 
 | Shortcode | Qué publica | Atributos |
 |---|---|---|
-| `[sismos_estado]` | Semáforo de actividad: último sismo, conteos 24 h / 7 d / 30 d / 1 año, municipio más cercano | `ambito`, `dias`, `min_mag`, `compacto`, `vivo` |
-| `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo` |
-| `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom` |
+| `[sismos_estado]` | Semáforo de actividad: último sismo, conteos 24 h / 7 d / 30 d / 1 año, municipio más cercano | `ambito`, `dias`, `min_mag`, `compacto`, `vivo`, `nota` |
+| `[sismos_ultimos]` | Lista de los últimos sismos, con destello al llegar uno nuevo | `ambito`, `limite`, `min_mag`, `vivo`, `nota` |
+| `[sismos_mapa]` | Mapa Leaflet de epicentros (tamaño = magnitud, color = profundidad) sobre la **capa oficial de amenaza sísmica del SGC**, con centroides municipales | `ambito`, `anios`, `dias`, `min_mag`, `alto`, `municipios`, `amenaza`, `periodo`, `zoom`, `nota` |
 | `[sismos_historico]` | **El registro completo en dos lecturas**: barras de sismos por año y línea mensual con media móvil de 12 meses. Recorre todo el catálogo y llega hasta el mes en curso | `ambito`, `min_mag`, `alto`, `theme`, `toolbar`, `analisis`, `titulo` |
-| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. El planeta usa la imagen por satélite incluida en el plugin (1,4 MB en escritorio, 239 KB en móvil, elegida sola); `textura="mapa"` la dibuja desde la costa mundial en 54 KB | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline` |
-| `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo` |
+| `[sismos_globo]` | **Globo 3D WebGL** con los últimos sismos: línea radial por epicentro (altura = magnitud, color = rampa de calor) y campo difuso que forma el mapa de calor sobre la esfera. La vista «Global» carga además la sismicidad reciente del mundo. El planeta usa la imagen por satélite incluida en el plugin (1,4 MB en escritorio, 239 KB en móvil, elegida sola); `textura="mapa"` la dibuja desde la costa mundial en 54 KB | `ambito`, `limite`, `calidad`, `autorotar`, `alto`, `textura`, `municipios`, `timeline`, `nota` |
+| `[sismos_timeline]` | Línea de tiempo con paso a paso, reproducción a tres velocidades y tira de marcas, sincronizada en ambos sentidos con el globo publicado en la misma página | `ambito`, `limite`, `logo`, `nota` |
 | `[sismos_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Cómo funciona · Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · Cambiar tipo en vivo) | `view`, `type`, `ambito`, `anios`, `min_mag`, `theme`, `actions`, `legend`, `legend_style`, `legend_pos`, `toolbar`, `alto`, `grupo`, `analisis`, `titulo` |
 | `[sismos_estadistica]` | Ficha estadística: Mc, valor b ± error, energía liberada y recurrencia observada por magnitud | `ambito`, `anios`, `dias`, `min_mag` |
 | `[sismos_datos]` | Botones de datos abiertos (JSON / CSV / Ver API) | `recurso`, `ambito`, `anios`, `dias`, `min_mag`, `texto` |
@@ -148,6 +148,8 @@ Todos los componentes que consultan el catálogo aceptan los mismos cinco atribu
 **Si se combinan varios**, una fecha de calendario manda sobre una ventana móvil —quien escribe `anio="2026"` pide ese año y no «los últimos N»— y entre días y años gana `dias`, que es la más específica. Los atributos descartados no se aplican ni viajan en el HTML de la página.
 
 **Con `ambito="narino"`** todo lo publicado queda dentro del recuadro del departamento: epicentros, cifras y textos. Conviene saber que allí el catálogo global registra unos pocos sismos al año, así que una ventana corta puede salir vacía; en ese caso el componente explica qué significa el cero y ofrece ampliar el ámbito, en vez de dejar un hueco.
+
+**Hasta dónde llega la fuente.** El catálogo del USGS registra en Colombia sobre todo sismos de **magnitud 4 o mayor**: en el último año incorporó 177 sismos en todo el país y apenas uno por debajo de esa magnitud. Los de magnitud 2 y 3 que reporta el Servicio Geológico Colombiano no entran. Quien ve un boletín del SGC sobre un sismo de hoy y no lo encuentra aquí no está ante una página desactualizada, sino ante el umbral de detección de la fuente. Los cinco componentes que listan epicentros —`[sismos_ultimos]`, `[sismos_estado]`, `[sismos_mapa]`, `[sismos_globo]` y `[sismos_timeline]`— lo dicen y enlazan al [boletín de sismos recientes del SGC](https://sismosgr.sgc.gov.co/sismosrecientes/), que sí tiene ese detalle. Se puede quitar con `nota="no"`.
 
 ```
 [sismos_grafico view="sismos_mensuales" ambito="narino" dias="15"]
@@ -264,7 +266,7 @@ tests/                         Pruebas CLI sin WordPress
 
 Las series temporales llegan siempre **hasta el mes y el año en curso**, no hasta el último sismo registrado: un mes sin actividad se dibuja en cero, porque «no tembló» es información y un hueco en la gráfica se lee como «no hay datos».
 
-El catálogo se lee en cascada: **caché viva → caché durable expirada → semilla JSON incluida en `data/`**. Si el USGS no responde o el cron aún no ha corrido, la página sigue publicando datos y lo dice (`origen` en la respuesta). Una sincronización que devuelve menos eventos de los ya cacheados no reemplaza al catálogo anterior.
+El catálogo se lee en cascada: **caché viva → caché durable expirada → semilla JSON incluida en `data/`**. La semilla cubre el recuadro del ámbito más amplio —Colombia entera, 3 454 sismos de magnitud 4 o mayor desde 2005— para que todos los ámbitos se deriven de ella sin recortes silenciosos. Si el USGS no responde o el cron aún no ha corrido, la página sigue publicando datos y lo dice (`origen` en la respuesta). Una sincronización que devuelve menos eventos de los ya cacheados no reemplaza al catálogo anterior.
 
 ### Seguridad
 

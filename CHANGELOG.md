@@ -1,5 +1,34 @@
 # Registro de cambios
 
+## 2.9.0 — 2026-08-27
+
+### El catálogo ya cubre Colombia entera
+
+El archivo semilla que surte al plugin mientras el cron no ha corrido cubría solo el recuadro regional —Nariño y la zona de subducción vecina, hasta el paralelo 4—, pero el ámbito `colombia` se derivaba de ese mismo archivo. El resultado era que `[sismos_globo ambito="colombia"]` y `[sismos_mapa ambito="colombia"]` devolvían exactamente los mismos 664 sismos que `ambito="regional"`, recortados en el paralelo 4, sin que nada lo advirtiera: **1 999 sismos del centro y el norte del país —Santander, el Chocó, el Caribe— no existían para el sitio**. Entre ellos, el de magnitud 4,9 del 26 de agosto de 2026 en Jordán (Santander).
+
+La semilla pasa a cubrir el recuadro del ámbito más amplio: 3 454 sismos de magnitud 4 o mayor desde 2005, de latitud −4,5 a 13,5 y de longitud −82 a −66. Ahora `narino` da 69, `regional` 664 y `colombia` 3 454. Hay una prueba que lo sostiene: si alguien vuelve a estrechar la semilla, falla.
+
+### Se dice hasta dónde llega la fuente
+
+Quien ve en redes que el Servicio Geológico Colombiano reportó un sismo de magnitud 3 y no lo encuentra aquí concluye, con razón, que la página está desactualizada. No lo está: el catálogo mundial del USGS —del que se surte este sitio— en Colombia registra sobre todo sismos de magnitud 4 o mayor. En el último año incorporó 177 sismos en todo el país y apenas uno por debajo de magnitud 4. La Red Sismológica Nacional detecta y publica muchos más.
+
+Callar esa diferencia hacía que la ausencia se leyera como error. Ahora:
+
+- Los cinco componentes que listan epicentros —`[sismos_ultimos]`, `[sismos_estado]`, `[sismos_mapa]`, `[sismos_globo]` y `[sismos_timeline]`— publican un aviso con el enlace al boletín de sismos recientes del SGC, que es la fuente que sí tiene ese detalle. Se puede quitar con `nota="no"`.
+- El mensaje de periodo vacío explica lo mismo y remite al mismo boletín, en lugar de dejar entender que no pasó nada.
+
+### El globo y la línea de tiempo respetan el filtro
+
+Dos componentes se quedaban fuera del vocabulario de cinco atributos que estrenó la 2.8.0:
+
+- **El globo** leía su ámbito de la configuración global del documento y no de su propio contenedor, así que ignoraba `dias`, `anio`, `mes`, `anios` y `min_mag`, y con dos globos en una página el segundo se llevaba los ajustes del primero. Ahora lee los `data-*` que ya publica el shortcode.
+- **La línea de tiempo** pedía los eventos solo por ámbito y límite, y cuando colgaba de un globo (`timeline="si"`) ni siquiera heredaba el ámbito y el periodo de este. Ahora recorre exactamente los mismos sismos que hay dibujados encima.
+
+### Correcciones
+
+- La prueba que comprobaba que toda vista puede publicarse con sus textos convertía el análisis —que viaja partido en descriptivo y cuantitativo— en la cadena «Array», que nunca está vacía: pasaba siempre. Ahora mira las dos mitades.
+- La dirección del boletín del SGC vivía repetida en tres sitios; pasa a una sola constante, `SIS_Amenaza::URL_SISMOS_RECIENTES`.
+
 ## 2.8.0 — 2026-08-26
 
 ### Filtros de territorio y periodo en todos los componentes

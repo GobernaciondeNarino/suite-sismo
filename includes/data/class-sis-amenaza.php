@@ -25,6 +25,16 @@ defined( 'ABSPATH' ) || exit;
 final class SIS_Amenaza {
 
 	/**
+	 * Boletín de sismos recientes de la Red Sismológica Nacional.
+	 *
+	 * Es la fuente que sí publica los sismos de magnitud 2 y 3 que el catálogo
+	 * mundial del USGS no alcanza a registrar en Colombia, así que varios
+	 * componentes remiten a ella. Vive aquí, y no repetida en cada uno, para
+	 * que el día que el SGC cambie la dirección solo haya un sitio que tocar.
+	 */
+	const URL_SISMOS_RECIENTES = 'https://sismosgr.sgc.gov.co/sismosrecientes/';
+
+	/**
 	 * Descargo institucional obligatorio. Acompaña a todo componente que
 	 * hable de amenaza, recurrencia o réplicas.
 	 *
@@ -52,7 +62,7 @@ final class SIS_Amenaza {
 				'clave'       => 'sgc_recientes',
 				'entidad'     => 'Servicio Geológico Colombiano',
 				'nombre'      => 'Sismos recientes',
-				'url'         => 'https://sismosgr.sgc.gov.co/sismosrecientes/',
+				'url'         => self::URL_SISMOS_RECIENTES,
 				'descripcion' => 'Sismos registrados por la Red Sismológica Nacional en los últimos días, con la solución oficial para Colombia.',
 			),
 			array(

@@ -634,6 +634,7 @@ final class SIS_Admin {
 				</table>
 				<p><strong><?php esc_html_e( 'Si combina varios:', 'sismos-narino' ); ?></strong> <?php esc_html_e( 'una fecha de calendario manda sobre una ventana móvil, porque quien escribe anio="2026" pide ese año y no «los últimos N». Entre días y años gana «dias», que es la más específica. Los atributos que quedan descartados no se aplican ni aparecen en la página.', 'sismos-narino' ); ?></p>
 				<p><strong><?php esc_html_e( 'Con ambito="narino":', 'sismos-narino' ); ?></strong> <?php esc_html_e( 'todo lo publicado —epicentros, cifras y textos— queda dentro del recuadro del departamento. Como allí el catálogo global registra unos pocos sismos al año, una ventana corta puede salir vacía; el componente lo explica en lugar de dejar un hueco.', 'sismos-narino' ); ?></p>
+				<p><strong><?php esc_html_e( 'Hasta dónde llega la fuente:', 'sismos-narino' ); ?></strong> <?php esc_html_e( 'el catálogo del USGS registra en Colombia sobre todo sismos de magnitud 4 o mayor; los de magnitud 2 y 3 que reporta el Servicio Geológico Colombiano no entran. Por eso los componentes que listan epicentros —últimos sismos, estado, mapa, globo y línea de tiempo— publican un aviso con el enlace al boletín del SGC. Se puede quitar con', 'sismos-narino' ); ?> <code>nota="no"</code>.</p>
 			</div>
 		</details>
 

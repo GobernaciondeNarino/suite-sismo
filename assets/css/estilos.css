@@ -224,6 +224,20 @@
 
 .sis-nota { font-size: .86em; color: var(--sis-mute, #6b7280); }
 
+/* Aviso del umbral de detección de la fuente. Acompaña a cada lista de
+   epicentros, así que va discreto —no compite con el dato— pero con el enlace
+   al boletín del SGC bien visible: es a donde tiene que ir quien busca el
+   sismo de magnitud 3 que aquí no aparece. */
+.sis-nota--umbral {
+  margin: .6em 0 0;
+  padding-left: .7em;
+  border-left: 2px solid var(--sis-borde, #e5e7eb);
+  line-height: 1.5;
+}
+.sis-nota--umbral a { color: inherit; text-decoration: underline; }
+.sis-nota--umbral a:hover,
+.sis-nota--umbral a:focus { color: var(--sis-acento, #0b6e4f); }
+
 /* Aviso institucional: siempre visible, nunca en letra pequeña. */
 .sis-aviso {
   font-size: .92em;
@@ -337,6 +351,16 @@
 .sis-globo__error { color: #ffd7d7; background: rgba(120, 20, 20, .35); padding: 14px; margin: 0; font-size: .9em; }
 .sis-globo .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
 .sis-globo .sis-fuentes { padding: 8px 12px; margin: 0; color: #7f93a9; background: #00080f; }
+/* Sobre el fondo oscuro del globo el aviso hereda el color del cintillo. */
+.sis-globo .sis-nota--umbral {
+  padding: 10px 12px 0;
+  margin: 0;
+  color: #9fb4cc;
+  background: #00080f;
+  border-left: 0;
+}
+.sis-globo .sis-nota--umbral a:hover,
+.sis-globo .sis-nota--umbral a:focus { color: #eaf1f8; }
 
 /* --- [sismos_historico] --- */
 .sis-historico { margin: 10px 0; }

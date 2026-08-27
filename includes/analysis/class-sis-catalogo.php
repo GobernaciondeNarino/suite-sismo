@@ -26,7 +26,15 @@ final class SIS_Catalogo {
 	/** Feed de resumen que alimenta la vista global del globo. */
 	const FEED_MUNDO = '2.5_week';
 
-	const SEMILLA = 'catalogo_regional_semilla.json';
+	/*
+	 * La semilla cubre el recuadro del ámbito más amplio del plugin, de modo
+	 * que todos los ámbitos se derivan de este mismo archivo. Antes cubría solo
+	 * el recuadro regional y el ámbito «colombia» heredaba su recorte en
+	 * silencio: mientras el cron no hubiera corrido, dos mil sismos al norte
+	 * del paralelo 4 —la sismicidad de Santander, el Chocó y el Caribe— no
+	 * existían para el sitio, y nada lo advertía.
+	 */
+	const SEMILLA = 'catalogo_colombia_semilla.json';
 
 	/* ================================================================= */
 	/* Normalización                                                     */

@@ -45,7 +45,10 @@
 
     function pedir() {
       if (recibido) { return; }
-      C.rest('/eventos', { ambito: q.ambito, limite: limite })
+      // El periodo del shortcode viaja con la petición: sin él, la barra
+      // recorrería los últimos sismos sin más mientras el resto de la página
+      // muestra la ventana que pidió quien maquetó.
+      C.rest('/eventos', C.conPeriodo({ ambito: q.ambito, limite: limite }, q))
         .then(function (r) {
           if (recibido) { return; }
           recibido = true;
@@ -94,6 +97,12 @@
 
     function pintar() {
       C.quitarSkeleton(box);
+
+      /* La barra se redibuja entera en cada repintado, así que el aviso del
+         umbral —que lo escribe PHP— hay que apartarlo antes de vaciar la caja
+         y devolverlo al final. Si no, desaparece en cuanto llegan los datos,
+         que es justo cuando hace falta. */
+      var nota = box.querySelector('.sis-nota--umbral');
       box.innerHTML = '';
 
       var cab = C.el('div', 'sis-tl__cab');
@@ -195,6 +204,7 @@
       });
       box.appendChild(tira);
 
+      if (nota) { box.appendChild(nota); }
       box.appendChild(C.el('p', 'sis-fuentes', 'Fuente: U.S. Geological Survey — Earthquake Hazards Program'));
 
       st.rango = rango;

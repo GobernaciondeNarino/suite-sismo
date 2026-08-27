@@ -27,6 +27,32 @@ var CFG = window.SISGLOBO || {
   calidad: 'auto', textura: '', texturaLigera: '', mundo: '', geojson: '', geojsonDepto: ''
 };
 
+/* Lee del contenedor los data-* de consulta que publica el shortcode.
+
+   El globo es un módulo ES y no depende de sis-core, así que repite aquí la
+   lectura —son seis atributos— en vez de arrastrar el núcleo entero. El
+   periodo ya viene normalizado desde PHP: de dias, anio, mes y anios solo
+   llega lleno el que de verdad va a filtrar, y los demás vienen vacíos. */
+function _consulta(cont) {
+  var lee = function (n) { return (cont.getAttribute('data-' + n) || '').trim(); };
+
+  var periodo = {};
+  ['dias', 'anio', 'mes', 'anios'].forEach(function (k) {
+    var v = lee(k);
+    if (v) { periodo[k] = v; }
+  });
+  var mag = lee('min-mag');
+  if (mag) { periodo.min_mag = mag; }
+
+  var limite = parseInt(lee('limite'), 10);
+
+  return {
+    ambito: lee('ambito') || CFG.ambito || 'regional',
+    limite: limite > 0 ? limite : (CFG.limite || 50),
+    periodo: periodo
+  };
+}
+
 /* Cuántos sismos se piden para la vista global. El feed de resumen del USGS
    trae unos cuantos cientos por semana: con este tope se ve el Cinturón de
    Fuego completo sin castigar a un equipo modesto. */
@@ -312,6 +338,13 @@ class GloboSismico {
 
     this.capas = { sismos: true, calor: true, municipios: true, profundidad: true };
 
+    /* El ámbito y el periodo se leen del propio contenedor, no de la
+       configuración global: SISGLOBO es una sola variable por documento, así
+       que con dos globos en una página el segundo se llevaba los ajustes del
+       primero, y el periodo del shortcode —dias, anio, mes, anios— no llegaba
+       nunca a la petición. Los data-* ya vienen normalizados desde PHP. */
+    this.consulta = _consulta(cont);
+
     this._escena();
     this._planeta();
     this._estrellas();
@@ -511,7 +544,7 @@ class GloboSismico {
     this.conjuntos = { local: null, mundo: null };
     this.conjunto = 'local';
 
-    this._pedirEventos(CFG.ambito, CFG.limite)
+    this._pedirEventos(this.consulta.ambito, this.consulta.limite, this.consulta.periodo)
       .then(function (eventos) {
         self.conjuntos.local = eventos;
         self._aplicarConjunto('local', true);
@@ -525,8 +558,14 @@ class GloboSismico {
 
   /* Una petición al catálogo del plugin. Devuelve del más reciente al más
      antiguo, que es el orden en que lo entrega la REST. */
-  _pedirEventos(ambito, limite) {
-    return fetch(CFG.rest + '/eventos?ambito=' + encodeURIComponent(ambito) + '&limite=' + encodeURIComponent(limite))
+  _pedirEventos(ambito, limite, periodo) {
+    var qs = 'ambito=' + encodeURIComponent(ambito) + '&limite=' + encodeURIComponent(limite);
+    var p = periodo || {};
+    Object.keys(p).forEach(function (k) {
+      if (p[k]) { qs += '&' + k + '=' + encodeURIComponent(p[k]); }
+    });
+
+    return fetch(CFG.rest + '/eventos?' + qs)
       .then(function (r) {
         if (!r.ok) { throw new Error('HTTP ' + r.status); }
         return r.json();

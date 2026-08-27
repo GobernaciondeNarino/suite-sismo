@@ -30,6 +30,23 @@ final class SIS_Periodo {
 	const ANIO_MIN = 1990;
 
 	/**
+	 * Qué alcanza a ver la fuente de esta página, dicho sin rodeos.
+	 *
+	 * El plugin se surte del catálogo mundial del USGS, que en Colombia solo
+	 * registra de forma sistemática los sismos moderados: en el último año
+	 * incorporó 177 eventos en todo el país y apenas uno por debajo de
+	 * magnitud 4. La Red Sismológica Nacional del Servicio Geológico Colombiano
+	 * detecta y publica muchos más, de magnitud 2 y 3.
+	 *
+	 * Callar esa diferencia es lo que hace que alguien vea un boletín del SGC
+	 * sobre un sismo de hoy y aquí no encuentre nada, y concluya que la página
+	 * está mal. Se dice, y se remite a la fuente que sí los tiene.
+	 */
+	const NOTA_UMBRAL = 'Esta página se surte del catálogo mundial del USGS, que en Colombia registra sobre todo sismos de magnitud 4 o mayor. '
+		. 'La Red Sismológica Nacional del Servicio Geológico Colombiano detecta muchos más, de magnitud 2 y 3, y los publica en su boletín de sismos recientes: '
+		. SIS_Amenaza::URL_SISMOS_RECIENTES;
+
+	/**
 	 * Normaliza los atributos de ventana temporal.
 	 *
 	 * Precedencia deliberada: una fecha de calendario —«anio», «mes»— gana
@@ -258,12 +275,16 @@ final class SIS_Periodo {
 	 * @return string
 	 */
 	public static function nota_vacia( $ambito ) {
+		$comun = ' ' . self::NOTA_UMBRAL;
+
 		if ( 'narino' === $ambito ) {
-			return 'Un periodo sin sismos es lo habitual dentro del recuadro del departamento: la red global registra allí unos pocos eventos al año. '
-				. 'Que no aparezcan sismos no significa que no exista amenaza, sino que en esos días no hubo ninguno por encima del umbral de detección. '
-				. 'Para ver la sismicidad que gobierna la amenaza del departamento —la zona de subducción frente al Pacífico— amplíe el ámbito a «regional».';
+			return 'Un periodo sin sismos es lo habitual dentro del recuadro del departamento: en este catálogo aparecen allí unos pocos eventos al año. '
+				. 'Que no aparezcan sismos no significa que no exista amenaza, sino que en esos días no hubo ninguno por encima del umbral de este catálogo.'
+				. $comun
+				. ' Para ver la sismicidad que gobierna la amenaza del departamento —la zona de subducción frente al Pacífico— amplíe el ámbito a «regional».';
 		}
-		return 'Un periodo sin sismos registrados no significa ausencia de amenaza: significa que en esos días no ocurrió ninguno por encima del umbral de detección del catálogo. '
-			. 'Pruebe con una ventana más amplia.';
+		return 'Un periodo sin sismos registrados no significa ausencia de amenaza: significa que en esos días no ocurrió ninguno por encima del umbral de este catálogo.'
+			. $comun
+			. ' También puede probar con una ventana más amplia.';
 	}
 }

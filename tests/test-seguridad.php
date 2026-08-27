@@ -293,7 +293,7 @@ foreach ( array( 'sc_grafico', 'sc_mapa', 'sc_globo', 'sc_timeline', 'sc_histori
 }
 $externos = array_values( array_unique( array_filter( $externos, static function ( $h ) {
 	// Los enlaces de atribución a las fuentes oficiales son contenido, no código.
-	return ! in_array( $h, array( 'earthquake.usgs.gov', 'www.sgc.gov.co', 'sgc.gov.co', 'srvags.sgc.gov.co' ), true );
+	return ! in_array( $h, array( 'earthquake.usgs.gov', 'www.sgc.gov.co', 'sgc.gov.co', 'srvags.sgc.gov.co', 'sismosgr.sgc.gov.co' ), true );
 } ) ) );
 chk( ! $externos, 'Ningún componente carga recursos de terceros' . ( $externos ? ': ' . implode( ', ', $externos ) : '' ) );
 

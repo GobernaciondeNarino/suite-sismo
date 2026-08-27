@@ -255,6 +255,10 @@ final class SIS_Shortcodes {
 			'anio'    => '',
 			'mes'     => '',
 			'min_mag' => '',
+			// Aviso del umbral de detección de la fuente. Va en «si» a
+			// propósito: quien maqueta tiene que pedir explícitamente que se
+			// calle, no olvidarse de encenderlo.
+			'nota'    => 'si',
 		);
 	}
 
@@ -276,6 +280,33 @@ final class SIS_Shortcodes {
 	 */
 	private function pie_fuentes( $fuente = self::FUENTE ) {
 		return '<p class="sis-fuentes">' . esc_html__( 'Fuente:', 'sismos-narino' ) . ' ' . esc_html( $fuente ) . '</p>';
+	}
+
+	/**
+	 * Aviso del umbral de detección del catálogo que surte al plugin.
+	 *
+	 * Quien ve en redes que el Servicio Geológico Colombiano reportó un sismo
+	 * de magnitud 3 y no lo encuentra aquí concluye, con razón, que la página
+	 * está desactualizada. No lo está: el catálogo mundial del USGS —del que
+	 * se surte este sitio— en Colombia registra sobre todo sismos de magnitud
+	 * 4 o mayor, mientras la Red Sismológica Nacional detecta y publica los de
+	 * magnitud 2 y 3. Decirlo junto a cada lista de epicentros evita que la
+	 * ausencia se lea como error, y encamina a la ciudadanía a la fuente que
+	 * sí tiene ese detalle.
+	 *
+	 * @param array $atts Atributos del shortcode; con nota="no" no se publica.
+	 * @return string
+	 */
+	private function nota_umbral( $atts = array() ) {
+		if ( isset( $atts['nota'] ) && 'no' === $atts['nota'] ) {
+			return '';
+		}
+
+		return '<p class="sis-nota sis-nota--umbral">'
+			. esc_html__( 'Se muestran los sismos del catálogo mundial del USGS, que en Colombia registra sobre todo los de magnitud 4 o mayor. El Servicio Geológico Colombiano detecta muchos más, de magnitud 2 y 3:', 'sismos-narino' )
+			. ' <a href="' . esc_url( SIS_Amenaza::URL_SISMOS_RECIENTES ) . '" target="_blank" rel="noopener noreferrer">'
+			. esc_html__( 'sismos recientes del SGC', 'sismos-narino' )
+			. '</a>.</p>';
 	}
 
 	/**
@@ -572,6 +603,7 @@ final class SIS_Shortcodes {
 			data-vivo="<?php echo esc_attr( 'no' === $atts['vivo'] ? '0' : '1' ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Consultando la actividad sísmica…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'USGS — feeds GeoJSON (actualización ~1 min)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
@@ -603,6 +635,7 @@ final class SIS_Shortcodes {
 			data-vivo="<?php echo esc_attr( 'no' === $atts['vivo'] ? '0' : '1' ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Cargando los últimos sismos…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
@@ -647,6 +680,7 @@ final class SIS_Shortcodes {
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<div class="sis-mapa__lienzo" style="height:<?php echo esc_attr( $alto ); ?>"></div>
 			<?php echo $this->skeleton( __( 'Cargando el mapa de epicentros…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'Sismos: USGS · Amenaza: Servicio Geológico Colombiano (Modelo Nacional de Amenaza Sísmica) · Base: OpenStreetMap · Municipios: DANE' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
@@ -898,15 +932,29 @@ final class SIS_Shortcodes {
 			</div>
 
 			<?php echo $this->skeleton( __( 'Cargando el globo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'Sismos: USGS · Cartografía municipal: DANE · Motor 3D: Three.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		$salida = ob_get_clean();
 
 		if ( 'si' === $atts['timeline'] ) {
+			/*
+			 * La barra cuelga del globo y tiene que mirar exactamente los
+			 * mismos sismos: si no se le pasa el periodo, se queda con el suyo
+			 * por defecto y el usuario ve una línea de tiempo que no coincide
+			 * con los epicentros que tiene encima. El aviso del umbral no se
+			 * repite: ya lo lleva el globo, justo arriba.
+			 */
 			$salida .= $this->sc_timeline( array(
 				'ambito' => $atts['ambito'],
+				'dias'   => $atts['dias'],
+				'anio'   => $atts['anio'],
+				'mes'    => $atts['mes'],
+				'anios'  => $atts['anios'],
+				'min_mag' => $atts['min_mag'],
 				'limite' => (string) $limite,
+				'nota'   => 'no',
 			) );
 		}
 
@@ -948,6 +996,7 @@ final class SIS_Shortcodes {
 			data-limite="<?php echo esc_attr( max( 5, min( 200, (int) $atts['limite'] ) ) ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Cargando la línea de tiempo…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

@@ -209,7 +209,7 @@ SIS_Cache::set( 'g1', 1, 120, 'grupoX' );
 SIS_Cache::set( 'g2', 2, 120, 'grupoX' );
 chk( 2 === SIS_Cache::delete_grupo( 'grupoX' ), 'El borrado por grupo limpia todas sus claves' );
 
-chk( is_array( SIS_Cache::semilla( 'catalogo_regional_semilla.json' ) ), 'La semilla local se carga' );
+chk( is_array( SIS_Cache::semilla( SIS_Catalogo::SEMILLA ) ), 'La semilla local se carga' );
 chk( null === SIS_Cache::semilla( '../../wp-config.php' ), 'La semilla bloquea el traspaso de directorio' );
 
 /* ------------------------------------------------------------------ */
@@ -218,6 +218,23 @@ seccion( 'Catálogo desde la semilla (sin red)' );
 $cat = SIS_Catalogo::obtener( 'regional' );
 chk( 'semilla' === $cat['origen'], 'Sin sincronización previa, el catálogo cae a la semilla' );
 chk( $cat['total'] > 300, sprintf( 'Catálogo con %d sismos', $cat['total'] ) );
+
+/*
+ * La semilla debe cubrir el recuadro del ámbito más amplio. Cuando cubría solo
+ * el recuadro regional, «colombia» devolvía exactamente los mismos sismos que
+ * «regional» —recortados en el paralelo 4— y toda la sismicidad de Santander,
+ * el Chocó y el Caribe desaparecía del sitio sin que nada lo advirtiera.
+ */
+$col = SIS_Catalogo::obtener( 'colombia' );
+chk( $col['total'] > $cat['total'] * 2, sprintf( '«colombia» abarca más que «regional» (%d frente a %d)', $col['total'], $cat['total'] ) );
+
+$al_norte = 0;
+foreach ( $col['eventos'] as $ev ) {
+	if ( $ev['lat'] > 4.0 ) {
+		$al_norte++;
+	}
+}
+chk( $al_norte > 500, sprintf( 'La semilla llega al norte del país (%d sismos sobre el paralelo 4)', $al_norte ) );
 
 /* ------------------------------------------------------------------ */
 seccion( 'Vistas del motor de gráficos' );
@@ -392,7 +409,18 @@ foreach ( $nuevas as $id ) {
 // las tarjetas del panel.
 foreach ( SIS_Views::lista() as $v ) {
 	$full = SIS_Views::obtener( $v['id'], array( 'ambito' => 'regional' ) );
-	chk( '' !== trim( (string) $full['descripcion_larga'] ) && '' !== trim( (string) $full['analisis'] ) && '' !== trim( (string) $full['como_funciona'] ),
+
+	/*
+	 * El análisis viaja partido en dos —el descriptivo, que es fijo, y el
+	 * cuantitativo, que se recalcula con el filtro— y hay que mirar las dos
+	 * mitades. Comprobarlo sobre el arreglo entero convertía cualquier vista
+	 * en «Array», una cadena que nunca está vacía: la prueba pasaba siempre.
+	 */
+	$an = is_array( $full['analisis'] ) ? $full['analisis'] : array( 'descriptivo' => (string) $full['analisis'] );
+	chk( '' !== trim( (string) $full['descripcion_larga'] )
+			&& '' !== trim( (string) ( $an['descriptivo'] ?? '' ) )
+			&& '' !== trim( (string) ( $an['cuantitativo'] ?? '' ) )
+			&& '' !== trim( (string) $full['como_funciona'] ),
 		"«{$v['id']}» puede publicarse con descripción y análisis" );
 }
 

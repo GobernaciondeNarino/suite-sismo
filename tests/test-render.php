@@ -324,6 +324,37 @@ $limpio = false !== strpos( $sucio, 'data-mes=""' ) && false !== strpos( $sucio,
 printf( "%s  Un mes o un año imposibles no llegan al HTML\n", $limpio ? '  ok ' : 'FAIL' );
 if ( ! $limpio ) { $fallos++; }
 
+/*
+ * Quien ve en redes el boletín del SGC sobre un sismo de magnitud 3 y no lo
+ * encuentra aquí concluye que la página está rota. No lo está: el catálogo del
+ * USGS no baja de magnitud 4 en Colombia. Los componentes que listan
+ * epicentros lo dicen y remiten a la Red Sismológica Nacional.
+ */
+foreach ( array( 'sc_ultimos', 'sc_estado', 'sc_mapa', 'sc_globo', 'sc_timeline' ) as $m ) {
+	$html = $sc->$m( array() );
+	$dice = false !== strpos( $html, 'magnitud 4 o mayor' )
+		&& false !== strpos( $html, 'sismosgr.sgc.gov.co' );
+	printf( "%s  [%s] advierte del umbral de detección del USGS\n", $dice ? '  ok ' : 'FAIL', $m );
+	if ( ! $dice ) { $fallos++; }
+}
+
+$sin_nota = $sc->sc_ultimos( array( 'nota' => 'no' ) );
+$callado  = false === strpos( $sin_nota, 'sismosgr.sgc.gov.co' );
+printf( "%s  Con nota=\"no\" el aviso se puede quitar\n", $callado ? '  ok ' : 'FAIL' );
+if ( ! $callado ) { $fallos++; }
+
+// El globo con barra de tiempo no repite el aviso ni pierde el periodo: la
+// barra tiene que mirar exactamente los mismos sismos que hay sobre el globo.
+$con_barra = $sc->sc_globo( array( 'timeline' => 'si', 'dias' => '30', 'ambito' => 'colombia' ) );
+$una_vez   = 1 === substr_count( $con_barra, 'sismosgr.sgc.gov.co' );
+printf( "%s  El globo con línea de tiempo no repite el aviso\n", $una_vez ? '  ok ' : 'FAIL' );
+if ( ! $una_vez ) { $fallos++; }
+
+$mismo = 2 === substr_count( $con_barra, 'data-dias="30"' )
+	&& 2 === substr_count( $con_barra, 'data-ambito="colombia"' );
+printf( "%s  La línea de tiempo del globo hereda su mismo filtro\n", $mismo ? '  ok ' : 'FAIL' );
+if ( ! $mismo ) { $fallos++; }
+
 echo "\n";
 if ( $fallos ) {
 	echo "RESULTADO: {$fallos} componente(s) con problemas.\n";

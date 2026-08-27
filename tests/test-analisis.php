@@ -136,7 +136,7 @@ chk( ! SIS_Security::url_permitida( 'http://earthquake.usgs.gov/x' ), 'HTTP sin 
 /* ------------------------------------------------------------------ */
 seccion( 'Normalización del catálogo' );
 
-$crudo = json_decode( file_get_contents( SIS_DIR . 'data/catalogo_regional_semilla.json' ), true );
+$crudo = json_decode( file_get_contents( SIS_DIR . 'data/' . SIS_Catalogo::SEMILLA ), true );
 chk( is_array( $crudo ) && ! empty( $crudo['features'] ), 'Semilla local legible' );
 
 $eventos = SIS_Catalogo::normalizar( $crudo, array( 'ambito' => 'regional' ) );
