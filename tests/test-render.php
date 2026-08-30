@@ -433,6 +433,49 @@ foreach ( $muestra as $i => $e ) {
 printf( "%s  sin alterar ninguno de sus valores\n", $intactos ? '  ok ' : 'FAIL' );
 if ( ! $intactos ) { $fallos++; }
 
+/*
+ * Los controles de la línea de tiempo llevan iconos dibujados, no caracteres.
+ * «⏸» y «▶» tienen presentación de emoji en Windows y Android: el botón de
+ * pausa salía en color dentro de una barra monocroma, y «‹ ›» son comillas
+ * angulares —finas y pequeñas— que no se leen como «paso atrás» y «paso
+ * adelante». Además dependían de que la fuente del tema los trajera.
+ */
+$tl = file_get_contents( SIS_DIR . 'assets/js/timeline.js' );
+
+// Los comentarios sí los nombran —explican por qué se fueron—, así que se
+// miran solo las líneas de código.
+$codigo = preg_replace( array( '#/\*.*?\*/#su', '#^\s*//.*$#mu' ), '', $tl );
+
+$glifos = array( '▶', '⏸', '‹', '›', '⏮', '⏭' );
+$quedan = array();
+foreach ( $glifos as $g ) {
+	if ( false !== strpos( $codigo, $g ) ) { $quedan[] = $g; }
+}
+printf( "%s  La línea de tiempo no usa caracteres como icono%s\n",
+	$quedan ? 'FAIL' : '  ok ', $quedan ? ' (quedan: ' . implode( ' ', $quedan ) . ')' : '' );
+if ( $quedan ) { $fallos++; }
+
+$dibujados = false !== strpos( $tl, "viewBox', '0 0 24 24'" )
+	&& false !== strpos( $tl, "'currentColor'" );
+printf( "%s  y los dibuja en SVG, heredando el color del botón\n", $dibujados ? '  ok ' : 'FAIL' );
+if ( ! $dibujados ) { $fallos++; }
+
+// Un botón de dos estados tiene que anunciarse como tal, y su nombre
+// accesible cambiar con el estado: si no, un lector de pantalla sigue
+// diciendo «Reproducir» sobre un botón que ya está pausando.
+$estado = false !== strpos( $tl, "aria-pressed" )
+	&& false !== strpos( $tl, 'Pausar la secuencia' )
+	&& false !== strpos( $tl, 'is-playing' );
+printf( "%s  El botón de reproducción publica su estado\n", $estado ? '  ok ' : 'FAIL' );
+if ( ! $estado ) { $fallos++; }
+
+// Y ese estado se fija en un solo sitio: repartido entre arrancar y detener
+// es como se acaba con un botón que dibuja «pausa» y se dice «Reproducir».
+$unSitio = 1 === preg_match_all( '/function marcarPlay\(/', $tl )
+	&& 0 === preg_match_all( '/play\.textContent\s*=/', $tl );
+printf( "%s  y lo hace en un único sitio\n", $unSitio ? '  ok ' : 'FAIL' );
+if ( ! $unSitio ) { $fallos++; }
+
 echo "\n";
 if ( $fallos ) {
 	echo "RESULTADO: {$fallos} componente(s) con problemas.\n";

@@ -1,5 +1,18 @@
 # Registro de cambios
 
+## 2.10.1 — 2026-08-27
+
+### Iconos dibujados en la línea de tiempo
+
+Los controles de la barra usaban caracteres —`‹ ▶ ⏸ ›`— y eso traía tres problemas: `‹` y `›` son comillas angulares, finas y pequeñas, que no se leen como «paso atrás» y «paso adelante»; `⏸` tiene presentación de emoji en Windows y Android, así que el botón de pausa salía en color dentro de una barra monocroma; y los tres dependían de que la fuente del tema los trajera.
+
+Ahora son SVG en línea: heredan el color del botón con `currentColor`, se escalan con él y se ven igual en cualquier sistema. Los de paso llevan la barra del salto, para que digan «al sismo de al lado» y no «desplázate».
+
+- **El botón de reproducción se anuncia como lo que es**, un control de dos estados: `aria-pressed` dice si está sonando y el nombre accesible cambia con él —«Reproducir la secuencia» parado, «Pausar la secuencia» corriendo—. Mientras suena se rellena con el color de acento (contraste 11,8:1), para que el estado se vea de un vistazo y no solo se deduzca del icono.
+- **El icono, la etiqueta y el estado se fijan en un solo sitio.** Estaban repartidos entre arrancar y detener, que es como se acaba con un botón que dibuja «pausa» y sigue diciéndose «Reproducir». Hay una prueba que falla si vuelven a separarse.
+- **El selector de velocidad va dentro de su etiqueta.** Suelto, un menú que dice «Normal» junto a un botón de reproducción no se entiende hasta desplegarlo, y el `aria-label` solo servía a quien usa lector de pantalla. En pantalla estrecha la palabra se oculta —ahí el menú ya se entiende por vecindad— y así no empuja al deslizador fuera de su línea.
+- Los botones respetan `prefers-reduced-motion`: sin transición ni rebote al pulsar.
+
 ## 2.10.0 — 2026-08-27
 
 ### El globo abre mirando el planeta, y con el último mes

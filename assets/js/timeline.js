@@ -11,6 +11,50 @@
   'use strict';
   var C = window.SIScore;
 
+  /* Iconos en SVG, no en caracteres.
+
+     La barra usaba «‹ ▶ ⏸ ›». Son tipografía, no iconos, y eso trae tres
+     problemas: «‹» y «›» son comillas angulares —finas y pequeñas— que no se
+     leen como «paso atrás» y «paso adelante»; «⏸» tiene presentación de
+     emoji en Windows y Android, así que el botón de pausa salía en color
+     mientras el resto de la barra es monocromo; y todos dependen de que la
+     fuente del tema los traiga, cosa que no siempre pasa.
+
+     Estos van dibujados, heredan el color del botón con currentColor y se
+     escalan con él. «Anterior» y «siguiente» llevan la barra del salto: dicen
+     «al sismo de al lado», no «desplázate». */
+  var ICONOS = {
+    anterior: '<path d="M15.5 5.5 8 12l7.5 6.5" /><path d="M6.5 5.5v13" />',
+    siguiente: '<path d="M8.5 5.5 16 12l-7.5 6.5" /><path d="M17.5 5.5v13" />',
+    // El triángulo va desplazado a la derecha a propósito: su masa está en la
+    // base, así que centrado por geometría se ve corrido hacia la izquierda.
+    play: '<path d="M9 5.5v13L19.5 12z" fill="currentColor" stroke="none" stroke-linejoin="round" />',
+    pausa: '<path d="M9 5.5v13" /><path d="M15 5.5v13" />'
+  };
+
+  function icono(nombre) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('class', 'sis-ico');
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('focusable', 'false');
+    // El trazo se define aquí y no en la hoja de estilos para que el icono
+    // siga siendo correcto si alguien reutiliza el componente sin ella.
+    s.setAttribute('fill', 'none');
+    s.setAttribute('stroke', 'currentColor');
+    s.setAttribute('stroke-width', '2');
+    s.setAttribute('stroke-linecap', 'round');
+    s.setAttribute('stroke-linejoin', 'round');
+    s.innerHTML = ICONOS[nombre] || '';
+    return s;
+  }
+
+  /* Pone un icono en un botón, reemplazando el que hubiera. */
+  function ponerIcono(btn, nombre) {
+    while (btn.firstChild) { btn.removeChild(btn.firstChild); }
+    btn.appendChild(icono(nombre));
+  }
+
   C.ready(function () {
     Array.prototype.forEach.call(document.querySelectorAll('[data-sis-timeline]'), init);
   });
@@ -73,11 +117,14 @@
       seleccionar(0, false);
     }
 
-    function boton(texto, etiqueta, alPulsar) {
+    function boton(nombreIcono, etiqueta, alPulsar) {
       var b = C.el('button', 'sis-tl__btn');
       b.type = 'button';
-      b.textContent = texto;
+      ponerIcono(b, nombreIcono);
+      // El icono es decorativo y el botón no lleva texto, así que el nombre
+      // accesible tiene que venir de aquí. El title da la misma pista al ratón.
       b.setAttribute('aria-label', etiqueta);
+      b.title = etiqueta;
       b.addEventListener('click', alPulsar);
       return b;
     }
@@ -129,20 +176,27 @@
 
       var fila = C.el('div', 'sis-tl__fila');
 
-      var anterior = boton('‹', 'Sismo anterior', function () {
+      var anterior = boton('anterior', 'Sismo anterior', function () {
         detener(play);
         mover(-1);
       });
       fila.appendChild(anterior);
 
+      /* El botón de reproducción es de dos estados, así que se anuncia como
+         tal: aria-pressed dice si está sonando y el nombre accesible cambia
+         con él —«Reproducir» cuando está parado, «Pausar» cuando corre—, que
+         es lo que lee un lector de pantalla. La clase is-playing es solo para
+         que la hoja de estilos pueda distinguirlos. */
       var play = C.el('button', 'sis-tl__btn sis-tl__btn--play');
       play.type = 'button';
+      play.setAttribute('aria-pressed', 'false');
+      ponerIcono(play, 'play');
       play.setAttribute('aria-label', 'Reproducir la secuencia');
-      play.textContent = '▶';
+      play.title = 'Reproducir la secuencia';
       play.addEventListener('click', function () { alternarReproduccion(play); });
       fila.appendChild(play);
 
-      fila.appendChild(boton('›', 'Sismo siguiente', function () {
+      fila.appendChild(boton('siguiente', 'Sismo siguiente', function () {
         detener(play);
         mover(1);
       }));
@@ -161,6 +215,14 @@
       });
       fila.appendChild(rango);
 
+      /* El selector de velocidad va dentro de su etiqueta. Suelto, un menú que
+         dice «Normal» junto a un botón de reproducción no se entiende hasta
+         que se despliega; y el aria-label solo servía a quien usa lector de
+         pantalla, no a quien mira. En pantalla estrecha la palabra se oculta y
+         queda el menú, que ahí sí es evidente por vecindad. */
+      var etqVel = C.el('label', 'sis-tl__velocidad');
+      etqVel.appendChild(C.el('span', 'sis-tl__velocidad-txt', 'Velocidad'));
+
       var vel = document.createElement('select');
       vel.className = 'sis-tl__vel';
       vel.setAttribute('aria-label', 'Velocidad de reproducción');
@@ -176,7 +238,8 @@
         // Si está reproduciendo, se reinicia el temporizador con el nuevo ritmo.
         if (st.reproduciendo) { detener(play); alternarReproduccion(play); }
       });
-      fila.appendChild(vel);
+      etqVel.appendChild(vel);
+      fila.appendChild(etqVel);
 
       box.appendChild(fila);
 
@@ -234,8 +297,7 @@
     function alternarReproduccion(play) {
       if (st.reproduciendo) { detener(play); return; }
       st.reproduciendo = true;
-      play.textContent = '⏸';
-      play.setAttribute('aria-label', 'Pausar la secuencia');
+      marcarPlay(play, true);
       var pos = aControl(st.indice);
       st.temporizador = setInterval(function () {
         pos = (pos + 1) % st.eventos.length;
@@ -246,10 +308,19 @@
     function detener(play) {
       st.reproduciendo = false;
       if (st.temporizador) { clearInterval(st.temporizador); st.temporizador = null; }
-      if (play) {
-        play.textContent = '▶';
-        play.setAttribute('aria-label', 'Reproducir la secuencia');
-      }
+      if (play) { marcarPlay(play, false); }
+    }
+
+    /* Icono, etiqueta y estado del botón de reproducción, en un solo sitio:
+       tenerlos repartidos entre arrancar y detener es como se acaba con un
+       botón que dibuja «pausa» y sigue diciéndose «Reproducir». */
+    function marcarPlay(play, sonando) {
+      var etq = sonando ? 'Pausar la secuencia' : 'Reproducir la secuencia';
+      ponerIcono(play, sonando ? 'pausa' : 'play');
+      play.setAttribute('aria-label', etq);
+      play.setAttribute('aria-pressed', sonando ? 'true' : 'false');
+      play.title = etq;
+      play.classList.toggle('is-playing', !!sonando);
     }
 
     // El globo también manda: al pulsar un epicentro, la línea de tiempo sigue.

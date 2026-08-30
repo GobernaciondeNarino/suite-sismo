@@ -389,19 +389,43 @@
 .sis-tl__btn {
   flex: 0 0 auto;
   width: 38px; height: 38px;
-  font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--sis-borde-color, #d8dbe0);
   border-radius: 50%;
   background: transparent;
   color: inherit;
   cursor: pointer;
+  transition: border-color .15s, background-color .15s, color .15s;
 }
-.sis-tl__btn:hover { border-color: var(--sis-acento, #003087); }
+.sis-tl__btn:hover { border-color: var(--sis-acento, #003087); color: var(--sis-acento, #003087); }
 .sis-tl__btn:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
-.sis-tl__btn--play { font-size: 13px; }
+.sis-tl__btn:active { transform: scale(.94); }
+
+/* El icono hereda el color del botón y se escala con él: un solo sitio donde
+   cambiar el tamaño, y ningún color propio que se desincronice del tema. */
+.sis-ico { width: 18px; height: 18px; display: block; }
+
+/* Reproducir es la acción principal de la barra, así que pesa más que los dos
+   pasos que lo flanquean; y mientras suena se queda relleno, para que se vea
+   de un vistazo que la secuencia está corriendo. */
+.sis-tl__btn--play { border-color: var(--sis-acento, #003087); }
+.sis-tl__btn--play .sis-ico { width: 20px; height: 20px; }
+.sis-tl__btn--play.is-playing {
+  background: var(--sis-acento, #003087);
+  border-color: var(--sis-acento, #003087);
+  color: #fff;
+}
+.sis-tl__btn--play.is-playing:hover { color: #fff; opacity: .9; }
+
+.sis-tl__velocidad {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .82em;
+  color: var(--sis-mute, #6b7280);
+}
 .sis-tl__vel {
   flex: 0 0 auto;
-  font: inherit; font-size: .82em;
+  font: inherit; font-size: 1em;
   padding: 5px 6px;
   color: inherit;
   background: transparent;
@@ -454,6 +478,10 @@
   .sis-tl__fila { flex-wrap: wrap; gap: 8px; }
   .sis-tl__rango { order: 3; flex: 1 0 100%; }
   .sis-tl__logo { height: 18px; }
+  /* La palabra «Velocidad» se va: al lado del botón de reproducción, un menú
+     que dice «Normal» ya se entiende, y en 360 px ese texto es lo que empuja
+     al deslizador fuera de su línea. El nombre accesible sigue en el select. */
+  .sis-tl__velocidad-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   /* En un móvil los ocho controles ocupaban tres filas y tapaban un tercio del
      globo: pasan a una sola fila que se desplaza en horizontal. */
@@ -491,5 +519,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sis-tl__marca, .sis-tl__barra { transition: none; }
+  .sis-tl__marca, .sis-tl__barra, .sis-tl__btn { transition: none; }
+  .sis-tl__btn:active { transform: none; }
 }
