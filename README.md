@@ -151,7 +151,7 @@ El globo tiene además `vista`, que decide con qué encuadre abre: `global` (por
 
 **Con `ambito="narino"`** todo lo publicado queda dentro del recuadro del departamento: epicentros, cifras y textos. Conviene saber que allí el catálogo global registra unos pocos sismos al año, así que una ventana corta puede salir vacía; en ese caso el componente explica qué significa el cero y ofrece ampliar el ámbito, en vez de dejar un hueco.
 
-**Hasta dónde llega la fuente.** El catálogo del USGS registra en Colombia sobre todo sismos de **magnitud 4 o mayor**: en el último año incorporó 177 sismos en todo el país y apenas uno por debajo de esa magnitud. Los de magnitud 2 y 3 que reporta el Servicio Geológico Colombiano no entran. Quien ve un boletín del SGC sobre un sismo de hoy y no lo encuentra aquí no está ante una página desactualizada, sino ante el umbral de detección de la fuente. Los cinco componentes que listan epicentros —`[sismos_ultimos]`, `[sismos_estado]`, `[sismos_mapa]`, `[sismos_globo]` y `[sismos_timeline]`— lo dicen y enlazan al [boletín de sismos recientes del SGC](https://sismosgr.sgc.gov.co/sismosrecientes/), que sí tiene ese detalle. Se puede quitar con `nota="no"`.
+**Hasta dónde llega la fuente.** El catálogo del USGS registra en Colombia sobre todo sismos de **magnitud 4 o mayor**: en el último año incorporó 177 sismos en todo el país y apenas uno por debajo de esa magnitud. Los de magnitud 2 y 3 que reporta el Servicio Geológico Colombiano no entran. Quien ve un boletín del SGC sobre un sismo de hoy y no lo encuentra aquí no está ante una página desactualizada, sino ante el umbral de detección de la fuente. Los cinco componentes que listan epicentros —`[sismos_ultimos]`, `[sismos_estado]`, `[sismos_mapa]`, `[sismos_globo]` y `[sismos_timeline]`— lo dicen tras un icono ⓘ en el pie, que abre un globo con el aviso y el enlace al [boletín de sismos recientes del SGC](https://sismosgr.sgc.gov.co/sismosrecientes/). Es un `<details>`: funciona con teclado y sin JavaScript. Se puede quitar con `nota="no"`.
 
 ```
 [sismos_grafico view="sismos_mensuales" ambito="narino" dias="15"]
@@ -207,7 +207,7 @@ Todas son públicas y de solo lectura, con rate-limiting por IP (120 peticiones/
 
 ## Apariencia
 
-Por defecto todo es **transparente y sin bordes ni sombras**, para fundirse con el tema del sitio. Ajuste el aspecto global en **Sismos Nariño → Apariencia**, o por shortcode:
+Por defecto todo es **transparente y sin bordes ni sombras**, para fundirse con el tema del sitio. Ajuste el aspecto global en **Sismos Nariño → Apariencia**, que reparte los trece ajustes en tres pestañas —**Gráficas** (los acentos de series y ejes), **Textos** (tipografía y colores de letra) y **Contenedores** (fondo, borde, esquinas, sombra, ancho y espaciado)— y dice junto a cada campo con qué atributo se sobrescribe por shortcode. Los tres grupos se guardan de una vez. O directamente por shortcode:
 
 ```
 [sismos_estado fondo="#ffffff" borde="1px" radio="8px" sombra="0 1px 4px rgba(0,0,0,.08)"]

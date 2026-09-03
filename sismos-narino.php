@@ -3,7 +3,7 @@
  * Plugin Name:  Sismos Nariño — Análisis Estadístico y Pronóstico Sísmico
  * Plugin URI:   https://gobiernoabierto.narino.gov.co/datos/sismos/
  * Description:  Análisis estadístico de la sismicidad de Nariño y la zona de subducción vecina con datos abiertos del USGS (FDSN Event + feeds GeoJSON). Gráficos D3plus con barra de herramientas, mapa de epicentros, datos abiertos y módulo de amenaza y preparación construido sobre fuentes oficiales. NO pronostica sismos: la autoridad técnica es el Servicio Geológico Colombiano.
- * Version:      2.10.1
+ * Version:      2.11.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       Gobernación de Nariño · Secretaría TIC, Innovación y Gobierno Abierto
@@ -33,7 +33,7 @@ use GobernacionNarino\Sismos\SIS_Activator;
 /* -------------------------------------------------------------------------
  * Constantes del plugin
  * ---------------------------------------------------------------------- */
-define( 'SIS_VERSION', '2.10.1' );
+define( 'SIS_VERSION', '2.11.0' );
 define( 'SIS_FILE', __FILE__ );
 define( 'SIS_DIR', plugin_dir_path( __FILE__ ) );       // .../sismos-narino/
 define( 'SIS_URL', plugin_dir_url( __FILE__ ) );        // URL pública de assets

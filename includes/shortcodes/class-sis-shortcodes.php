@@ -283,6 +283,25 @@ final class SIS_Shortcodes {
 	}
 
 	/**
+	 * Pie del componente: el icono del aviso y la atribución, en una sola línea.
+	 *
+	 * Apilados ocupaban dos renglones para decir una cosa pequeña. Van juntos
+	 * porque dicen lo mismo —de dónde salen estos datos y hasta dónde llegan—,
+	 * y el icono queda a la altura del texto que amplía.
+	 *
+	 * @param array  $atts   Atributos del shortcode (para el aviso).
+	 * @param string $fuente Texto de atribución.
+	 * @return string
+	 */
+	private function pie( $atts, $fuente = self::FUENTE ) {
+		$nota = $this->nota_umbral( $atts );
+		if ( '' === $nota ) {
+			return $this->pie_fuentes( $fuente );
+		}
+		return '<div class="sis-pie">' . $nota . $this->pie_fuentes( $fuente ) . '</div>';
+	}
+
+	/**
 	 * Aviso del umbral de detección del catálogo que surte al plugin.
 	 *
 	 * Quien ve en redes que el Servicio Geológico Colombiano reportó un sismo
@@ -302,11 +321,36 @@ final class SIS_Shortcodes {
 			return '';
 		}
 
-		return '<p class="sis-nota sis-nota--umbral">'
-			. esc_html__( 'Se muestran los sismos del catálogo mundial del USGS, que en Colombia registra sobre todo los de magnitud 4 o mayor. El Servicio Geológico Colombiano detecta muchos más, de magnitud 2 y 3:', 'sismos-narino' )
-			. ' <a href="' . esc_url( SIS_Amenaza::URL_SISMOS_RECIENTES ) . '" target="_blank" rel="noopener noreferrer">'
-			. esc_html__( 'sismos recientes del SGC', 'sismos-narino' )
-			. '</a>.</p>';
+		// El icono es de Dashicons, así que la fuente se pide aquí: es el único
+		// sitio que la necesita en los cinco componentes que publican el aviso,
+		// y así ninguno se olvida de encolarla.
+		wp_enqueue_style( 'dashicons' );
+
+		$titulo = __( 'Sobre el alcance de esta fuente', 'sismos-narino' );
+
+		/*
+		 * El aviso vive detrás de un icono, no como párrafo.
+		 *
+		 * Suelto ocupaba tres líneas de letra pequeña bajo cada componente y
+		 * competía con el dato, que es lo que la gente vino a ver. Detrás de un
+		 * icono sigue estando —a un clic, siempre en el mismo sitio— pero no
+		 * pesa en la lectura normal.
+		 *
+		 * Es un <details>, no una ventana montada con JavaScript: se abre y se
+		 * cierra con teclado sin que el plugin tenga que programarlo, y si el
+		 * JS no llega —o lo bloquea una extensión— el aviso sigue siendo
+		 * accesible. El JS solo añade cerrar con Escape y al pulsar fuera.
+		 */
+		return '<details class="sis-nota--umbral" data-sis-info>'
+			. '<summary class="sis-info__btn" title="' . esc_attr( $titulo ) . '" aria-label="' . esc_attr( $titulo ) . '">'
+			. '<span class="dashicons dashicons-info-outline" aria-hidden="true"></span>'
+			. '</summary>'
+			. '<div class="sis-info__globo" role="note">'
+			. '<p>' . esc_html__( 'Se muestran los sismos del catálogo mundial del USGS, que en Colombia registra sobre todo los de magnitud 4 o mayor. El Servicio Geológico Colombiano detecta muchos más, de magnitud 2 y 3.', 'sismos-narino' ) . '</p>'
+			. '<p><a href="' . esc_url( SIS_Amenaza::URL_SISMOS_RECIENTES ) . '" target="_blank" rel="noopener noreferrer">'
+			. esc_html__( 'Ver sismos recientes del SGC', 'sismos-narino' )
+			. '</a></p>'
+			. '</div></details>';
 	}
 
 	/**
@@ -603,8 +647,7 @@ final class SIS_Shortcodes {
 			data-vivo="<?php echo esc_attr( 'no' === $atts['vivo'] ? '0' : '1' ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Consultando la actividad sísmica…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'USGS — feeds GeoJSON (actualización ~1 min)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie( $atts, 'USGS — feeds GeoJSON (actualización ~1 min)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -635,8 +678,7 @@ final class SIS_Shortcodes {
 			data-vivo="<?php echo esc_attr( 'no' === $atts['vivo'] ? '0' : '1' ); ?>"
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php echo $this->skeleton( __( 'Cargando los últimos sismos…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -680,8 +722,7 @@ final class SIS_Shortcodes {
 			<?php echo $this->data_consulta( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<div class="sis-mapa__lienzo" style="height:<?php echo esc_attr( $alto ); ?>"></div>
 			<?php echo $this->skeleton( __( 'Cargando el mapa de epicentros…', 'sismos-narino' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'Sismos: USGS · Amenaza: Servicio Geológico Colombiano (Modelo Nacional de Amenaza Sísmica) · Base: OpenStreetMap · Municipios: DANE' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie( $atts, 'Sismos: USGS · Amenaza: Servicio Geológico Colombiano (Modelo Nacional de Amenaza Sísmica) · Base: OpenStreetMap · Municipios: DANE' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -880,6 +921,10 @@ final class SIS_Shortcodes {
 		), $atts, 'sismos_globo' );
 
 		wp_enqueue_style( 'sis-estilos' );
+		// El globo es un módulo ES y no depende del núcleo, pero comparte con el
+		// resto el aviso desplegable de la fuente: sis-core es quien le añade
+		// cerrar con Escape y al pulsar fuera.
+		wp_enqueue_script( 'sis-core' );
 		wp_enqueue_script( 'sis-globo' );
 
 		$limite  = max( 5, min( 200, (int) $atts['limite'] ) );
@@ -964,8 +1009,7 @@ final class SIS_Shortcodes {
 
 			</div><?php // .sis-globo__escena ?>
 
-			<?php echo $this->nota_umbral( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'Sismos: USGS · Cartografía municipal: DANE · Motor 3D: Three.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie( $atts, 'Sismos: USGS · Cartografía municipal: DANE · Motor 3D: Three.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		$salida = ob_get_clean();
@@ -1012,6 +1056,9 @@ final class SIS_Shortcodes {
 		), $atts, 'sismos_timeline' );
 
 		wp_enqueue_style( 'sis-estilos' );
+		// Los controles usan Dashicons, la fuente de iconos que sirve el propio
+		// WordPress. Es la misma que ya usa la barra de los gráficos.
+		wp_enqueue_style( 'dashicons' );
 		wp_enqueue_script( 'sis-timeline' );
 
 		$id = $this->id();

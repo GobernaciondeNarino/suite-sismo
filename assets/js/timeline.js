@@ -11,48 +11,36 @@
   'use strict';
   var C = window.SIScore;
 
-  /* Iconos en SVG, no en caracteres.
+  /* Iconos de Dashicons, la fuente de iconos que ya trae WordPress.
 
-     La barra usaba «‹ ▶ ⏸ ›». Son tipografía, no iconos, y eso trae tres
-     problemas: «‹» y «›» son comillas angulares —finas y pequeñas— que no se
-     leen como «paso atrás» y «paso adelante»; «⏸» tiene presentación de
-     emoji en Windows y Android, así que el botón de pausa salía en color
-     mientras el resto de la barra es monocromo; y todos dependen de que la
-     fuente del tema los traiga, cosa que no siempre pasa.
+     La barra usó primero caracteres —«‹ ▶ ⏸ ›»— y luego SVG en línea. Los
+     caracteres dependían de la fuente del tema y «⏸» salía con presentación de
+     emoji, en color, dentro de una barra monocroma. Los SVG resolvían eso pero
+     eran vulnerables a lo que haga el tema con el selector «svg»: basta una
+     regla como «.entry-content svg { width: 100% }» —que muchos temas traen—
+     para que el icono desaparezca y el botón quede vacío.
 
-     Estos van dibujados, heredan el color del botón con currentColor y se
-     escalan con él. «Anterior» y «siguiente» llevan la barra del salto: dicen
-     «al sismo de al lado», no «desplázate». */
+     Dashicons no tiene ese problema: es una fuente que WordPress sirve en todo
+     el frontend, los temas no la pisan, y el resto del plugin —la barra de
+     herramientas de los gráficos— ya la usa. Un solo vocabulario de iconos en
+     todo el componente. */
   var ICONOS = {
-    anterior: '<path d="M15.5 5.5 8 12l7.5 6.5" /><path d="M6.5 5.5v13" />',
-    siguiente: '<path d="M8.5 5.5 16 12l-7.5 6.5" /><path d="M17.5 5.5v13" />',
-    // El triángulo va desplazado a la derecha a propósito: su masa está en la
-    // base, así que centrado por geometría se ve corrido hacia la izquierda.
-    play: '<path d="M9 5.5v13L19.5 12z" fill="currentColor" stroke="none" stroke-linejoin="round" />',
-    pausa: '<path d="M9 5.5v13" /><path d="M15 5.5v13" />'
+    anterior: 'controls-back',
+    siguiente: 'controls-forward',
+    play: 'controls-play',
+    pausa: 'controls-pause'
   };
 
-  function icono(nombre) {
-    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    s.setAttribute('viewBox', '0 0 24 24');
-    s.setAttribute('class', 'sis-ico');
-    s.setAttribute('aria-hidden', 'true');
-    s.setAttribute('focusable', 'false');
-    // El trazo se define aquí y no en la hoja de estilos para que el icono
-    // siga siendo correcto si alguien reutiliza el componente sin ella.
-    s.setAttribute('fill', 'none');
-    s.setAttribute('stroke', 'currentColor');
-    s.setAttribute('stroke-width', '2');
-    s.setAttribute('stroke-linecap', 'round');
-    s.setAttribute('stroke-linejoin', 'round');
-    s.innerHTML = ICONOS[nombre] || '';
-    return s;
-  }
+  /* Pone un icono en un botón, reemplazando el que hubiera.
 
-  /* Pone un icono en un botón, reemplazando el que hubiera. */
+     El icono es decorativo —aria-hidden— porque el nombre accesible del botón
+     viene de su aria-label: si no, un lector de pantalla leería el nombre del
+     glifo además de la etiqueta. */
   function ponerIcono(btn, nombre) {
     while (btn.firstChild) { btn.removeChild(btn.firstChild); }
-    btn.appendChild(icono(nombre));
+    var i = C.el('span', 'dashicons dashicons-' + (ICONOS[nombre] || 'marker'));
+    i.setAttribute('aria-hidden', 'true');
+    btn.appendChild(i);
   }
 
   C.ready(function () {
@@ -267,8 +255,12 @@
       });
       box.appendChild(tira);
 
-      if (nota) { box.appendChild(nota); }
-      box.appendChild(C.el('p', 'sis-fuentes', 'Fuente: U.S. Geological Survey — Earthquake Hazards Program'));
+      // El pie repite la estructura que arma PHP en los demás componentes: el
+      // icono del aviso y la atribución en un renglón, no apilados.
+      var pie = C.el('div', 'sis-pie');
+      if (nota) { pie.appendChild(nota); }
+      pie.appendChild(C.el('p', 'sis-fuentes', 'Fuente: U.S. Geological Survey — Earthquake Hazards Program'));
+      box.appendChild(pie);
 
       st.rango = rango;
       st.ficha = ficha;

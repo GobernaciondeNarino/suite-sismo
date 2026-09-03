@@ -49,7 +49,10 @@ function get_option( $k, $def = false ) { return $def; }
 function wp_rand() { return 12345; }
 function shortcode_atts( $pairs, $atts, $sc = '' ) { $atts = (array) $atts; $out = array(); foreach ( $pairs as $n => $d ) { $out[ $n ] = array_key_exists( $n, $atts ) ? $atts[ $n ] : $d; } return $out; }
 function add_action() {} function add_filter() {} function add_shortcode() {}
-function wp_enqueue_style() {} function wp_enqueue_script() {}
+$GLOBALS['sis_estilos'] = array();
+$GLOBALS['sis_scripts'] = array();
+function wp_enqueue_style( $h = '' ) { $GLOBALS['sis_estilos'][] = $h; }
+function wp_enqueue_script( $h = '' ) { $GLOBALS['sis_scripts'][] = $h; }
 function wp_register_style() {} function wp_register_script() {}
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function esc_html_e( $s, $d = null ) { echo esc_html( $s ); }
@@ -338,6 +341,24 @@ foreach ( array( 'sc_ultimos', 'sc_estado', 'sc_mapa', 'sc_globo', 'sc_timeline'
 		&& false !== strpos( $html, 'sismosgr.sgc.gov.co' );
 	printf( "%s  [%s] advierte del umbral de detección del USGS\n", $dice ? '  ok ' : 'FAIL', $m );
 	if ( ! $dice ) { $fallos++; }
+
+	/*
+	 * Y lo hace detrás de un icono, no como párrafo suelto: tres líneas de
+	 * letra pequeña bajo cada componente competían con el dato. Va en un
+	 * <details>, que se abre y se cierra con teclado sin que el plugin lo
+	 * programe y que sigue siendo accesible si el JavaScript no llega.
+	 */
+	$plegado = false !== strpos( $html, '<details class="sis-nota--umbral" data-sis-info>' )
+		&& false !== strpos( $html, '<summary class="sis-info__btn"' )
+		&& false !== strpos( $html, 'dashicons-info-outline' );
+	printf( "%s  [%s] lo pliega tras un icono informativo\n", $plegado ? '  ok ' : 'FAIL', $m );
+	if ( ! $plegado ) { $fallos++; }
+
+	// El icono no lleva texto, así que su nombre accesible tiene que venir del
+	// summary: sin él es un botón que un lector de pantalla no sabe anunciar.
+	$nombrado = false !== strpos( $html, 'aria-label="Sobre el alcance de esta fuente"' );
+	printf( "%s  [%s] y el icono tiene nombre accesible\n", $nombrado ? '  ok ' : 'FAIL', $m );
+	if ( ! $nombrado ) { $fallos++; }
 }
 
 $sin_nota = $sc->sc_ultimos( array( 'nota' => 'no' ) );
@@ -455,10 +476,25 @@ printf( "%s  La línea de tiempo no usa caracteres como icono%s\n",
 	$quedan ? 'FAIL' : '  ok ', $quedan ? ' (quedan: ' . implode( ' ', $quedan ) . ')' : '' );
 if ( $quedan ) { $fallos++; }
 
-$dibujados = false !== strpos( $tl, "viewBox', '0 0 24 24'" )
-	&& false !== strpos( $tl, "'currentColor'" );
-printf( "%s  y los dibuja en SVG, heredando el color del botón\n", $dibujados ? '  ok ' : 'FAIL' );
-if ( ! $dibujados ) { $fallos++; }
+/*
+ * Se usa Dashicons y no SVG en línea. Los SVG resolvían el problema del emoji,
+ * pero cualquier tema con una regla sobre el selector «svg» —«.entry-content
+ * svg { width: 100% }» es de lo más común— deja el icono invisible y el botón
+ * vacío. Dashicons es la fuente que sirve el propio WordPress: los temas no la
+ * pisan, y es la que ya usa la barra de herramientas de los gráficos.
+ */
+$dashi = false !== strpos( $tl, "'dashicons dashicons-'" )
+	&& false !== strpos( $tl, 'controls-play' )
+	&& false !== strpos( $tl, 'controls-pause' );
+printf( "%s  y los toma de Dashicons, como el resto del plugin\n", $dashi ? '  ok ' : 'FAIL' );
+if ( ! $dashi ) { $fallos++; }
+
+// De nada sirve el icono si la fuente no viaja: el componente tiene que
+// encolarla, o los botones salen vacíos igual que con el SVG.
+$sc->sc_timeline( array() );
+$pide_fuente = in_array( 'dashicons', $GLOBALS['sis_estilos'], true );
+printf( "%s  y la línea de tiempo encola la fuente de iconos\n", $pide_fuente ? '  ok ' : 'FAIL' );
+if ( ! $pide_fuente ) { $fallos++; }
 
 // Un botón de dos estados tiene que anunciarse como tal, y su nombre
 // accesible cambiar con el estado: si no, un lector de pantalla sigue

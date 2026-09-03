@@ -263,6 +263,33 @@
     return function () { clearInterval(t); };
   }
 
+  /* Los avisos desplegables (<details data-sis-info>) funcionan solos: se abren
+     y se cierran con ratón y con teclado sin JavaScript. Esto solo añade las
+     dos cortesías que el elemento nativo no trae —cerrar con Escape y al
+     pulsar fuera—, y que solo uno esté abierto a la vez. Si este archivo no
+     llegara a cargar, el aviso sigue siendo accesible. */
+  function infoDesplegables() {
+    document.addEventListener('click', function (ev) {
+      var dentro = ev.target.closest ? ev.target.closest('[data-sis-info]') : null;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-sis-info][open]'), function (d) {
+        if (d !== dentro) { d.open = false; }
+      });
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') { return; }
+      Array.prototype.forEach.call(document.querySelectorAll('[data-sis-info][open]'), function (d) {
+        d.open = false;
+        // El foco vuelve al icono que lo abrió: quien navega con teclado no
+        // debe quedarse en un punto muerto del documento.
+        var s = d.querySelector('summary');
+        if (s) { s.focus(); }
+      });
+    });
+  }
+
+  ready(infoDesplegables);
+
   window.SIScore = {
     cfg: CFG,
     rest: rest,

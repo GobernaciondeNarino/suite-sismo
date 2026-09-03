@@ -52,6 +52,69 @@
       });
   });
 
+  /* Pestañas de un formulario, conmutadas en el navegador.
+
+     No van por URL como las de la pantalla de elementos: aquí hay campos, y
+     recargar para cambiar de pestaña perdería lo escrito y obligaría a guardar
+     tres veces lo que es un solo ajuste.
+
+     El marcado sale del servidor con todos los paneles visibles y la barra de
+     pestañas oculta, así que sin JavaScript se ven los tres grupos seguidos y
+     la pantalla se guarda igual. Esto solo la enciende. */
+  function pestanas(caja) {
+    var barra = caja.querySelector('.sis-tabs');
+    var tabs = [].slice.call(caja.querySelectorAll('[role="tab"]'));
+    var paneles = [].slice.call(caja.querySelectorAll('[role="tabpanel"]'));
+    if (!barra || tabs.length < 2 || tabs.length !== paneles.length) { return; }
+
+    barra.hidden = false;
+
+    function mostrar(i, mover) {
+      tabs.forEach(function (t, j) {
+        var activa = i === j;
+        t.classList.toggle('nav-tab-active', activa);
+        t.setAttribute('aria-selected', activa ? 'true' : 'false');
+        // Solo la pestaña activa entra en el orden de tabulación: dentro de un
+        // grupo de pestañas se navega con las flechas, no con el tabulador.
+        t.tabIndex = activa ? 0 : -1;
+        paneles[j].hidden = !activa;
+      });
+      if (mover) { tabs[i].focus(); }
+    }
+
+    tabs.forEach(function (t, i) {
+      t.addEventListener('click', function () { mostrar(i, false); });
+      t.addEventListener('keydown', function (ev) {
+        var paso = ev.key === 'ArrowRight' ? 1 : (ev.key === 'ArrowLeft' ? -1 : 0);
+        if (ev.key === 'Home') { ev.preventDefault(); mostrar(0, true); return; }
+        if (ev.key === 'End') { ev.preventDefault(); mostrar(tabs.length - 1, true); return; }
+        if (!paso) { return; }
+        ev.preventDefault();
+        mostrar((i + paso + tabs.length) % tabs.length, true);
+      });
+    });
+
+    mostrar(0, false);
+
+    /* Si un campo inválido queda en una pestaña cerrada, el navegador no puede
+       enseñarlo y el formulario parece no responder al guardar. Se abre la
+       pestaña que lo contiene antes de que el navegador lo señale. */
+    caja.addEventListener('invalid', function (ev) {
+      var panel = ev.target.closest ? ev.target.closest('[role="tabpanel"]') : null;
+      var i = paneles.indexOf(panel);
+      if (i >= 0) { mostrar(i, false); }
+    }, true);
+  }
+
+  ready(function () {
+    [].slice.call(document.querySelectorAll('[data-sis-tabs]')).forEach(pestanas);
+  });
+
+  function ready(fn) {
+    if (document.readyState !== 'loading') { fn(); }
+    else { document.addEventListener('DOMContentLoaded', fn); }
+  }
+
   function estadoDe(btn) {
     var fila = btn.closest('td') || btn.closest('p') || btn.parentNode;
     return fila ? fila.querySelector('.sis-admin-estado') : null;

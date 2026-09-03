@@ -224,19 +224,70 @@
 
 .sis-nota { font-size: .86em; color: var(--sis-mute, #6b7280); }
 
-/* Aviso del umbral de detección de la fuente. Acompaña a cada lista de
-   epicentros, así que va discreto —no compite con el dato— pero con el enlace
-   al boletín del SGC bien visible: es a donde tiene que ir quien busca el
-   sismo de magnitud 3 que aquí no aparece. */
-.sis-nota--umbral {
-  margin: .6em 0 0;
-  padding-left: .7em;
-  border-left: 2px solid var(--sis-borde, #e5e7eb);
-  line-height: 1.5;
+/* Aviso desplegable detrás de un icono.
+
+   Acompaña a cada lista de epicentros. Como párrafo ocupaba tres líneas de
+   letra pequeña y competía con el dato; detrás del icono sigue estando, a un
+   clic y siempre en el mismo sitio, sin pesar en la lectura normal. */
+.sis-nota--umbral { position: relative; margin: .5em 0 0; }
+
+/* Pie del componente: el icono del aviso y la atribución en un renglón.
+   Apilados gastaban dos para decir una cosa pequeña. */
+.sis-pie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: .5em; }
+.sis-pie .sis-nota--umbral { margin: 0; flex: 0 0 auto; }
+.sis-pie .sis-fuentes { margin: 0; min-width: 0; }
+
+.sis-info__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  box-sizing: border-box; padding: 0;
+  border-radius: 50%;
+  color: var(--sis-mute, #6b7280);
+  cursor: pointer;
+  list-style: none;                 /* quita el triángulo del <summary> */
+  transition: background-color .15s, color .15s;
 }
-.sis-nota--umbral a { color: inherit; text-decoration: underline; }
-.sis-nota--umbral a:hover,
-.sis-nota--umbral a:focus { color: var(--sis-acento, #0b6e4f); }
+.sis-info__btn::-webkit-details-marker { display: none; }
+.sis-info__btn::marker { content: ''; }
+.sis-info__btn .dashicons { font-size: 20px; width: 20px; height: 20px; line-height: 1; display: block; }
+.sis-info__btn:hover { color: var(--sis-acento, #003087); background: rgba(0, 48, 135, .08); }
+.sis-info__btn:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
+[open] > .sis-info__btn { color: var(--sis-acento, #003087); background: rgba(0, 48, 135, .1); }
+
+/* El globo sale del icono, no de un modal: no interrumpe, no atrapa el foco y
+   se cierra con Escape o pulsando fuera. Ancho acotado en ch para que la línea
+   se lea sin barrer la pantalla. */
+.sis-info__globo {
+  position: absolute; z-index: 20;
+  left: 0; top: calc(100% + 6px);
+  width: max-content; max-width: min(42ch, calc(100vw - 32px));
+  padding: 12px 14px;
+  font-size: .88em; line-height: 1.55;
+  color: var(--sis-texto, #1f2937);
+  background: var(--sis-fondo, #fff);
+  border: 1px solid var(--sis-borde-color, #d8dbe0);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+}
+.sis-info__globo p { margin: 0 0 .5em; }
+.sis-info__globo p:last-child { margin-bottom: 0; }
+.sis-info__globo a { color: var(--sis-acento, #003087); }
+
+/* Sobre el globo terráqueo el aviso está al pie de una caja que recorta lo que
+   se sale, así que se abre hacia arriba y con la paleta oscura del componente. */
+.sis-globo .sis-pie { gap: 6px; padding: 8px 12px; margin: 0; background: #00080f; }
+.sis-globo .sis-pie .sis-fuentes { padding: 0; background: none; }
+.sis-globo .sis-nota--umbral { padding: 0; margin: 0; }
+.sis-globo .sis-info__btn { color: #9fb4cc; }
+.sis-globo .sis-info__btn:hover,
+.sis-globo [open] > .sis-info__btn { color: #eaf1f8; background: rgba(255, 255, 255, .12); }
+.sis-globo .sis-info__globo {
+  top: auto; bottom: calc(100% + 6px); left: 0;
+  color: #dbe6f2;
+  background: rgba(6, 14, 26, .97);
+  border-color: rgba(255, 255, 255, .2);
+}
+.sis-globo .sis-info__globo a { color: #9ec4f5; }
 
 /* Aviso institucional: siempre visible, nunca en letra pequeña. */
 .sis-aviso {
@@ -356,16 +407,6 @@
 .sis-globo__error { color: #ffd7d7; background: rgba(120, 20, 20, .35); padding: 14px; margin: 0; font-size: .9em; }
 .sis-globo__escena .sis-skeleton { position: absolute; top: 50%; left: 0; right: 0; text-align: center; color: #9fb4cc; }
 .sis-globo .sis-fuentes { padding: 8px 12px; margin: 0; color: #7f93a9; background: #00080f; }
-/* Sobre el fondo oscuro del globo el aviso hereda el color del cintillo. */
-.sis-globo .sis-nota--umbral {
-  padding: 10px 12px 0;
-  margin: 0;
-  color: #9fb4cc;
-  background: #00080f;
-  border-left: 0;
-}
-.sis-globo .sis-nota--umbral a:hover,
-.sis-globo .sis-nota--umbral a:focus { color: #eaf1f8; }
 
 /* --- [sismos_historico] --- */
 .sis-historico { margin: 10px 0; }
@@ -386,9 +427,17 @@
 .sis-tl__titulo { font-weight: 600; font-size: .95em; }
 .sis-tl__ficha { font-size: .86em; color: var(--sis-mute, #6b7280); }
 .sis-tl__fila { display: flex; align-items: center; gap: 10px; }
+/* La caja se declara entera —incluidos box-sizing, padding, min-width y
+   line-height— porque los temas traen sus propias reglas para «button», y una
+   sola que se cuele (un padding en em, un min-width) convierte el círculo en
+   un óvalo. */
 .sis-tl__btn {
   flex: 0 0 auto;
+  box-sizing: border-box;
   width: 38px; height: 38px;
+  min-width: 0; max-width: none;
+  padding: 0; margin: 0;
+  line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--sis-borde-color, #d8dbe0);
   border-radius: 50%;
@@ -401,15 +450,19 @@
 .sis-tl__btn:focus-visible { outline: 2px solid var(--sis-acento, #003087); outline-offset: 2px; }
 .sis-tl__btn:active { transform: scale(.94); }
 
-/* El icono hereda el color del botón y se escala con él: un solo sitio donde
-   cambiar el tamaño, y ningún color propio que se desincronice del tema. */
-.sis-ico { width: 18px; height: 18px; display: block; }
+/* El glifo hereda el color del botón. Dashicons dimensiona con font-size, y
+   las tres medidas —fuente, ancho y alto— tienen que ir juntas o el glifo se
+   sale de su caja. */
+.sis-tl__btn .dashicons {
+  font-size: 20px; width: 20px; height: 20px;
+  line-height: 1; display: block;
+}
 
 /* Reproducir es la acción principal de la barra, así que pesa más que los dos
    pasos que lo flanquean; y mientras suena se queda relleno, para que se vea
    de un vistazo que la secuencia está corriendo. */
 .sis-tl__btn--play { border-color: var(--sis-acento, #003087); }
-.sis-tl__btn--play .sis-ico { width: 20px; height: 20px; }
+.sis-tl__btn--play .dashicons { font-size: 22px; width: 22px; height: 22px; }
 .sis-tl__btn--play.is-playing {
   background: var(--sis-acento, #003087);
   border-color: var(--sis-acento, #003087);

@@ -1,5 +1,37 @@
 # Registro de cambios
 
+## 2.11.0 — 2026-09-03
+
+### Los iconos de la línea de tiempo pasan a Dashicons
+
+En el sitio real los tres botones salían como **óvalos vacíos**. Los SVG en línea de la versión anterior son vulnerables a lo que haga el tema con el selector `svg` —una regla como `.entry-content svg { width: 100% }`, que muchos temas traen, basta para dejar el icono invisible y el botón sin contenido que lo sostenga.
+
+Ahora usan **Dashicons**, la fuente de iconos que sirve el propio WordPress: los temas no la pisan, y es la que ya usaba la barra de herramientas de los gráficos, así que el plugin queda con un solo vocabulario de iconos. La caja del botón se declara entera —`box-sizing`, `padding`, `min-width`, `line-height`— porque cualquier regla del tema sobre `button` que se cuele convierte el círculo en un óvalo.
+
+### El aviso de la fuente se pliega tras un icono
+
+El texto sobre el umbral de detección del USGS ocupaba tres líneas de letra pequeña bajo cada componente y competía con el dato, que es lo que la gente vino a ver. Ahora es un icono ⓘ que abre un globo con el mismo contenido.
+
+- Es un `<details>`, no una ventana montada con JavaScript: se abre y se cierra con teclado sin que el plugin lo programe, y si el JS no llega —o lo bloquea una extensión— el aviso sigue siendo accesible. El JS solo añade cerrar con Escape y al pulsar fuera, y devolver el foco al icono.
+- **El pie va en un renglón:** el icono y la atribución de la fuente estaban apilados y gastaban dos líneas para decir algo pequeño.
+- Sobre el globo terráqueo se abre hacia arriba y con la paleta oscura del componente, porque ahí el pie está al borde de una caja que recorta lo que se sale. Comprobado que cabe en pantalla a 360 px.
+
+### La pantalla de Apariencia se reparte en pestañas
+
+Trece campos en una sola tabla obligaban a leerlos todos para encontrar uno. Ahora van en tres grupos, por lo que afectan:
+
+| Pestaña | Qué agrupa |
+|---|---|
+| **Gráficas** | Los acentos con los que se dibujan series, ejes y resaltados |
+| **Textos** | Tipografía, color de texto y texto secundario |
+| **Contenedores** | Fondo, borde, esquinas, sombra, ancho y espaciado de la caja |
+
+Cada campo dice además **con qué atributo se sobrescribe por shortcode** (`acento_2` se escribe `acento2="…"`), que es justo el dato por el que había que ir al README.
+
+Las pestañas se conmutan en el navegador y no por URL, como sí hacen las de Elementos: aquí hay un formulario, y recargar para cambiar de pestaña perdería lo escrito y obligaría a guardar tres veces lo que es un solo ajuste. **Los trece campos se envían siempre**, esté abierta su pestaña o no. Sin JavaScript la barra no aparece y se ven los tres grupos seguidos, cada uno con su título: la pantalla sigue siendo usable y se guarda igual. Navegación con flechas, `Home` y `End`, y si un campo inválido queda en una pestaña cerrada, se abre sola antes de que el navegador lo señale.
+
+Hay pruebas que comparan los grupos contra la lista canónica de variables de estilo: si un campo se queda sin pestaña, se repite en dos, o se anuncia un atributo de shortcode que no existe, fallan.
+
 ## 2.10.1 — 2026-08-27
 
 ### Iconos dibujados en la línea de tiempo

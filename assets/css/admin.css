@@ -108,3 +108,20 @@
 .sis-ayuda__cuerpo { margin-top: 10px; }
 .sis-ayuda__cuerpo p { margin: 0 0 10px; }
 .sis-ayuda__cuerpo table { margin: 10px 0; }
+
+/* Pestañas de un formulario (pantalla de Apariencia).
+
+   Sin JavaScript la barra viene oculta desde el servidor y los tres grupos se
+   ven seguidos, cada uno con su título: la pantalla sigue siendo usable. Con
+   JavaScript la barra aparece, los paneles se ocultan salvo el activo y el
+   título de cada panel sobra, porque ya lo dice la pestaña. */
+.sis-tabs .nav-tab {
+  background: none; border: 0; font: inherit;
+  cursor: pointer;
+}
+.sis-panel { margin-top: 4px; }
+.sis-panel__titulo { font-size: 1.1em; margin: 18px 0 4px; }
+.sis-panel__ayuda { max-width: 62em; margin: 0 0 4px; }
+.sis-tabs-js .sis-tabs:not([hidden]) ~ .sis-panel .sis-panel__titulo { display: none; }
+.sis-panel .form-table th { width: 200px; }
+.sis-panel .form-table .description code { font-size: 12px; }

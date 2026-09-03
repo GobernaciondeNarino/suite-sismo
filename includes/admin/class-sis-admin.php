@@ -479,49 +479,152 @@ final class SIS_Admin {
 	/* ----------------------------------------------------------------- */
 
 	/**
-	 * Variables de apariencia del front.
+	 * Grupos de la pantalla de apariencia.
+	 *
+	 * Trece campos en una sola tabla obligaban a leerlos todos para encontrar
+	 * uno. Repartidos por lo que afectan —lo que dibuja una gráfica, lo que se
+	 * lee, la caja que lo envuelve— se busca por lo que se quiere cambiar y no
+	 * por el nombre de la variable.
+	 *
+	 * @return array<string,array> {etiqueta, ayuda, campos}
+	 */
+	private static function grupos_apariencia() {
+		return array(
+			'graficas'     => array(
+				'etiqueta' => __( 'Gráficas', 'sismos-narino' ),
+				'ayuda'    => __( 'Los colores con los que se dibujan las series, los ejes y los resaltados. El acento principal es el que más se ve: barras, líneas y controles activos.', 'sismos-narino' ),
+				'campos'   => array(
+					'acento'         => __( 'Acento principal', 'sismos-narino' ),
+					'acento_2'       => __( 'Acento secundario', 'sismos-narino' ),
+					'acento_tecnico' => __( 'Acento técnico', 'sismos-narino' ),
+				),
+			),
+			'textos'       => array(
+				'etiqueta' => __( 'Textos', 'sismos-narino' ),
+				'ayuda'    => __( 'Tipografía y color de la letra. El texto secundario es el de las notas al pie, las unidades y las etiquetas de apoyo.', 'sismos-narino' ),
+				'campos'   => array(
+					'tipografia' => __( 'Tipografía', 'sismos-narino' ),
+					'texto'      => __( 'Color de texto', 'sismos-narino' ),
+					'mute'       => __( 'Texto secundario', 'sismos-narino' ),
+				),
+			),
+			'contenedores' => array(
+				'etiqueta' => __( 'Contenedores', 'sismos-narino' ),
+				'ayuda'    => __( 'La caja que envuelve a cada componente: fondo, borde, esquinas, sombra, ancho y aire interior. En blanco, el componente es transparente y sin borde, que es como mejor se funde con el tema del sitio.', 'sismos-narino' ),
+				'campos'   => array(
+					'fondo'       => __( 'Fondo', 'sismos-narino' ),
+					'borde'       => __( 'Grosor del borde', 'sismos-narino' ),
+					'borde_color' => __( 'Color del borde', 'sismos-narino' ),
+					'borde_radio' => __( 'Radio de esquina', 'sismos-narino' ),
+					'sombra'      => __( 'Sombra', 'sismos-narino' ),
+					'ancho_max'   => __( 'Ancho máximo', 'sismos-narino' ),
+					'espaciado'   => __( 'Espaciado interno', 'sismos-narino' ),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Atributo de shortcode que sobrescribe cada variable, cuando lo hay.
+	 *
+	 * Saber que «acento_2» se escribe acento2 en el shortcode es justo lo que
+	 * hace falta para no tener que ir al README, así que se dice al lado del
+	 * campo.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function atributo_de() {
+		return array(
+			'fondo'          => 'fondo',
+			'texto'          => 'texto',
+			'acento'         => 'acento',
+			'acento_2'       => 'acento2',
+			'acento_tecnico' => 'tecnico',
+			'borde'          => 'borde',
+			'borde_radio'    => 'radio',
+			'sombra'         => 'sombra',
+			'ancho_max'      => 'ancho',
+			'espaciado'      => 'espaciado',
+		);
+	}
+
+	/**
+	 * Variables de apariencia del front, repartidas en pestañas.
 	 */
 	public function pantalla_apariencia() {
 		if ( ! current_user_can( self::CAP ) ) {
 			return;
 		}
 
-		$e = SIS_Estilos::estilo();
+		$e      = SIS_Estilos::estilo();
+		$grupos = self::grupos_apariencia();
+		$attr   = self::atributo_de();
+
 		$this->cabecera( __( 'Apariencia', 'sismos-narino' ) );
 		?>
 		<p class="description" style="max-width:800px">
-			<?php esc_html_e( 'Por defecto los componentes son transparentes y sin bordes, para fundirse con el tema del sitio. Estos valores pueden sobrescribirse por shortcode con los atributos fondo, acento, borde, sombra, ancho, espaciado y radio.', 'sismos-narino' ); ?>
+			<?php esc_html_e( 'Por defecto los componentes son transparentes y sin bordes, para fundirse con el tema del sitio. Lo que se fije aquí vale para todo el plugin; cada shortcode puede sobrescribirlo con el atributo que se indica junto a cada campo.', 'sismos-narino' ); ?>
 		</p>
 
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<?php
+		/*
+		 * Las pestañas se conmutan en el navegador y no por URL, como sí hace
+		 * la pantalla de elementos. Aquí hay un formulario: cambiar de pestaña
+		 * recargando la página perdería lo que se llevara escrito, y obligaría
+		 * a guardar tres veces lo que es un solo ajuste.
+		 *
+		 * Sin JavaScript no hay pestañas y se ven los tres grupos seguidos, con
+		 * su título. La pantalla sigue siendo usable y se guarda igual.
+		 */
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="sis-tabs-js" data-sis-tabs>
 			<input type="hidden" name="action" value="sis_guardar_estilo">
 			<?php wp_nonce_field( 'sis_estilo' ); ?>
 
-			<table class="form-table" role="presentation">
-				<?php
-				$campos = array(
-					'fondo'          => __( 'Fondo', 'sismos-narino' ),
-					'texto'          => __( 'Color de texto', 'sismos-narino' ),
-					'tipografia'     => __( 'Tipografía', 'sismos-narino' ),
-					'acento'         => __( 'Acento principal', 'sismos-narino' ),
-					'acento_2'       => __( 'Acento secundario', 'sismos-narino' ),
-					'acento_tecnico' => __( 'Acento técnico', 'sismos-narino' ),
-					'mute'           => __( 'Texto secundario', 'sismos-narino' ),
-					'borde'          => __( 'Grosor del borde', 'sismos-narino' ),
-					'borde_color'    => __( 'Color del borde', 'sismos-narino' ),
-					'borde_radio'    => __( 'Radio de esquina', 'sismos-narino' ),
-					'sombra'         => __( 'Sombra', 'sismos-narino' ),
-					'ancho_max'      => __( 'Ancho máximo', 'sismos-narino' ),
-					'espaciado'      => __( 'Espaciado interno', 'sismos-narino' ),
-				);
-				foreach ( $campos as $clave => $etiqueta ) :
-					?>
-					<tr>
-						<th scope="row"><label for="e_<?php echo esc_attr( $clave ); ?>"><?php echo esc_html( $etiqueta ); ?></label></th>
-						<td><input type="text" class="regular-text code" id="e_<?php echo esc_attr( $clave ); ?>" name="e_<?php echo esc_attr( $clave ); ?>" value="<?php echo esc_attr( $e[ $clave ] ); ?>"></td>
-					</tr>
+			<nav class="nav-tab-wrapper sis-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Grupos de apariencia', 'sismos-narino' ); ?>" hidden>
+				<?php $primera = true; ?>
+				<?php foreach ( $grupos as $slug => $g ) : ?>
+					<button type="button" class="nav-tab<?php echo $primera ? ' nav-tab-active' : ''; ?>"
+						role="tab" id="sis-tab-<?php echo esc_attr( $slug ); ?>"
+						aria-controls="sis-panel-<?php echo esc_attr( $slug ); ?>"
+						aria-selected="<?php echo $primera ? 'true' : 'false'; ?>"><?php echo esc_html( $g['etiqueta'] ); ?></button>
+					<?php $primera = false; ?>
 				<?php endforeach; ?>
-			</table>
+			</nav>
+
+			<?php foreach ( $grupos as $slug => $g ) : ?>
+				<section class="sis-panel" id="sis-panel-<?php echo esc_attr( $slug ); ?>"
+					role="tabpanel" aria-labelledby="sis-tab-<?php echo esc_attr( $slug ); ?>">
+
+					<h2 class="sis-panel__titulo"><?php echo esc_html( $g['etiqueta'] ); ?></h2>
+					<p class="description sis-panel__ayuda"><?php echo esc_html( $g['ayuda'] ); ?></p>
+
+					<table class="form-table" role="presentation">
+						<?php foreach ( $g['campos'] as $clave => $etiqueta ) : ?>
+							<tr>
+								<th scope="row">
+									<label for="e_<?php echo esc_attr( $clave ); ?>"><?php echo esc_html( $etiqueta ); ?></label>
+								</th>
+								<td>
+									<input type="text" class="regular-text code"
+										id="e_<?php echo esc_attr( $clave ); ?>"
+										name="e_<?php echo esc_attr( $clave ); ?>"
+										value="<?php echo esc_attr( $e[ $clave ] ); ?>"
+										<?php if ( isset( $attr[ $clave ] ) ) : ?>
+											aria-describedby="e_<?php echo esc_attr( $clave ); ?>_attr"
+										<?php endif; ?>>
+									<?php if ( isset( $attr[ $clave ] ) ) : ?>
+										<p class="description" id="e_<?php echo esc_attr( $clave ); ?>_attr">
+											<?php esc_html_e( 'Por shortcode:', 'sismos-narino' ); ?>
+											<code><?php echo esc_html( $attr[ $clave ] ); ?>="…"</code>
+										</p>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</table>
+				</section>
+			<?php endforeach; ?>
 
 			<?php submit_button(); ?>
 		</form>

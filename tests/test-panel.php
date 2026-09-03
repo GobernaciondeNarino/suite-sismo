@@ -93,6 +93,7 @@ require SIS_DIR . 'includes/sync/class-sis-sync.php';
 require SIS_DIR . 'includes/admin/class-sis-admin.php';
 
 use GobernacionNarino\Sismos\SIS_Admin;
+use GobernacionNarino\Sismos\SIS_Activator;
 use GobernacionNarino\Sismos\SIS_Views;
 
 $fallos = 0;
@@ -235,6 +236,52 @@ chk( false !== strpos( $html['graficas'], 'unos pocos sismos al año' ), 'La pes
 $ids = wp_list_pluck( $vistas, 'id' );
 $huerfanas = array_diff( array_keys( $mapa_vistas ), $ids );
 chk( ! $huerfanas, 'El reparto de vistas no cita vistas inexistentes' . ( $huerfanas ? ': ' . implode( ', ', $huerfanas ) : '' ) );
+
+/* ------------------------------------------------------------------ */
+seccion( 'Apariencia repartida en pestañas' );
+
+/*
+ * Repartir trece campos en tres grupos tiene un riesgo evidente: que alguno se
+ * quede fuera. Un campo que no aparece en la pantalla no se puede editar, y el
+ * ajuste que guardaba queda congelado sin que nadie se entere. La prueba
+ * compara los grupos contra la lista canónica de variables de estilo.
+ */
+$rg = new ReflectionMethod( 'GobernacionNarino\\Sismos\\SIS_Admin', 'grupos_apariencia' );
+$rg->setAccessible( true );
+$grupos = $rg->invoke( null );
+
+$en_pestanas = array();
+foreach ( $grupos as $g ) {
+	$en_pestanas = array_merge( $en_pestanas, array_keys( $g['campos'] ) );
+}
+$canonicas = array_keys( SIS_Activator::estilo_por_defecto() );
+
+$faltan = array_diff( $canonicas, $en_pestanas );
+chk( ! $faltan, 'Ninguna variable de apariencia se queda sin pestaña' . ( $faltan ? ': ' . implode( ', ', $faltan ) : '' ) );
+
+$sobran = array_diff( $en_pestanas, $canonicas );
+chk( ! $sobran, 'Y ninguna pestaña ofrece un campo que no existe' . ( $sobran ? ': ' . implode( ', ', $sobran ) : '' ) );
+
+// Un campo en dos pestañas serían dos casillas para el mismo ajuste: la
+// segunda pisaría a la primera al guardar, según cuál mande el navegador.
+$repes = array_keys( array_filter( array_count_values( $en_pestanas ), function ( $n ) { return $n > 1; } ) );
+chk( ! $repes, 'Ni repite un campo en dos pestañas' . ( $repes ? ': ' . implode( ', ', $repes ) : '' ) );
+
+chk( 3 === count( $grupos ), sprintf( 'Los campos se reparten en %d grupos', count( $grupos ) ) );
+
+// El atributo que sobrescribe cada variable por shortcode tiene que existir de
+// verdad: decir «acento2="…"» de un atributo que el shortcode no acepta manda
+// a quien maqueta a escribir algo que no hace nada.
+$ra = new ReflectionMethod( 'GobernacionNarino\\Sismos\\SIS_Admin', 'atributo_de' );
+$ra->setAccessible( true );
+$attrs = $ra->invoke( null );
+
+$conocidos = array( 'fondo', 'texto', 'acento', 'acento2', 'tecnico', 'borde', 'sombra', 'ancho', 'espaciado', 'radio' );
+$inventados = array_diff( array_values( $attrs ), $conocidos );
+chk( ! $inventados, 'Los atributos que se anuncian existen en los shortcodes' . ( $inventados ? ': ' . implode( ', ', $inventados ) : '' ) );
+
+$sin_campo = array_diff( array_keys( $attrs ), $canonicas );
+chk( ! $sin_campo, 'Y cada uno corresponde a una variable real' . ( $sin_campo ? ': ' . implode( ', ', $sin_campo ) : '' ) );
 
 /* ------------------------------------------------------------------ */
 echo "\n";
